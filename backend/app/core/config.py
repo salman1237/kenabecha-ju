@@ -20,6 +20,12 @@ class Settings(BaseSettings):
 
     MEDIA_ROOT: str = "/app/media"
 
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "noreply@kenabecha.ju"
+
 
 @lru_cache
 def get_settings() -> Settings:

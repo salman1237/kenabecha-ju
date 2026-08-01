@@ -1,6 +1,11 @@
+"use client";
+
+import { useAuth } from "@/context/AuthContext";
 import { HealthStatus } from "./health-status";
 
 export default function Home() {
+  const { user, isLoading, logout } = useAuth();
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
       <h1 className="text-3xl font-semibold tracking-tight">KenaBecha JU</h1>
@@ -8,6 +13,40 @@ export default function Home() {
         Buy, sell, and run shops within the Jahangirnagar University community.
       </p>
       <HealthStatus />
+
+      {!isLoading && (
+        <div className="mt-4">
+          {user ? (
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Logged in as <span className="font-medium">{user.full_name}</span> ({user.department.name},
+                batch {user.batch})
+              </p>
+              <button
+                onClick={logout}
+                className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              >
+                Log out
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <a
+                href="/login"
+                className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900"
+              >
+                Log in
+              </a>
+              <a
+                href="/signup"
+                className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              >
+                Sign up
+              </a>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
