@@ -8,7 +8,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 1 — Project scaffolding.** Next.js 16 (App Router/TS/Tailwind) + FastAPI, `docker-compose.yml` (dev) and `docker-compose.prod.yml` (Dokploy target). Commit `b41be16`.
 - [x] **Phase 2 — Database models + initial migration.** All tables from the schema below, plus `pg_trgm` GIN indexes for search. Commit `88f414b`.
 - [x] **Phase 3 — Auth.** Commit `ad3431b`. Expanded beyond the original plan (see "Deviations" below): signup now collects real JU student-verification fields, and email verification is OTP-based rather than a simple link/flag.
-- [ ] **Phase 4 — Listings CRUD** (personal + shop-based). Next up.
+- [x] **Phase 4 — Listings CRUD** (personal + shop-based), plus the shops management it depends on. Commit `b2525b8`. Includes tag autocomplete/trending, image uploads, and browse/search/filter. Full profile page (personal listings + shop cards) and shop edit UI were **not** built this phase — see "Deviations" below.
 - [ ] **Phase 5 — Chat** (WebSocket, shop-context inbox).
 - [ ] **Phase 6 — Ratings** (per-shop / per-personal-seller).
 - [ ] **Phase 7 — Admin panel** (users/listings/shops mgmt, reports queue, stats).
@@ -22,6 +22,10 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - **`auth_tokens` gained an `attempts` column** for OTP brute-force protection (not in the original proposal, added when building the OTP flow).
 - **Email verification is OTP-based** (6-digit code, 10min expiry, attempt-limited) rather than the simpler token/flag the original schema implied — the `auth_tokens.purpose = email_verification` row now stores a hashed OTP instead of a hashed link token.
 - **Login is blocked until `is_verified`** (confirmed decision during the auth phase, not specified in the original plan).
+- **Shops CRUD was scoped into Phase 4** rather than treated as its own phase, since shop-based listings need an existing shop to attach to. Shop *creation/listing* is built (My Shops dashboard, storefront pages); shop *editing* is not — deleting and recreating is the current workaround. A dedicated shops-polish pass can add it later.
+- **Profile page** (personal listings + per-shop mini-storefront cards on a user's own profile) was **not** built in Phase 4, even though it's part of the original "Shops & Storefronts" feature — it depends on both listings and shops being stable, which they now are, so it's a natural next small addition.
+- **Tag filtering on browse uses ANY-match semantics** (a listing matches if it has at least one of the selected tags), not AND — not specified either way in the original plan.
+- **Image validation trusts the client-declared MIME type** (JPEG/PNG/WEBP, 5MB cap) rather than sniffing file bytes — acceptable for now since this isn't a security-sensitive boundary yet, but worth hardening before production.
 
 ---
 
@@ -121,7 +125,7 @@ backend/
   .env.example
 ```
 
-Built so far: `main.py`, `core/` (config, security, dependencies, logging — `exceptions.py` not yet needed), `db/`, `models/` (all domain tables + `reference.py` for halls/departments), `schemas/` (auth, user, reference), `routers/` (auth, reference), `services/` (auth_service, email_service, reference_service). Not yet built: `websocket/`, `tasks/`, `seed/`, `tests/` — these land with the chat/notifications/seed-data phases.
+Built so far: `main.py` (now also mounts `/media` static files), `core/` (config, security, dependencies, logging — `exceptions.py` not yet needed), `db/`, `models/` (all domain tables + `reference.py` for halls/departments), `schemas/` (auth, user, reference, shop, listing, tag, common), `routers/` (auth, reference, shops, listings, tags), `services/` (auth_service, email_service, reference_service, shop_service, listing_service, tag_service, media_service). Not yet built: `websocket/`, `tasks/`, `seed/`, `tests/` — these land with the chat/notifications/seed-data phases.
 
 ## 3. Frontend Folder Structure (`/frontend`)
 
@@ -149,7 +153,7 @@ frontend/
   .env.local.example
 ```
 
-Built so far: `app/(auth)/login,signup,verify-email`, `components/ui/FormField.tsx`, `lib/api/` (client, auth, reference), `lib/validation/auth.ts`, `context/AuthContext.tsx`, `types/api.ts`. Route protection landed as **`proxy.ts`** at the repo root, not `app/middleware.ts` — Next.js 16 renamed the middleware file convention to `proxy` (confirmed against the installed Next docs). Not yet built: `listings/`, `shops/`, `profile/`, `inbox/`, `admin/`, most of `components/` and `hooks/`, `lib/ws/`.
+Built so far: `app/(auth)/login,signup,verify-email`, `app/listings/` (browse, new, `[id]`, `[id]/edit`), `app/shops/` (`[slug]` storefront, `dashboard`), `components/ui/FormField.tsx`, `components/listings/` (ListingCard, ListingForm, TagInput), `lib/api/` (client, auth, reference, shops, listings, tags), `lib/validation/` (auth, shop, listing), `lib/utils.ts`, `context/AuthContext.tsx`, `types/api.ts`. Route protection landed as **`proxy.ts`** at the repo root, not `app/middleware.ts` — Next.js 16 renamed the middleware file convention to `proxy` (confirmed against the installed Next docs). Not yet built: `profile/`, `inbox/`, `admin/`, `hooks/`, `lib/ws/`, most of `components/shops/`.
 
 ## 4. Docker Compose / Dokploy
 
