@@ -19,3 +19,7 @@ frontend/out/
 # OS
 .DS_Store
 Thumbs.db
+
+# local tool config
+.claude/settings.local.json
+.claude/settings.json

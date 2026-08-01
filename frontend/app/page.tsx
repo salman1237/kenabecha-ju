@@ -14,6 +14,31 @@ export default function Home() {
       </p>
       <HealthStatus />
 
+      <div className="flex gap-3">
+        <a
+          href="/listings"
+          className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        >
+          Browse listings
+        </a>
+        {user && (
+          <>
+            <a
+              href="/listings/new"
+              className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            >
+              Sell something
+            </a>
+            <a
+              href="/shops/dashboard"
+              className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            >
+              My Shops
+            </a>
+          </>
+        )}
+      </div>
+
       {!isLoading && (
         <div className="mt-4">
           {user ? (

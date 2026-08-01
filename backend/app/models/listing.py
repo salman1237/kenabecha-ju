@@ -104,12 +104,17 @@ class Listing(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
         index=True,
     )
 
-    seller: Mapped["User"] = relationship()
-    shop: Mapped["Shop | None"] = relationship()
+    seller: Mapped["User"] = relationship(lazy="selectin")
+    shop: Mapped["Shop | None"] = relationship(lazy="selectin")
     images: Mapped[list["ListingImage"]] = relationship(
-        back_populates="listing", cascade="all, delete-orphan", order_by="ListingImage.sort_order"
+        back_populates="listing",
+        cascade="all, delete-orphan",
+        order_by="ListingImage.sort_order",
+        lazy="selectin",
     )
-    tags: Mapped[list["Tag"]] = relationship(secondary=listing_tags, back_populates="listings")
+    tags: Mapped[list["Tag"]] = relationship(
+        secondary=listing_tags, back_populates="listings", lazy="selectin"
+    )
 
 
 class ListingImage(UUIDPKMixin, CreatedAtMixin, Base):
