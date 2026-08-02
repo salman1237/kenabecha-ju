@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = "noreply@kenabecha.ju"
 
+    GOOGLE_CLIENT_ID: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

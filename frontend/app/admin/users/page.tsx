@@ -56,7 +56,7 @@ export default function AdminUsersPage() {
               <tr key={u.id} className="border-b border-zinc-100 dark:border-zinc-900">
                 <td className="py-2">{u.full_name}</td>
                 <td className="py-2 text-zinc-500">{u.email}</td>
-                <td className="py-2 text-zinc-500">{u.student_id}</td>
+                <td className="py-2 text-zinc-500">{u.student_id ?? "— (Google)"}</td>
                 <td className="py-2">{u.role}</td>
                 <td className="py-2">
                   <span className={u.is_active ? "text-green-600" : "text-red-600"}>

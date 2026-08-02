@@ -13,9 +13,32 @@ export interface SignupPayload {
   session: string;
 }
 
+export interface CompleteProfilePayload {
+  phone: string;
+  student_id: string;
+  registration_no: string;
+  hall_id: string;
+  department_id: string;
+  session: string;
+}
+
 export function signup(payload: SignupPayload) {
   return apiFetch<User>("/auth/signup", {
     method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function loginWithGoogle(credential: string) {
+  return apiFetch<User>("/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ credential }),
+  });
+}
+
+export function completeProfile(payload: CompleteProfilePayload) {
+  return apiFetch<User>("/auth/complete-profile", {
+    method: "PATCH",
     body: JSON.stringify(payload),
   });
 }

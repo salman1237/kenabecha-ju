@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
+import { CompleteProfilePrompt } from "@/components/auth/CompleteProfilePrompt";
 import { ListingForm } from "@/components/listings/ListingForm";
 import { useAuth } from "@/context/AuthContext";
 
@@ -15,12 +16,15 @@ function NewListingForm() {
   if (!user) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-12 text-center text-sm text-zinc-500">
-        <a href="/login" className="font-medium text-zinc-900 dark:text-zinc-100">
+        <a href="/login?next=/listings/new" className="font-medium text-zinc-900 dark:text-zinc-100">
           Log in
         </a>{" "}
         to create a listing.
       </div>
     );
+  }
+  if (!user.profile_complete) {
+    return <CompleteProfilePrompt next="/listings/new" action="list an item" />;
   }
 
   return (

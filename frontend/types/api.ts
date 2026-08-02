@@ -19,16 +19,18 @@ export interface User {
   email: string;
   full_name: string;
   avatar_url: string | null;
-  phone: string;
+  phone: string | null;
   bio: string | null;
-  student_id: string;
-  registration_no: string;
-  hall: Hall;
-  department: Department;
-  session: string;
-  batch: number;
+  student_id: string | null;
+  registration_no: string | null;
+  hall: Hall | null;
+  department: Department | null;
+  session: string | null;
+  batch: number | null;
   role: "user" | "admin";
+  auth_provider: "local" | "google";
   is_verified: boolean;
+  profile_complete: boolean;
   created_at: string;
 }
 
@@ -135,8 +137,8 @@ export interface UserProfile {
   full_name: string;
   avatar_url: string | null;
   bio: string | null;
-  department: Department;
-  batch: number;
+  department: Department | null;
+  batch: number | null;
   created_at: string;
   average_rating: number | null;
   rating_count: number;
@@ -178,7 +180,7 @@ export interface AdminUser {
   id: string;
   email: string;
   full_name: string;
-  student_id: string;
+  student_id: string | null;
   role: "user" | "admin";
   is_active: boolean;
   is_verified: boolean;

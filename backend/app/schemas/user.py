@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.user import UserRole
+from app.models.user import AuthProvider, UserRole
 from app.schemas.rating import RatingOut
 from app.schemas.reference import DepartmentOut, HallOut
 from app.schemas.shop import ShopOut
@@ -16,16 +16,18 @@ class UserPublic(BaseModel):
     email: str
     full_name: str
     avatar_url: str | None
-    phone: str
+    phone: str | None
     bio: str | None
-    student_id: str
-    registration_no: str
-    hall: HallOut
-    department: DepartmentOut
-    session: str
-    batch: int
+    student_id: str | None
+    registration_no: str | None
+    hall: HallOut | None
+    department: DepartmentOut | None
+    session: str | None
+    batch: int | None
     role: UserRole
+    auth_provider: AuthProvider
     is_verified: bool
+    profile_complete: bool
     created_at: datetime
 
 
@@ -39,8 +41,8 @@ class UserProfileOut(BaseModel):
     full_name: str
     avatar_url: str | None
     bio: str | None
-    department: DepartmentOut
-    batch: int
+    department: DepartmentOut | None
+    batch: int | None
     created_at: datetime
     average_rating: float | None = None
     rating_count: int = 0

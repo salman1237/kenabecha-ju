@@ -7,7 +7,9 @@ from app.core.security import create_access_token
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.auth import (
+    CompleteProfileRequest,
     ForgotPasswordRequest,
+    GoogleLoginRequest,
     LoginRequest,
     ResendOtpRequest,
     ResetPasswordRequest,
@@ -86,6 +88,28 @@ async def login(
     )
     _set_auth_cookies(response, access_token, refresh_token)
     return user
+
+
+@router.post("/google", response_model=UserPublic)
+async def google_login(
+    payload: GoogleLoginRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)
+) -> User:
+    user = await auth_service.google_login(db, payload.credential)
+    access_token = create_access_token(str(user.id))
+    refresh_token = await auth_service.issue_refresh_token(
+        db, user, request.headers.get("user-agent"), request.client.host if request.client else None
+    )
+    _set_auth_cookies(response, access_token, refresh_token)
+    return user
+
+
+@router.patch("/complete-profile", response_model=UserPublic)
+async def complete_profile(
+    payload: CompleteProfileRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    return await auth_service.complete_profile(db, user, payload)
 
 
 @router.post("/refresh", response_model=UserPublic)

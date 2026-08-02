@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { CompleteProfilePrompt } from "@/components/auth/CompleteProfilePrompt";
 import { FormField, inputClass } from "@/components/ui/FormField";
 import { useAuth } from "@/context/AuthContext";
 import { createShop, deleteShop, getMyShops } from "@/lib/api/shops";
@@ -62,12 +63,16 @@ export default function MyShopsPage() {
   if (!authLoading && !user) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-12 text-center text-sm text-zinc-500">
-        <a href="/login" className="font-medium text-zinc-900 dark:text-zinc-100">
+        <a href="/login?next=/shops/dashboard" className="font-medium text-zinc-900 dark:text-zinc-100">
           Log in
         </a>{" "}
         to manage your shops.
       </div>
     );
+  }
+
+  if (!authLoading && user && !user.profile_complete) {
+    return <CompleteProfilePrompt next="/shops/dashboard" action="open a shop" />;
   }
 
   return (

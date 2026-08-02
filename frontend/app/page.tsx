@@ -55,8 +55,8 @@ export default function Home() {
 
       {!isLoading && user && (
         <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
-          Logged in as <span className="font-medium">{user.full_name}</span> ({user.department.name}, batch{" "}
-          {user.batch})
+          Logged in as <span className="font-medium">{user.full_name}</span>
+          {user.department && ` (${user.department.name}, batch ${user.batch})`}
         </p>
       )}
     </div>

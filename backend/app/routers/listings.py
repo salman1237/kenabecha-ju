@@ -4,7 +4,7 @@ from decimal import Decimal
 from fastapi import APIRouter, Depends, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_seller
 from app.db.session import get_db
 from app.models.listing import Condition
 from app.models.user import User
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/listings", tags=["listings"])
 
 @router.post("", response_model=ListingOut, status_code=status.HTTP_201_CREATED)
 async def create_listing(
-    payload: ListingCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    payload: ListingCreate, user: User = Depends(get_seller), db: AsyncSession = Depends(get_db)
 ) -> ListingOut:
     listing = await listing_service.create_listing(db, user, payload)
     return ListingOut.model_validate(listing)

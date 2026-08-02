@@ -12,7 +12,7 @@ class AdminUserOut(BaseModel):
     id: uuid.UUID
     email: str
     full_name: str
-    student_id: str
+    student_id: str | None
     role: UserRole
     is_active: bool
     is_verified: bool

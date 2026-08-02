@@ -37,20 +37,21 @@ class User(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
     hashed_password: Mapped[str | None] = mapped_column(String(255))
     full_name: Mapped[str] = mapped_column(String(150), nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(Text)
-    phone: Mapped[str] = mapped_column(String(30), nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(30))
     bio: Mapped[str | None] = mapped_column(Text)
 
-    # JU student identity — collected at signup, verified via email OTP.
-    student_id: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
-    registration_no: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
-    hall_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("halls.id", ondelete="RESTRICT"), nullable=False, index=True
+    # JU student identity — required to sell (create a shop/listing), optional at
+    # signup for Google-lite buyers. See User.profile_complete.
+    student_id: Mapped[str | None] = mapped_column(String(30), unique=True)
+    registration_no: Mapped[str | None] = mapped_column(String(30), unique=True)
+    hall_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("halls.id", ondelete="RESTRICT"), index=True
     )
-    department_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("departments.id", ondelete="RESTRICT"), nullable=False, index=True
+    department_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("departments.id", ondelete="RESTRICT"), index=True
     )
-    session: Mapped[str] = mapped_column(String(7), nullable=False)
-    batch: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    session: Mapped[str | None] = mapped_column(String(7))
+    batch: Mapped[int | None] = mapped_column(SmallInteger)
 
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role"), default=UserRole.user, nullable=False
@@ -61,5 +62,21 @@ class User(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
     google_id: Mapped[str | None] = mapped_column(String(255))
     is_verified: Mapped[bool] = mapped_column(default=False, nullable=False)
 
-    hall: Mapped["Hall"] = relationship(lazy="selectin")
-    department: Mapped["Department"] = relationship(lazy="selectin")
+    hall: Mapped["Hall | None"] = relationship(lazy="selectin")
+    department: Mapped["Department | None"] = relationship(lazy="selectin")
+
+    @property
+    def profile_complete(self) -> bool:
+        """Whether the full JU-verification fields are filled in — required before
+        creating a shop or listing. Google-lite buyers start out False."""
+        return all(
+            [
+                self.phone,
+                self.student_id,
+                self.registration_no,
+                self.hall_id,
+                self.department_id,
+                self.session,
+                self.batch,
+            ]
+        )

@@ -1,7 +1,10 @@
+import asyncio
 import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import BackgroundTasks, HTTPException, status
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,8 +19,8 @@ from app.core.security import (
 )
 from app.models.reference import Department, Hall
 from app.models.token import AuthToken, AuthTokenPurpose, RefreshToken
-from app.models.user import User
-from app.schemas.auth import LoginRequest, SignupRequest
+from app.models.user import AuthProvider, User
+from app.schemas.auth import CompleteProfileRequest, LoginRequest, SignupRequest
 from app.services.email_service import send_email, send_otp_email
 from app.services.reference_service import compute_batch
 
@@ -164,6 +167,87 @@ async def verify_email(
             f"{settings.FRONTEND_URL}"
         ),
     )
+    return user
+
+
+async def google_login(db: AsyncSession, credential: str) -> User:
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Google sign-in is not configured")
+
+    try:
+        idinfo = await asyncio.to_thread(
+            google_id_token.verify_oauth2_token,
+            credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except ValueError:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid Google credential") from None
+
+    if not idinfo.get("email_verified"):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Google account email is not verified")
+
+    google_id = idinfo["sub"]
+    email = idinfo["email"]
+
+    result = await db.execute(select(User).where(User.google_id == google_id))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        user = await _get_user_by_email(db, email)
+        if user is not None:
+            # Existing local/JU account signing in with Google for the first time — link it
+            # rather than creating a duplicate account for the same email.
+            user.google_id = google_id
+        else:
+            user = User(
+                email=email,
+                full_name=idinfo.get("name") or email.split("@")[0],
+                avatar_url=idinfo.get("picture"),
+                auth_provider=AuthProvider.google,
+                google_id=google_id,
+                is_verified=True,
+            )
+            db.add(user)
+
+    if not user.is_active:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "This account has been deactivated")
+
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def complete_profile(db: AsyncSession, user: User, payload: CompleteProfileRequest) -> User:
+    existing_student_id = await db.execute(
+        select(User).where(User.student_id == payload.student_id, User.id != user.id)
+    )
+    if existing_student_id.scalar_one_or_none() is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "An account with this student ID already exists")
+
+    existing_reg_no = await db.execute(
+        select(User).where(User.registration_no == payload.registration_no, User.id != user.id)
+    )
+    if existing_reg_no.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "An account with this registration number already exists"
+        )
+
+    if await db.get(Hall, payload.hall_id) is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid hall")
+    if await db.get(Department, payload.department_id) is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid department")
+
+    user.phone = payload.phone
+    user.student_id = payload.student_id
+    user.registration_no = payload.registration_no
+    user.hall_id = payload.hall_id
+    user.department_id = payload.department_id
+    user.session = payload.session
+    user.batch = compute_batch(payload.session)
+
+    await db.commit()
+    await db.refresh(user)
     return user
 
 

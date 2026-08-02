@@ -33,9 +33,11 @@ export default function ProfilePage() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-12">
       <div className="flex flex-col gap-2 border-b border-zinc-200 pb-6 dark:border-zinc-800">
         <h1 className="text-2xl font-semibold tracking-tight">{profile.full_name}</h1>
-        <p className="text-sm text-zinc-500">
-          {profile.department.name} · Batch {profile.batch}
-        </p>
+        {profile.department && (
+          <p className="text-sm text-zinc-500">
+            {profile.department.name} · Batch {profile.batch}
+          </p>
+        )}
         {profile.bio && <p className="text-sm text-zinc-700 dark:text-zinc-300">{profile.bio}</p>}
         <StarRating value={profile.average_rating} count={profile.rating_count} size="md" />
         <p className="text-xs text-zinc-400">

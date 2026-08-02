@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_seller
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.shop import ShopCreate, ShopOut, ShopUpdate
@@ -26,7 +26,7 @@ def _to_out(
 
 @router.post("", response_model=ShopOut, status_code=status.HTTP_201_CREATED)
 async def create_shop(
-    payload: ShopCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    payload: ShopCreate, user: User = Depends(get_seller), db: AsyncSession = Depends(get_db)
 ) -> ShopOut:
     shop = await shop_service.create_shop(db, user, payload)
     return _to_out(shop)

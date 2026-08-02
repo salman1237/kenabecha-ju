@@ -31,6 +31,17 @@ async def get_current_user(
     return user
 
 
+async def get_seller(user: User = Depends(get_current_user)) -> User:
+    """Gate for actions that require the full JU-verification profile — opening a
+    shop or listing an item. Google-lite buyers hit this until they complete it."""
+    if not user.profile_complete:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Complete your JU profile before opening a shop or listing an item",
+        )
+    return user
+
+
 async def get_current_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != UserRole.admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
