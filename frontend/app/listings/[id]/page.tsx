@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { RatingForm } from "@/components/ratings/RatingForm";
 import { useAuth } from "@/context/AuthContext";
 import { contactSeller } from "@/lib/api/chat";
 import {
@@ -14,8 +15,9 @@ import {
   uploadListingImage,
 } from "@/lib/api/listings";
 import { ApiError } from "@/lib/api/client";
+import { getRatingEligibility } from "@/lib/api/ratings";
 import { CONDITION_LABELS, formatPrice, mediaUrl } from "@/lib/utils";
-import type { Listing } from "@/types/api";
+import type { Listing, Rating, RatingEligibility } from "@/types/api";
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Active",
@@ -36,6 +38,8 @@ export default function ListingDetailPage() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [error, setError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [eligibility, setEligibility] = useState<RatingEligibility | null>(null);
+  const [submittedRating, setSubmittedRating] = useState<Rating | null>(null);
 
   const mutate = () => {
     getListing(params.id)
@@ -50,6 +54,13 @@ export default function ListingDetailPage() {
       .catch(() => setError(true))
       .finally(() => setIsLoading(false));
   }, [params.id]);
+
+  useEffect(() => {
+    if (!user) return;
+    getRatingEligibility(params.id)
+      .then(setEligibility)
+      .catch(() => {});
+  }, [params.id, user]);
 
   if (isLoading) return null;
   if (error || !listing) {
@@ -208,7 +219,9 @@ export default function ListingDetailPage() {
             {listing.shop.shop_name}
           </Link>
         ) : (
-          <span className="font-medium">{listing.seller.full_name}</span>
+          <Link href={`/profile/${listing.seller.id}`} className="font-medium hover:underline">
+            {listing.seller.full_name}
+          </Link>
         )}
         {isOwner ? (
           <button
@@ -235,6 +248,13 @@ export default function ListingDetailPage() {
         )}
       </div>
       {actionError && !isOwner && <p className="text-sm text-red-600">{actionError}</p>}
+
+      {!isOwner && submittedRating && (
+        <p className="text-sm text-green-600">Thanks for rating this transaction!</p>
+      )}
+      {!isOwner && !submittedRating && eligibility?.can_rate && (
+        <RatingForm listingId={listing.id} onSuccess={setSubmittedRating} />
+      )}
 
       {isOwner && (
         <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">

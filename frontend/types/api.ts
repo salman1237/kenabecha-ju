@@ -43,6 +43,8 @@ export interface Shop {
   cover_url: string | null;
   created_at: string;
   listing_count: number;
+  average_rating: number | null;
+  rating_count: number;
 }
 
 export interface Tag {
@@ -111,4 +113,32 @@ export interface Message {
   content: string;
   created_at: string;
   read_at: string | null;
+}
+
+export interface Rating {
+  id: string;
+  listing_id: string;
+  stars: number;
+  review_text: string | null;
+  created_at: string;
+  rater: ChatUser;
+}
+
+export interface RatingEligibility {
+  can_rate: boolean;
+  reason: string | null;
+}
+
+export interface UserProfile {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+  bio: string | null;
+  department: Department;
+  batch: number;
+  created_at: string;
+  average_rating: number | null;
+  rating_count: number;
+  recent_ratings: Rating[];
+  shops: Shop[];
 }

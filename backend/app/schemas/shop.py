@@ -31,3 +31,5 @@ class ShopOut(BaseModel):
     cover_url: str | None
     created_at: datetime
     listing_count: int = 0
+    average_rating: float | None = None
+    rating_count: int = 0

@@ -7,14 +7,20 @@ from app.core.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.shop import ShopCreate, ShopOut, ShopUpdate
-from app.services import shop_service
+from app.services import rating_service, shop_service
 
 router = APIRouter(prefix="/shops", tags=["shops"])
 
 
-def _to_out(shop, listing_count: int = 0) -> ShopOut:
+def _to_out(
+    shop, listing_count: int = 0, average_rating: float | None = None, rating_count: int = 0
+) -> ShopOut:
     return ShopOut.model_validate(shop, from_attributes=True).model_copy(
-        update={"listing_count": listing_count}
+        update={
+            "listing_count": listing_count,
+            "average_rating": average_rating,
+            "rating_count": rating_count,
+        }
     )
 
 
@@ -31,13 +37,18 @@ async def list_my_shops(
     user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ) -> list[ShopOut]:
     shops = await shop_service.list_my_shops(db, user.id)
-    return [_to_out(shop, count) for shop, count in shops]
+    result = []
+    for shop, count in shops:
+        avg, rcount = await rating_service.get_shop_rating_summary(db, shop.id)
+        result.append(_to_out(shop, count, avg, rcount))
+    return result
 
 
 @router.get("/{slug}", response_model=ShopOut)
 async def get_shop(slug: str, db: AsyncSession = Depends(get_db)) -> ShopOut:
     shop, count = await shop_service.get_shop_by_slug(db, slug)
-    return _to_out(shop, count)
+    avg, rcount = await rating_service.get_shop_rating_summary(db, shop.id)
+    return _to_out(shop, count, avg, rcount)
 
 
 @router.patch("/{shop_id}", response_model=ShopOut)

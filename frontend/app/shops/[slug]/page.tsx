@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { ListingCard } from "@/components/listings/ListingCard";
+import { StarRating } from "@/components/ratings/StarRating";
 import { browseListings } from "@/lib/api/listings";
 import { getShopBySlug } from "@/lib/api/shops";
 import type { Listing, Shop } from "@/types/api";
@@ -32,6 +33,7 @@ export default function ShopStorefrontPage() {
       <div className="flex flex-col gap-1 border-b border-zinc-200 pb-6 dark:border-zinc-800">
         <h1 className="text-2xl font-semibold tracking-tight">{shop.shop_name}</h1>
         {shop.shop_type && <p className="text-sm text-zinc-500">{shop.shop_type}</p>}
+        <StarRating value={shop.average_rating} count={shop.rating_count} size="md" />
         {shop.description && <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">{shop.description}</p>}
       </div>
 

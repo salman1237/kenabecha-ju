@@ -50,6 +50,6 @@ class Rating(UUIDPKMixin, CreatedAtMixin, Base):
     review_text: Mapped[str | None] = mapped_column(Text)
 
     listing: Mapped["Listing"] = relationship()
-    rater: Mapped["User"] = relationship(foreign_keys=[rater_id])
+    rater: Mapped["User"] = relationship(foreign_keys=[rater_id], lazy="selectin")
     target_shop: Mapped["Shop | None"] = relationship()
     target_user: Mapped["User | None"] = relationship(foreign_keys=[target_user_id])
