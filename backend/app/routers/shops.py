@@ -32,6 +32,16 @@ async def create_shop(
     return _to_out(shop)
 
 
+@router.get("", response_model=list[ShopOut])
+async def list_shops(limit: int = 6, db: AsyncSession = Depends(get_db)) -> list[ShopOut]:
+    shops = await shop_service.list_shops(db, limit)
+    result = []
+    for shop, count in shops:
+        avg, rcount = await rating_service.get_shop_rating_summary(db, shop.id)
+        result.append(_to_out(shop, count, avg, rcount))
+    return result
+
+
 @router.get("/mine", response_model=list[ShopOut])
 async def list_my_shops(
     user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
 import { inputClass } from "@/components/ui/FormField";
 import { ListingCard } from "@/components/listings/ListingCard";
@@ -11,10 +12,13 @@ import type { Listing, Tag } from "@/types/api";
 
 const PAGE_SIZE = 24;
 
-export default function BrowseListingsPage() {
-  const [q, setQ] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+function BrowseListingsContent() {
+  const searchParams = useSearchParams();
+  const [q, setQ] = useState(() => searchParams.get("q") ?? "");
+  const [debouncedQ, setDebouncedQ] = useState(() => searchParams.get("q") ?? "");
+  const [selectedTags, setSelectedTags] = useState<string[]>(() =>
+    searchParams.getAll("tags").map((t) => t.toLowerCase())
+  );
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [condition, setCondition] = useState("");
@@ -170,5 +174,13 @@ export default function BrowseListingsPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function BrowseListingsPage() {
+  return (
+    <Suspense>
+      <BrowseListingsContent />
+    </Suspense>
   );
 }

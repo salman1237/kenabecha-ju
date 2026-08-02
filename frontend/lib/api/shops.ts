@@ -15,6 +15,10 @@ export function getMyShops() {
   return apiFetch<Shop[]>("/shops/mine");
 }
 
+export function getShops(limit: number = 6) {
+  return apiFetch<Shop[]>(`/shops?limit=${limit}`);
+}
+
 export function getShopBySlug(slug: string) {
   return apiFetch<Shop>(`/shops/${slug}`);
 }
