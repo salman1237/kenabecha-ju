@@ -6,6 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function mediaUrl(path: string) {
+  if (/^https?:\/\//.test(path)) return path;
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
   return `${apiUrl}${path}`;
 }

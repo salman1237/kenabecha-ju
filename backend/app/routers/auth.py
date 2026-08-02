@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -14,11 +14,12 @@ from app.schemas.auth import (
     ResendOtpRequest,
     ResetPasswordRequest,
     SignupRequest,
+    UpdateProfileRequest,
     UpdateWhatsAppRequest,
     VerifyOtpRequest,
 )
 from app.schemas.user import UserPublic
-from app.services import auth_service
+from app.services import auth_service, media_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 settings = get_settings()
@@ -149,6 +150,25 @@ async def update_whatsapp(
     db: AsyncSession = Depends(get_db),
 ) -> User:
     return await auth_service.update_whatsapp_number(db, user, payload.whatsapp_number)
+
+
+@router.patch("/profile", response_model=UserPublic)
+async def update_profile(
+    payload: UpdateProfileRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    return await auth_service.update_profile(db, user, payload.full_name, payload.bio)
+
+
+@router.post("/avatar", response_model=UserPublic)
+async def update_avatar(
+    file: UploadFile,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    avatar_url = await media_service.save_image(file, "avatars")
+    return await auth_service.update_avatar(db, user, avatar_url)
 
 
 @router.post("/forgot-password", status_code=status.HTTP_204_NO_CONTENT)

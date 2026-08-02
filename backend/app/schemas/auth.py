@@ -41,6 +41,11 @@ class UpdateWhatsAppRequest(BaseModel):
     whatsapp_number: str | None = Field(default=None, pattern=PHONE_PATTERN)
 
 
+class UpdateProfileRequest(BaseModel):
+    full_name: str = Field(min_length=2, max_length=150)
+    bio: str | None = Field(default=None, max_length=1000)
+
+
 class VerifyOtpRequest(BaseModel):
     email: EmailStr
     otp: str = Field(pattern=r"^\d{6}$")

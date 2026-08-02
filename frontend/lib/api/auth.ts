@@ -50,6 +50,19 @@ export function updateWhatsAppNumber(whatsappNumber: string | null) {
   });
 }
 
+export function updateProfile(payload: { full_name: string; bio: string | null }) {
+  return apiFetch<User>("/auth/profile", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function uploadAvatar(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<User>("/auth/avatar", { method: "POST", body: formData });
+}
+
 export function verifyEmail(email: string, otp: string) {
   return apiFetch<User>("/auth/verify-email", {
     method: "POST",
