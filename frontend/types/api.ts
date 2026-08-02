@@ -83,3 +83,32 @@ export interface Page<T> {
   limit: number;
   offset: number;
 }
+
+export interface ChatUser {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+}
+
+export interface Conversation {
+  id: string;
+  listing_id: string;
+  listing_title: string;
+  shop: { id: string; shop_name: string; slug: string; logo_url: string | null } | null;
+  counterparty: ChatUser;
+  is_seller: boolean;
+  last_message_preview: string | null;
+  last_message_at: string | null;
+  unread_count: number;
+  created_at: string;
+}
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  created_at: string;
+  read_at: string | null;
+}

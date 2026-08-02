@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
 from app.core.logging import setup_logging
-from app.routers import auth, listings, reference, shops, tags
+from app.routers import auth, chat, listings, reference, shops, tags, ws
 
 setup_logging()
 settings = get_settings()
@@ -34,6 +34,8 @@ app.include_router(reference.router)
 app.include_router(shops.router)
 app.include_router(tags.router)
 app.include_router(listings.router)
+app.include_router(chat.router)
+app.include_router(ws.router)
 
 
 @app.get("/health", tags=["meta"])

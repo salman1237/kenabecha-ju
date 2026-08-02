@@ -36,10 +36,10 @@ class Conversation(UUIDPKMixin, TimestampMixin, Base):
     )
     last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    listing: Mapped["Listing"] = relationship()
-    buyer: Mapped["User"] = relationship(foreign_keys=[buyer_id])
-    seller: Mapped["User"] = relationship(foreign_keys=[seller_id])
-    shop: Mapped["Shop | None"] = relationship()
+    listing: Mapped["Listing"] = relationship(lazy="selectin")
+    buyer: Mapped["User"] = relationship(foreign_keys=[buyer_id], lazy="selectin")
+    seller: Mapped["User"] = relationship(foreign_keys=[seller_id], lazy="selectin")
+    shop: Mapped["Shop | None"] = relationship(lazy="selectin")
     messages: Mapped[list["Message"]] = relationship(
         back_populates="conversation", cascade="all, delete-orphan", order_by="Message.created_at"
     )

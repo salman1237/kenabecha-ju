@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 
 import { logout as apiLogout, me } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
+import { wsClient } from "@/lib/ws/client";
 import type { User } from "@/types/api";
 
 interface AuthContextValue {
@@ -35,6 +36,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (user) {
+      wsClient.connect();
+    } else {
+      wsClient.disconnect();
+    }
+  }, [user]);
 
   const logout = useCallback(async () => {
     await apiLogout();

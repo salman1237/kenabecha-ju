@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/context/AuthContext";
+import { contactSeller } from "@/lib/api/chat";
 import {
   deleteListing,
   deleteListingImage,
@@ -89,6 +90,16 @@ export default function ListingDetailPage() {
     await deleteListingImage(listing.id, imageId);
     setActiveImage(0);
     mutate();
+  };
+
+  const onContactSeller = async () => {
+    setActionError(null);
+    try {
+      const conversation = await contactSeller(listing.id);
+      router.push(`/inbox/${conversation.id}`);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Could not start conversation.");
+    }
   };
 
   return (
@@ -199,14 +210,31 @@ export default function ListingDetailPage() {
         ) : (
           <span className="font-medium">{listing.seller.full_name}</span>
         )}
-        <button
-          disabled
-          title="Chat is coming soon"
-          className="cursor-not-allowed rounded-md bg-zinc-300 px-4 py-2 text-sm font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
-        >
-          Contact Seller
-        </button>
+        {isOwner ? (
+          <button
+            disabled
+            title="This is your own listing"
+            className="cursor-not-allowed rounded-md bg-zinc-300 px-4 py-2 text-sm font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
+          >
+            Contact Seller
+          </button>
+        ) : user ? (
+          <button
+            onClick={onContactSeller}
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900"
+          >
+            Contact Seller
+          </button>
+        ) : (
+          <a
+            href="/login"
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900"
+          >
+            Log in to contact seller
+          </a>
+        )}
       </div>
+      {actionError && !isOwner && <p className="text-sm text-red-600">{actionError}</p>}
 
       {isOwner && (
         <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">

@@ -35,6 +35,12 @@ export default function Home() {
             >
               My Shops
             </a>
+            <a
+              href="/inbox"
+              className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            >
+              Inbox
+            </a>
           </>
         )}
       </div>

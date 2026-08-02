@@ -35,3 +35,20 @@ async def get_current_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != UserRole.admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return user
+
+
+async def get_current_user_ws(
+    access_token: str | None,
+    db: AsyncSession,
+) -> User | None:
+    """Same as get_current_user but returns None instead of raising, since WebSocket
+    endpoints close the connection with a code rather than returning an HTTP error."""
+    if access_token is None:
+        return None
+    user_id = decode_access_token(access_token)
+    if user_id is None:
+        return None
+    user = await db.get(User, uuid.UUID(user_id))
+    if user is None or not user.is_active:
+        return None
+    return user
