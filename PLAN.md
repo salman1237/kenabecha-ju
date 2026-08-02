@@ -10,7 +10,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 3 — Auth.** Commit `ad3431b`. Expanded beyond the original plan (see "Deviations" below): signup now collects real JU student-verification fields, and email verification is OTP-based rather than a simple link/flag.
 - [x] **Phase 4 — Listings CRUD** (personal + shop-based), plus the shops management it depends on. Commit `b2525b8`. Includes tag autocomplete/trending, image uploads, and browse/search/filter. Full profile page (personal listings + shop cards) and shop edit UI were **not** built this phase — see "Deviations" below.
 - [x] **Phase 5 — Chat.** Commit `f0e9988`. WebSocket-pushed live delivery with REST-persisted history, per-listing conversations, owner inbox with shop filter tabs and unread badges. Email notification for offline messages is **not** included — that's Phase 8 (Notifications) territory per the original plan.
-- [ ] **Phase 6 — Ratings** (per-shop / per-personal-seller).
+- [x] **Phase 6 — Ratings.** Commit `867f543`. Eligibility gated on sold/out_of_stock + an existing buyer conversation + not-already-rated; targets the shop or the seller depending on listing type. Also builds the public profile page deferred from Phase 4, since personal ratings need somewhere to render — see "Deviations" below.
 - [ ] **Phase 7 — Admin panel** (users/listings/shops mgmt, reports queue, stats).
 - [ ] **Phase 8 — Notifications** (email + in-app).
 - [ ] **Phase 9 — Google OAuth** (deferred; `auth_provider`/`google_id` columns already exist on `users`).
@@ -26,6 +26,9 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - **Profile page** (personal listings + per-shop mini-storefront cards on a user's own profile) was **not** built in Phase 4, even though it's part of the original "Shops & Storefronts" feature — it depends on both listings and shops being stable, which they now are, so it's a natural next small addition.
 - **Tag filtering on browse uses ANY-match semantics** (a listing matches if it has at least one of the selected tags), not AND — not specified either way in the original plan.
 - **Image validation trusts the client-declared MIME type** (JPEG/PNG/WEBP, 5MB cap) rather than sniffing file bytes — acceptable for now since this isn't a security-sensitive boundary yet, but worth hardening before production.
+- **Public profile page built as part of Phase 6** (see above) rather than Phase 4 — resolved the deferred item and the "ratings need a home" dependency together. It's read-only: name, department, batch, bio, average rating, personal listings, shop cards, recent reviews. Profile *editing* (avatar/bio/phone) still isn't built — no phase has needed it yet.
+- **Rating eligibility requires an existing conversation** as the proof-of-transaction signal ("they were the one who messaged about it" from the spec), not a payment or explicit "confirm receipt" step, since there's no payment integration by design. A buyer who never messaged before the seller marked it sold can't rate — arguably strict, but matches the spec's literal wording.
+- **Average ratings are computed on read** (`AVG`/`COUNT` query) rather than denormalized onto `shops`/`users` — simplest correct approach at this scale; would need revisiting if rating volume ever made per-request aggregation a bottleneck.
 
 ---
 
@@ -125,7 +128,7 @@ backend/
   .env.example
 ```
 
-Built so far: `main.py` (now also mounts `/media` static files), `core/` (config, security, dependencies incl. WS auth, logging — `exceptions.py` not yet needed), `db/`, `models/` (all domain tables + `reference.py` for halls/departments), `schemas/` (auth, user, reference, shop, listing, tag, common, chat), `routers/` (auth, reference, shops, listings, tags, chat, ws), `services/` (auth_service, email_service, reference_service, shop_service, listing_service, tag_service, media_service, chat_service), `websocket/manager.py` (per-user connection registry). Not yet built: `tasks/`, `seed/`, `tests/` — these land with the notifications/seed-data phases.
+Built so far: `main.py` (now also mounts `/media` static files), `core/` (config, security, dependencies incl. WS auth, logging — `exceptions.py` not yet needed), `db/`, `models/` (all domain tables + `reference.py` for halls/departments), `schemas/` (auth, user, reference, shop, listing, tag, common, chat, rating), `routers/` (auth, reference, shops, listings, tags, chat, ws, ratings, users), `services/` (auth_service, email_service, reference_service, shop_service, listing_service, tag_service, media_service, chat_service, rating_service), `websocket/manager.py` (per-user connection registry). Not yet built: `tasks/`, `seed/`, `tests/` — these land with the notifications/seed-data phases.
 
 ## 3. Frontend Folder Structure (`/frontend`)
 
@@ -153,7 +156,7 @@ frontend/
   .env.local.example
 ```
 
-Built so far: `app/(auth)/login,signup,verify-email`, `app/listings/` (browse, new, `[id]`, `[id]/edit`), `app/shops/` (`[slug]` storefront, `dashboard`), `app/inbox/` (list, `[conversationId]` chat window), `components/ui/FormField.tsx`, `components/listings/` (ListingCard, ListingForm, TagInput), `lib/api/` (client, auth, reference, shops, listings, tags, chat), `lib/ws/client.ts` (reconnecting WS singleton), `lib/validation/` (auth, shop, listing), `lib/utils.ts`, `context/AuthContext.tsx` (now also owns the WS connection lifecycle), `types/api.ts`. Route protection landed as **`proxy.ts`** at the repo root, not `app/middleware.ts` — Next.js 16 renamed the middleware file convention to `proxy` (confirmed against the installed Next docs). Not yet built: `profile/`, `admin/`, `hooks/`, most of `components/shops/`.
+Built so far: `app/(auth)/login,signup,verify-email`, `app/listings/` (browse, new, `[id]`, `[id]/edit`), `app/shops/` (`[slug]` storefront, `dashboard`), `app/inbox/` (list, `[conversationId]` chat window), `app/profile/[id]/` (public profile), `components/ui/FormField.tsx`, `components/listings/` (ListingCard, ListingForm, TagInput), `components/ratings/` (StarRating, RatingForm), `lib/api/` (client, auth, reference, shops, listings, tags, chat, ratings, users), `lib/ws/client.ts` (reconnecting WS singleton), `lib/validation/` (auth, shop, listing), `lib/utils.ts`, `context/AuthContext.tsx` (now also owns the WS connection lifecycle), `types/api.ts`. Route protection landed as **`proxy.ts`** at the repo root, not `app/middleware.ts` — Next.js 16 renamed the middleware file convention to `proxy` (confirmed against the installed Next docs). Not yet built: `admin/`, `hooks/`, most of `components/shops/`.
 
 ## 4. Docker Compose / Dokploy
 
