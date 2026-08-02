@@ -207,6 +207,11 @@ async def google_login(db: AsyncSession, credential: str) -> User:
                 auth_provider=AuthProvider.google,
                 google_id=google_id,
                 is_verified=True,
+                # mapped_column(default=True) only applies at flush/insert time, not at
+                # construction — the is_active check right below reads the Python
+                # attribute before this row is ever flushed, so it must be set explicitly
+                # here or every brand-new Google signup gets rejected as "deactivated".
+                is_active=True,
             )
             db.add(user)
 
