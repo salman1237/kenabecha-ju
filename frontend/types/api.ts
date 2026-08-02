@@ -74,6 +74,7 @@ export interface Listing {
   description: string;
   price: string | null;
   price_type: PriceType;
+  unit: string | null;
   condition: Condition;
   quantity: number;
   status: ListingStatus;
@@ -104,6 +105,7 @@ export interface ConversationListing {
   title: string;
   price: string | null;
   price_type: PriceType;
+  unit: string | null;
   status: ListingStatus;
   image_url: string | null;
 }

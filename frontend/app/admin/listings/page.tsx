@@ -70,7 +70,7 @@ export default function AdminListingsPage() {
               </Link>
             </TableCell>
             <TableCell className="text-muted-foreground">{l.seller.full_name}</TableCell>
-            <TableCell className="text-muted-foreground">{formatPrice(l.price, l.price_type)}</TableCell>
+            <TableCell className="text-muted-foreground">{formatPrice(l.price, l.price_type, l.unit)}</TableCell>
             <TableCell>
               <Badge variant={l.status === "removed" ? "destructive" : "secondary"} className="capitalize">
                 {l.status.replace("_", " ")}

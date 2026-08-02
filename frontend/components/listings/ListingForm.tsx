@@ -49,8 +49,8 @@ export function ListingForm({
       description: listing?.description ?? "",
       price_type: listing?.price_type ?? "fixed",
       price: listing?.price ?? "",
+      unit: listing?.unit ?? "",
       condition: listing?.condition,
-      quantity: listing?.quantity ? String(listing.quantity) : "",
       shop_id: listing?.shop?.id ?? defaultShopId ?? "",
       fulfillment_type: listing?.fulfillment_type ?? "pickup",
       pickup_address: listing?.pickup_address ?? "",
@@ -80,8 +80,8 @@ export function ListingForm({
       description: values.description,
       price_type: values.price_type,
       price: values.price_type === "free" ? null : values.price ? Number(values.price) : null,
+      unit: values.price_type === "free" ? null : values.unit || null,
       condition: isShopListing ? undefined : values.condition,
-      quantity: isShopListing && values.quantity ? Number(values.quantity) : undefined,
       shop_id: mode === "create" ? values.shop_id || null : undefined,
       tags,
       fulfillment_type: values.fulfillment_type,
@@ -208,8 +208,26 @@ export function ListingForm({
       {priceType !== "free" && (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="price">Price (৳)</Label>
-          <Input id="price" type="number" min="0" step="0.01" {...register("price")} />
+          <Input
+            id="price"
+            type="number"
+            min="0"
+            step="0.01"
+            className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            {...register("price")}
+          />
           {errors.price && <p className="text-xs text-destructive">{errors.price.message}</p>}
+        </div>
+      )}
+
+      {priceType !== "free" && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="unit">Unit (optional)</Label>
+          <Input id="unit" placeholder="e.g. kg, piece, dozen" {...register("unit")} />
+          <p className="text-xs text-muted-foreground">
+            Shown as price/unit, e.g. ৳{"{price}"}/{watch("unit") || "kg"} — leave blank to just show the price.
+          </p>
+          {errors.unit && <p className="text-xs text-destructive">{errors.unit.message}</p>}
         </div>
       )}
 
@@ -230,19 +248,11 @@ export function ListingForm({
         </div>
       )}
 
-      {isShopListing && (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="quantity">Quantity</Label>
-          <Input id="quantity" type="number" min="0" {...register("quantity")} />
-          <p className="text-xs text-muted-foreground">Leave blank for 1</p>
-        </div>
-      )}
-
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="fulfillment_type">Fulfillment</Label>
         <select id="fulfillment_type" className={selectClass} {...register("fulfillment_type")}>
           <option value="pickup">Pickup — buyer collects from you</option>
-          <option value="delivery">Delivery — buyer provides an address at checkout</option>
+          <option value="delivery">Delivery — buyer shares their address when they contact you</option>
         </select>
         <p className="text-xs text-muted-foreground">How will the buyer get this item?</p>
       </div>

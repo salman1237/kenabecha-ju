@@ -220,7 +220,7 @@ export default function ListingDetailPage() {
             </Badge>
           )}
         </div>
-        <p className="text-xl font-medium">{formatPrice(listing.price, listing.price_type)}</p>
+        <p className="text-xl font-medium">{formatPrice(listing.price, listing.price_type, listing.unit)}</p>
         <p className="text-sm text-muted-foreground">
           {listing.shop ? "New" : CONDITION_LABELS[listing.condition]}
           {listing.shop && listing.quantity > 0 && ` · ${listing.quantity} in stock`}
@@ -228,7 +228,7 @@ export default function ListingDetailPage() {
         <p className="text-sm text-muted-foreground">
           {listing.fulfillment_type === "pickup"
             ? `Pickup from: ${listing.pickup_address ?? "contact seller for details"}`
-            : "Delivery — you'll provide your address at checkout"}
+            : "Delivery — share your address with the seller when you contact them"}
         </p>
       </div>
 

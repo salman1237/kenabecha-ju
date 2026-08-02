@@ -11,10 +11,15 @@ export function mediaUrl(path: string) {
   return `${apiUrl}${path}`;
 }
 
-export function formatPrice(price: string | null, priceType: "fixed" | "negotiable" | "free") {
+export function formatPrice(
+  price: string | null,
+  priceType: "fixed" | "negotiable" | "free",
+  unit?: string | null
+) {
   if (priceType === "free") return "Free";
   if (price === null) return "";
-  const amount = `৳${Number(price).toLocaleString()}`;
+  let amount = `৳${Number(price).toLocaleString()}`;
+  if (unit) amount += `/${unit}`;
   return priceType === "negotiable" ? `${amount} (negotiable)` : amount;
 }
 

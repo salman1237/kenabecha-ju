@@ -40,6 +40,7 @@ class ListingCreate(BaseModel):
     description: str = Field(min_length=1)
     price: Decimal | None = Field(default=None, ge=0)
     price_type: PriceType = PriceType.fixed
+    unit: str | None = Field(default=None, max_length=20)
     condition: Condition | None = None
     quantity: int | None = Field(default=None, ge=0)
     shop_id: uuid.UUID | None = None
@@ -65,6 +66,7 @@ class ListingUpdate(BaseModel):
     description: str | None = Field(default=None, min_length=1)
     price: Decimal | None = Field(default=None, ge=0)
     price_type: PriceType | None = None
+    unit: str | None = Field(default=None, max_length=20)
     condition: Condition | None = None
     quantity: int | None = Field(default=None, ge=0)
     tags: list[str] | None = Field(default=None, max_length=10)
@@ -83,6 +85,7 @@ class ListingOut(BaseModel):
     description: str
     price: Decimal | None
     price_type: PriceType
+    unit: str | None
     condition: Condition
     quantity: int
     status: ListingStatus

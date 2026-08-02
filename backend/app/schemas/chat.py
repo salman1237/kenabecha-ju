@@ -33,6 +33,7 @@ class ConversationListingOut(BaseModel):
     title: str
     price: Decimal | None
     price_type: PriceType
+    unit: str | None
     status: ListingStatus
     image_url: str | None
 

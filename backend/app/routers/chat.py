@@ -32,6 +32,7 @@ def _to_conversation_out(
             title=listing.title,
             price=listing.price,
             price_type=listing.price_type,
+            unit=listing.unit,
             status=listing.status,
             image_url=listing.images[0].image_url if listing.images else None,
         ),

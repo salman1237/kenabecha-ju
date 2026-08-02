@@ -33,7 +33,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
       </div>
       <div className="flex flex-col gap-0.5 px-1 pb-1">
         <p className="truncate text-sm font-medium">{listing.title}</p>
-        <p className="text-sm text-muted-foreground">{formatPrice(listing.price, listing.price_type)}</p>
+        <p className="text-sm text-muted-foreground">{formatPrice(listing.price, listing.price_type, listing.unit)}</p>
         {listing.shop && <p className="truncate text-xs text-muted-foreground">{listing.shop.shop_name}</p>}
       </div>
     </Link>

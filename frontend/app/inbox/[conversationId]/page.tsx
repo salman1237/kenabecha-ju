@@ -45,7 +45,7 @@ function ProductCard({ conversation }: { conversation: Conversation }) {
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className="truncate text-sm font-medium">{listing.title}</p>
-        <p className="text-sm text-muted-foreground">{formatPrice(listing.price, listing.price_type)}</p>
+        <p className="text-sm text-muted-foreground">{formatPrice(listing.price, listing.price_type, listing.unit)}</p>
       </div>
       {listing.status !== "active" && (
         <Badge variant="secondary" className="shrink-0">

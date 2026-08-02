@@ -98,6 +98,7 @@ class Listing(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
     price_type: Mapped[PriceType] = mapped_column(
         Enum(PriceType, name="price_type"), default=PriceType.fixed, nullable=False
     )
+    unit: Mapped[str | None] = mapped_column(String(20))
     condition: Mapped[Condition] = mapped_column(
         Enum(Condition, name="listing_condition"), default=Condition.new, nullable=False
     )

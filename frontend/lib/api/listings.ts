@@ -6,6 +6,7 @@ export interface ListingPayload {
   description: string;
   price?: number | null;
   price_type: PriceType;
+  unit?: string | null;
   condition?: Condition | null;
   quantity?: number | null;
   shop_id?: string | null;
