@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { RatingForm } from "@/components/ratings/RatingForm";
+import { ReportButton } from "@/components/ReportButton";
 import { useAuth } from "@/context/AuthContext";
 import { contactSeller } from "@/lib/api/chat";
 import {
@@ -248,6 +249,8 @@ export default function ListingDetailPage() {
         )}
       </div>
       {actionError && !isOwner && <p className="text-sm text-red-600">{actionError}</p>}
+
+      {!isOwner && <ReportButton targetType="listing" targetId={listing.id} />}
 
       {!isOwner && submittedRating && (
         <p className="text-sm text-green-600">Thanks for rating this transaction!</p>

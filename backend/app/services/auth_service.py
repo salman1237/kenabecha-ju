@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import BackgroundTasks, HTTPException, status
@@ -218,7 +219,13 @@ async def rotate_refresh_token(
 
 
 async def _revoke_token_family(db: AsyncSession, token: RefreshToken) -> None:
-    result = await db.execute(select(RefreshToken).where(RefreshToken.user_id == token.user_id))
+    await revoke_all_user_tokens(db, token.user_id)
+
+
+async def revoke_all_user_tokens(db: AsyncSession, user_id: uuid.UUID) -> None:
+    """Revokes every outstanding refresh token for a user — used on ban/deactivate
+    so an admin action takes effect immediately instead of waiting for token expiry."""
+    result = await db.execute(select(RefreshToken).where(RefreshToken.user_id == user_id))
     for t in result.scalars().all():
         if t.revoked_at is None:
             t.revoked_at = datetime.now(UTC)

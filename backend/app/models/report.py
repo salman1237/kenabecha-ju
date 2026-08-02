@@ -75,8 +75,8 @@ class Report(UUIDPKMixin, CreatedAtMixin, Base):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     resolution_note: Mapped[str | None] = mapped_column(Text)
 
-    reporter: Mapped["User"] = relationship(foreign_keys=[reporter_id])
-    resolver: Mapped["User | None"] = relationship(foreign_keys=[resolved_by])
-    target_listing: Mapped["Listing | None"] = relationship()
-    target_shop: Mapped["Shop | None"] = relationship()
-    target_user: Mapped["User | None"] = relationship(foreign_keys=[target_user_id])
+    reporter: Mapped["User"] = relationship(foreign_keys=[reporter_id], lazy="selectin")
+    resolver: Mapped["User | None"] = relationship(foreign_keys=[resolved_by], lazy="selectin")
+    target_listing: Mapped["Listing | None"] = relationship(lazy="selectin")
+    target_shop: Mapped["Shop | None"] = relationship(lazy="selectin")
+    target_user: Mapped["User | None"] = relationship(foreign_keys=[target_user_id], lazy="selectin")

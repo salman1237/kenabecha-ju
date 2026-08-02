@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { ListingCard } from "@/components/listings/ListingCard";
 import { StarRating } from "@/components/ratings/StarRating";
+import { ReportButton } from "@/components/ReportButton";
 import { browseListings } from "@/lib/api/listings";
 import { getShopBySlug } from "@/lib/api/shops";
 import type { Listing, Shop } from "@/types/api";
@@ -35,6 +36,7 @@ export default function ShopStorefrontPage() {
         {shop.shop_type && <p className="text-sm text-zinc-500">{shop.shop_type}</p>}
         <StarRating value={shop.average_rating} count={shop.rating_count} size="md" />
         {shop.description && <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">{shop.description}</p>}
+        <ReportButton targetType="shop" targetId={shop.id} />
       </div>
 
       {listings.length === 0 ? (

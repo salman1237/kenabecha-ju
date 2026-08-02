@@ -42,6 +42,7 @@ export interface Shop {
   logo_url: string | null;
   cover_url: string | null;
   created_at: string;
+  is_active: boolean;
   listing_count: number;
   average_rating: number | null;
   rating_count: number;
@@ -141,4 +142,53 @@ export interface UserProfile {
   rating_count: number;
   recent_ratings: Rating[];
   shops: Shop[];
+}
+
+export type ReportTargetType = "listing" | "shop" | "user";
+export type ReportReason =
+  | "spam"
+  | "scam_fraud"
+  | "inappropriate_content"
+  | "counterfeit"
+  | "harassment"
+  | "other";
+export type ReportStatus =
+  | "pending"
+  | "resolved_dismissed"
+  | "resolved_removed"
+  | "resolved_warned"
+  | "resolved_banned";
+
+export interface Report {
+  id: string;
+  reporter: ChatUser;
+  target_type: ReportTargetType;
+  target_id: string;
+  target_label: string;
+  reason_code: ReportReason;
+  note: string | null;
+  status: ReportStatus;
+  resolved_by: ChatUser | null;
+  resolved_at: string | null;
+  resolution_note: string | null;
+  created_at: string;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  full_name: string;
+  student_id: string;
+  role: "user" | "admin";
+  is_active: boolean;
+  is_verified: boolean;
+  created_at: string;
+}
+
+export interface AdminStats {
+  total_users: number;
+  total_shops: number;
+  total_active_listings: number;
+  total_messages: number;
+  pending_reports: number;
 }

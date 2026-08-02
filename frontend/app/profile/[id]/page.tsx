@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { StarRating } from "@/components/ratings/StarRating";
 import { ListingCard } from "@/components/listings/ListingCard";
+import { ReportButton } from "@/components/ReportButton";
 import { browseListings } from "@/lib/api/listings";
 import { getUserProfile } from "@/lib/api/users";
 import type { Listing, UserProfile } from "@/types/api";
@@ -40,6 +41,7 @@ export default function ProfilePage() {
         <p className="text-xs text-zinc-400">
           Member since {new Date(profile.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long" })}
         </p>
+        <ReportButton targetType="user" targetId={profile.id} />
       </div>
 
       <div className="flex flex-col gap-3">
