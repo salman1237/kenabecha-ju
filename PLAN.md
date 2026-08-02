@@ -9,7 +9,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 2 — Database models + initial migration.** All tables from the schema below, plus `pg_trgm` GIN indexes for search. Commit `88f414b`.
 - [x] **Phase 3 — Auth.** Commit `ad3431b`. Expanded beyond the original plan (see "Deviations" below): signup now collects real JU student-verification fields, and email verification is OTP-based rather than a simple link/flag.
 - [x] **Phase 4 — Listings CRUD** (personal + shop-based), plus the shops management it depends on. Commit `b2525b8`. Includes tag autocomplete/trending, image uploads, and browse/search/filter. Full profile page (personal listings + shop cards) and shop edit UI were **not** built this phase — see "Deviations" below.
-- [ ] **Phase 5 — Chat** (WebSocket, shop-context inbox).
+- [x] **Phase 5 — Chat.** Commit `f0e9988`. WebSocket-pushed live delivery with REST-persisted history, per-listing conversations, owner inbox with shop filter tabs and unread badges. Email notification for offline messages is **not** included — that's Phase 8 (Notifications) territory per the original plan.
 - [ ] **Phase 6 — Ratings** (per-shop / per-personal-seller).
 - [ ] **Phase 7 — Admin panel** (users/listings/shops mgmt, reports queue, stats).
 - [ ] **Phase 8 — Notifications** (email + in-app).
@@ -125,7 +125,7 @@ backend/
   .env.example
 ```
 
-Built so far: `main.py` (now also mounts `/media` static files), `core/` (config, security, dependencies, logging — `exceptions.py` not yet needed), `db/`, `models/` (all domain tables + `reference.py` for halls/departments), `schemas/` (auth, user, reference, shop, listing, tag, common), `routers/` (auth, reference, shops, listings, tags), `services/` (auth_service, email_service, reference_service, shop_service, listing_service, tag_service, media_service). Not yet built: `websocket/`, `tasks/`, `seed/`, `tests/` — these land with the chat/notifications/seed-data phases.
+Built so far: `main.py` (now also mounts `/media` static files), `core/` (config, security, dependencies incl. WS auth, logging — `exceptions.py` not yet needed), `db/`, `models/` (all domain tables + `reference.py` for halls/departments), `schemas/` (auth, user, reference, shop, listing, tag, common, chat), `routers/` (auth, reference, shops, listings, tags, chat, ws), `services/` (auth_service, email_service, reference_service, shop_service, listing_service, tag_service, media_service, chat_service), `websocket/manager.py` (per-user connection registry). Not yet built: `tasks/`, `seed/`, `tests/` — these land with the notifications/seed-data phases.
 
 ## 3. Frontend Folder Structure (`/frontend`)
 
@@ -153,7 +153,7 @@ frontend/
   .env.local.example
 ```
 
-Built so far: `app/(auth)/login,signup,verify-email`, `app/listings/` (browse, new, `[id]`, `[id]/edit`), `app/shops/` (`[slug]` storefront, `dashboard`), `components/ui/FormField.tsx`, `components/listings/` (ListingCard, ListingForm, TagInput), `lib/api/` (client, auth, reference, shops, listings, tags), `lib/validation/` (auth, shop, listing), `lib/utils.ts`, `context/AuthContext.tsx`, `types/api.ts`. Route protection landed as **`proxy.ts`** at the repo root, not `app/middleware.ts` — Next.js 16 renamed the middleware file convention to `proxy` (confirmed against the installed Next docs). Not yet built: `profile/`, `inbox/`, `admin/`, `hooks/`, `lib/ws/`, most of `components/shops/`.
+Built so far: `app/(auth)/login,signup,verify-email`, `app/listings/` (browse, new, `[id]`, `[id]/edit`), `app/shops/` (`[slug]` storefront, `dashboard`), `app/inbox/` (list, `[conversationId]` chat window), `components/ui/FormField.tsx`, `components/listings/` (ListingCard, ListingForm, TagInput), `lib/api/` (client, auth, reference, shops, listings, tags, chat), `lib/ws/client.ts` (reconnecting WS singleton), `lib/validation/` (auth, shop, listing), `lib/utils.ts`, `context/AuthContext.tsx` (now also owns the WS connection lifecycle), `types/api.ts`. Route protection landed as **`proxy.ts`** at the repo root, not `app/middleware.ts` — Next.js 16 renamed the middleware file convention to `proxy` (confirmed against the installed Next docs). Not yet built: `profile/`, `admin/`, `hooks/`, most of `components/shops/`.
 
 ## 4. Docker Compose / Dokploy
 
