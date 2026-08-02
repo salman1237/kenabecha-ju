@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -11,11 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api/client";
-import { createListing, updateListing, type ListingPayload } from "@/lib/api/listings";
+import { createListing, updateListing, uploadListingImage, type ListingPayload } from "@/lib/api/listings";
 import { getMyShops } from "@/lib/api/shops";
 import { CONDITION_LABELS } from "@/lib/utils";
 import { type ListingFormValues, listingSchema } from "@/lib/validation/listing";
 import type { Listing, Shop } from "@/types/api";
+
+const MAX_PHOTOS = 8;
 
 export function ListingForm({
   mode,
@@ -30,7 +33,9 @@ export function ListingForm({
 }) {
   const [shops, setShops] = useState<Shop[]>([]);
   const [tags, setTags] = useState<string[]>(listing?.tags.map((t) => t.name) ?? []);
+  const [photos, setPhotos] = useState<File[]>([]);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
   const {
     register,
@@ -55,6 +60,13 @@ export function ListingForm({
   useEffect(() => {
     getMyShops().then(setShops).catch(() => {});
   }, []);
+
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  useEffect(() => {
+    const urls = photos.map((f) => URL.createObjectURL(f));
+    setPhotoPreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [photos]);
 
   const priceType = watch("price_type");
   const shopId = watch("shop_id");
@@ -81,10 +93,35 @@ export function ListingForm({
         mode === "create"
           ? await createListing(payload)
           : await updateListing(listing!.id, payload);
+
+      if (mode === "create" && photos.length > 0) {
+        setUploadingPhotos(true);
+        for (const photo of photos) {
+          await uploadListingImage(result.id, photo).catch(() => {
+            setServerError((prev) => prev ?? "Listing created, but one or more photos failed to upload — you can add them from the listing page.");
+          });
+        }
+        setUploadingPhotos(false);
+      }
+
       onSuccess(result);
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Could not save listing.");
     }
+  };
+
+  const addPhotos = (files: FileList | null) => {
+    if (!files) return;
+    // Convert synchronously, right here — FileList is live and tied to the input
+    // element, so if this conversion happened inside the setPhotos updater (which
+    // React defers), the caller's subsequent `input.value = ""` would already have
+    // emptied it by the time the updater actually ran.
+    const newFiles = Array.from(files);
+    setPhotos((prev) => [...prev, ...newFiles].slice(0, MAX_PHOTOS));
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -107,6 +144,44 @@ export function ListingForm({
         <p className="text-sm text-muted-foreground">
           {listing?.shop ? `Shop listing under ${listing.shop.shop_name}` : "Personal listing"}
         </p>
+      )}
+
+      {mode === "create" && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="photos">Photos</Label>
+          {photoPreviews.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {photoPreviews.map((url, i) => (
+                <div key={url} className="group relative h-16 w-16 overflow-hidden rounded-md bg-muted">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(i)}
+                    className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                    aria-label="Remove photo"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <Input
+            id="photos"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            disabled={photos.length >= MAX_PHOTOS}
+            onChange={(e) => {
+              addPhotos(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            Optional, but listings with photos get far more attention — up to {MAX_PHOTOS}.
+          </p>
+        </div>
       )}
 
       <div className="flex flex-col gap-1.5">
@@ -192,7 +267,7 @@ export function ListingForm({
       {serverError && <p className="text-sm text-destructive">{serverError}</p>}
 
       <Button type="submit" disabled={isSubmitting} className="self-start">
-        {isSubmitting ? "Saving…" : mode === "create" ? "Create listing" : "Save changes"}
+        {uploadingPhotos ? "Uploading photos…" : isSubmitting ? "Saving…" : mode === "create" ? "Create listing" : "Save changes"}
       </Button>
     </form>
   );

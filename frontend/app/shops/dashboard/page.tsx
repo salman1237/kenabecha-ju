@@ -2,8 +2,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 import { CompleteProfilePrompt } from "@/components/auth/CompleteProfilePrompt";
 import {
@@ -24,16 +25,66 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
-import { createShop, deleteShop, getMyShops } from "@/lib/api/shops";
+import { createShop, deleteShop, getMyShops, uploadShopLogo } from "@/lib/api/shops";
 import { ApiError } from "@/lib/api/client";
+import { mediaUrl } from "@/lib/utils";
 import { type ShopFormValues, shopSchema } from "@/lib/validation/shop";
 import type { Shop } from "@/types/api";
+
+function ShopLogoPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Shop) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const onSelect = async (file: File) => {
+    setUploading(true);
+    try {
+      const updated = await uploadShopLogo(shop.id, file);
+      onUpdated(updated);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not upload logo.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => inputRef.current?.click()}
+      disabled={uploading}
+      className="group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-semibold text-muted-foreground"
+      title="Change logo"
+    >
+      {shop.logo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={mediaUrl(shop.logo_url)} alt="" className="h-full w-full object-cover" />
+      ) : (
+        shop.shop_name.charAt(0).toUpperCase()
+      )}
+      <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-[9px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+        {uploading ? "…" : "Change"}
+      </span>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onSelect(file);
+          e.target.value = "";
+        }}
+      />
+    </button>
+  );
+}
 
 export default function MyShopsPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -57,12 +108,18 @@ export default function MyShopsPage() {
   const onSubmit = async (values: ShopFormValues) => {
     setServerError(null);
     try {
-      await createShop({
+      const shop = await createShop({
         shop_name: values.shop_name,
         description: values.description || undefined,
         shop_type: values.shop_type || undefined,
       });
+      if (logoFile) {
+        await uploadShopLogo(shop.id, logoFile).catch(() => {
+          toast.error("Shop created, but the logo failed to upload — you can add it below.");
+        });
+      }
       reset();
+      setLogoFile(null);
       setShowForm(false);
       load();
     } catch (err) {
@@ -117,6 +174,15 @@ export default function MyShopsPage() {
                 <Label htmlFor="description">Description</Label>
                 <Textarea id="description" rows={3} {...register("description")} />
               </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="logo">Logo (optional)</Label>
+                <Input
+                  id="logo"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
               {serverError && <p className="text-sm text-destructive">{serverError}</p>}
               <Button type="submit" disabled={isSubmitting} className="self-start">
                 {isSubmitting ? "Creating…" : "Create shop"}
@@ -138,39 +204,47 @@ export default function MyShopsPage() {
         <div className="flex flex-col gap-3">
           {shops.map((shop) => (
             <Card key={shop.id}>
-              <CardContent className="flex items-center justify-between">
-                <div>
-                  <Link href={`/shops/${shop.slug}`} className="font-medium hover:underline">
-                    {shop.shop_name}
-                  </Link>
-                  <p className="text-sm text-muted-foreground">
-                    {shop.shop_type ?? "Uncategorized"} · {shop.listing_count} active listing
-                    {shop.listing_count === 1 ? "" : "s"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Link href={`/listings/new?shop_id=${shop.id}`} className="text-sm font-medium text-muted-foreground hover:text-foreground">
-                    Add listing
-                  </Link>
-                  <AlertDialog>
-                    <AlertDialogTrigger render={<Button variant="ghost" size="sm" className="text-destructive" />}>
-                      Delete
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete &quot;{shop.shop_name}&quot;?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Its listings will remain but lose their shop association.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDelete(shop.id)} variant="destructive">
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+              <CardContent className="flex items-center gap-3">
+                <ShopLogoPicker
+                  shop={shop}
+                  onUpdated={(updated) =>
+                    setShops((prev) => prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)))
+                  }
+                />
+                <div className="flex flex-1 items-center justify-between gap-3">
+                  <div>
+                    <Link href={`/shops/${shop.slug}`} className="font-medium hover:underline">
+                      {shop.shop_name}
+                    </Link>
+                    <p className="text-sm text-muted-foreground">
+                      {shop.shop_type ?? "Uncategorized"} · {shop.listing_count} active listing
+                      {shop.listing_count === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Link href={`/listings/new?shop_id=${shop.id}`} className="text-sm font-medium text-muted-foreground hover:text-foreground">
+                      Add listing
+                    </Link>
+                    <AlertDialog>
+                      <AlertDialogTrigger render={<Button variant="ghost" size="sm" className="text-destructive" />}>
+                        Delete
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete &quot;{shop.shop_name}&quot;?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Its listings will remain but lose their shop association.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => onDelete(shop.id)} variant="destructive">
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               </CardContent>
             </Card>

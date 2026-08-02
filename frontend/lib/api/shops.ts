@@ -30,3 +30,15 @@ export function updateShop(shopId: string, payload: Partial<ShopPayload>) {
 export function deleteShop(shopId: string) {
   return apiFetch<void>(`/shops/${shopId}`, { method: "DELETE" });
 }
+
+export function uploadShopLogo(shopId: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<Shop>(`/shops/${shopId}/logo`, { method: "POST", body: formData });
+}
+
+export function uploadShopCover(shopId: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<Shop>(`/shops/${shopId}/cover`, { method: "POST", body: formData });
+}

@@ -101,6 +101,20 @@ async def update_shop(db: AsyncSession, shop: Shop, payload: ShopUpdate) -> Shop
     return shop
 
 
+async def set_logo(db: AsyncSession, shop: Shop, image_url: str) -> Shop:
+    shop.logo_url = image_url
+    await db.commit()
+    await db.refresh(shop)
+    return shop
+
+
+async def set_cover(db: AsyncSession, shop: Shop, image_url: str) -> Shop:
+    shop.cover_url = image_url
+    await db.commit()
+    await db.refresh(shop)
+    return shop
+
+
 async def delete_shop(db: AsyncSession, shop: Shop) -> None:
     shop.is_active = False
     shop.deleted_at = datetime.now(UTC)

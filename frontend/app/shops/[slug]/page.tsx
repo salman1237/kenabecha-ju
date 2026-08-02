@@ -9,6 +9,7 @@ import { ReportButton } from "@/components/ReportButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { browseListings } from "@/lib/api/listings";
 import { getShopBySlug } from "@/lib/api/shops";
+import { mediaUrl } from "@/lib/utils";
 import type { Listing, Shop } from "@/types/api";
 
 export default function ShopStorefrontPage() {
@@ -43,12 +44,32 @@ export default function ShopStorefrontPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-12 sm:px-6">
-      <div className="flex flex-col gap-1 border-b border-border pb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">{shop.shop_name}</h1>
-        {shop.shop_type && <p className="text-sm text-muted-foreground">{shop.shop_type}</p>}
+      <div className="flex flex-col gap-3 border-b border-border pb-6">
+        {shop.cover_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={mediaUrl(shop.cover_url)}
+            alt=""
+            className="h-40 w-full rounded-lg object-cover sm:h-56"
+          />
+        )}
+        <div className="flex items-center gap-3">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-lg font-semibold text-muted-foreground">
+            {shop.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={mediaUrl(shop.logo_url)} alt="" className="h-full w-full object-cover" />
+            ) : (
+              shop.shop_name.charAt(0).toUpperCase()
+            )}
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{shop.shop_name}</h1>
+            {shop.shop_type && <p className="text-sm text-muted-foreground">{shop.shop_type}</p>}
+          </div>
+        </div>
         <StarRating value={shop.average_rating} count={shop.rating_count} size="md" />
-        {shop.description && <p className="mt-2 text-sm text-foreground/90">{shop.description}</p>}
-        <div className="mt-1">
+        {shop.description && <p className="text-sm text-foreground/90">{shop.description}</p>}
+        <div>
           <ReportButton targetType="shop" targetId={shop.id} />
         </div>
       </div>

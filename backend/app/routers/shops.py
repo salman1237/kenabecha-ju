@@ -1,13 +1,13 @@
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, get_seller
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.shop import ShopCreate, ShopOut, ShopUpdate
-from app.services import rating_service, shop_service
+from app.services import media_service, rating_service, shop_service
 
 router = APIRouter(prefix="/shops", tags=["shops"])
 
@@ -70,6 +70,32 @@ async def update_shop(
 ) -> ShopOut:
     shop = await shop_service.get_owned_shop(db, shop_id, user)
     shop = await shop_service.update_shop(db, shop, payload)
+    return _to_out(shop)
+
+
+@router.post("/{shop_id}/logo", response_model=ShopOut)
+async def upload_shop_logo(
+    shop_id: uuid.UUID,
+    file: UploadFile,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ShopOut:
+    shop = await shop_service.get_owned_shop(db, shop_id, user)
+    image_url = await media_service.save_image(file, "shops")
+    shop = await shop_service.set_logo(db, shop, image_url)
+    return _to_out(shop)
+
+
+@router.post("/{shop_id}/cover", response_model=ShopOut)
+async def upload_shop_cover(
+    shop_id: uuid.UUID,
+    file: UploadFile,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ShopOut:
+    shop = await shop_service.get_owned_shop(db, shop_id, user)
+    image_url = await media_service.save_image(file, "shops")
+    shop = await shop_service.set_cover(db, shop, image_url)
     return _to_out(shop)
 
 
