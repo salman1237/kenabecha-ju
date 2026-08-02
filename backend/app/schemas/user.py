@@ -34,7 +34,9 @@ class UserPublic(BaseModel):
 
 class UserProfileOut(BaseModel):
     """Public-facing profile — deliberately excludes PII (email, phone, student_id,
-    registration_no, hall) that UserPublic includes for the self-view."""
+    registration_no, hall) that UserPublic includes for the self-view.
+    profile_complete is safe to expose publicly: it's just a boolean "completed JU
+    verification" trust signal, not the underlying identity fields themselves."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -44,6 +46,7 @@ class UserProfileOut(BaseModel):
     bio: str | None
     department: DepartmentOut | None
     batch: int | None
+    profile_complete: bool
     created_at: datetime
     average_rating: float | None = None
     rating_count: int = 0

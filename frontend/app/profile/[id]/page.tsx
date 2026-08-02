@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ListingCard } from "@/components/listings/ListingCard";
 import { StarRating } from "@/components/ratings/StarRating";
 import { ReportButton } from "@/components/ReportButton";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -137,6 +138,42 @@ function ProfileEditForm({ onDone }: { onDone: () => void }) {
   );
 }
 
+function AccountDetails() {
+  const { user } = useAuth();
+  if (!user) return null;
+
+  const rows: [string, string][] = [
+    ["Email", user.email],
+    ["Phone", user.phone ?? "Not set"],
+    ["WhatsApp", user.whatsapp_number ?? "Not set"],
+    ["Student ID", user.student_id ?? "Not set"],
+    ["Registration no.", user.registration_no ?? "Not set"],
+    ["Hall", user.hall?.name ?? "Not set"],
+    ["Session", user.session ?? "Not set"],
+  ];
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
+      <p className="text-sm font-medium">Your account details</p>
+      <p className="text-xs text-muted-foreground">Only visible to you.</p>
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex items-baseline justify-between gap-3 text-sm sm:justify-start">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="font-medium">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {!user.profile_complete && (
+        <p className="text-xs text-muted-foreground">
+          Your JU verification isn&apos;t complete yet, so some fields above are empty — you&apos;ll be
+          asked to fill them in the first time you try to sell.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const params = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -188,7 +225,14 @@ export default function ProfilePage() {
             )}
           </div>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{profile.full_name}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-semibold tracking-tight">{profile.full_name}</h1>
+              {profile.profile_complete && (
+                <Badge variant="secondary" className="text-primary">
+                  JU Verified
+                </Badge>
+              )}
+            </div>
             {profile.department && (
               <p className="text-sm text-muted-foreground">
                 {profile.department.name} · Batch {profile.batch}
@@ -222,6 +266,8 @@ export default function ProfilePage() {
           }}
         />
       )}
+
+      {isOwnProfile && !editing && <AccountDetails />}
 
       <div className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Personal listings</h2>

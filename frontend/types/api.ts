@@ -143,6 +143,7 @@ export interface UserProfile {
   bio: string | null;
   department: Department | null;
   batch: number | null;
+  profile_complete: boolean;
   created_at: string;
   average_rating: number | null;
   rating_count: number;

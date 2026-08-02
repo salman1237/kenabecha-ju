@@ -43,6 +43,7 @@ async def get_user_profile(user_id: uuid.UUID, db: AsyncSession = Depends(get_db
         bio=user.bio,
         department=user.department,
         batch=user.batch,
+        profile_complete=user.profile_complete,
         created_at=user.created_at,
         average_rating=average_rating,
         rating_count=rating_count,
