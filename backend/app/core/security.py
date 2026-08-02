@@ -26,8 +26,12 @@ def hash_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode()).hexdigest()
 
 
-def generate_refresh_token() -> str:
+def generate_secure_token() -> str:
     return secrets.token_urlsafe(48)
+
+
+def generate_refresh_token() -> str:
+    return generate_secure_token()
 
 
 def generate_otp() -> str:

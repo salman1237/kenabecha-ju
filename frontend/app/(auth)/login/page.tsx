@@ -14,7 +14,9 @@ import { useAuth } from "@/context/AuthContext";
 function LoginForm() {
   const router = useRouter();
   const { setUser } = useAuth();
-  const justVerified = useSearchParams().get("verified") === "1";
+  const searchParams = useSearchParams();
+  const justVerified = searchParams.get("verified") === "1";
+  const justReset = searchParams.get("reset") === "1";
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -41,6 +43,9 @@ function LoginForm() {
         {justVerified && (
           <p className="mt-1 text-sm text-green-600">Email verified — you can log in now.</p>
         )}
+        {justReset && (
+          <p className="mt-1 text-sm text-green-600">Password reset — you can log in with your new password.</p>
+        )}
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -51,6 +56,9 @@ function LoginForm() {
         <FormField label="Password" htmlFor="password" error={errors.password?.message}>
           <input id="password" type="password" className={inputClass} {...register("password")} />
         </FormField>
+        <a href="/forgot-password" className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+          Forgot password?
+        </a>
 
         {serverError && <p className="text-sm text-red-600">{serverError}</p>}
 

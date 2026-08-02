@@ -1,0 +1,132 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+
+import { getNotifications, markAllNotificationsRead, markNotificationRead } from "@/lib/api/notifications";
+import { wsClient } from "@/lib/ws/client";
+import type { Notification } from "@/types/api";
+
+function timeAgo(iso: string) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+export function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const load = () => {
+    getNotifications().then((data) => {
+      setNotifications(data.items);
+      setUnreadCount(data.unread_count);
+    });
+  };
+
+  useEffect(load, []);
+
+  useEffect(() => {
+    return wsClient.on((event) => {
+      if (event.type !== "notification") return;
+      setNotifications((prev) => [event.notification, ...prev].slice(0, 30));
+      setUnreadCount((prev) => prev + 1);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [open]);
+
+  const onNotificationClick = async (n: Notification) => {
+    if (!n.is_read) {
+      setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, is_read: true } : x)));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+      markNotificationRead(n.id).catch(() => {});
+    }
+    setOpen(false);
+  };
+
+  const onMarkAllRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+    await markAllNotificationsRead().catch(() => {});
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="relative flex h-9 w-9 items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800"
+        aria-label="Notifications"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {unreadCount > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-medium text-white">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex items-center justify-between border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+            <span className="text-sm font-medium">Notifications</span>
+            {unreadCount > 0 && (
+              <button onClick={onMarkAllRead} className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+                Mark all read
+              </button>
+            )}
+          </div>
+          <div className="max-h-96 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-zinc-500">No notifications yet.</p>
+            ) : (
+              notifications.map((n) => {
+                const content = (
+                  <div
+                    className={`flex flex-col gap-0.5 px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900 ${
+                      !n.is_read ? "bg-zinc-50 dark:bg-zinc-900/50" : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={!n.is_read ? "font-medium" : ""}>{n.title}</span>
+                      {!n.is_read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-600" />}
+                    </div>
+                    {n.body && <p className="truncate text-xs text-zinc-500">{n.body}</p>}
+                    <span className="text-[10px] text-zinc-400">{timeAgo(n.created_at)}</span>
+                  </div>
+                );
+                return n.link_url ? (
+                  <Link key={n.id} href={n.link_url} onClick={() => onNotificationClick(n)}>
+                    {content}
+                  </Link>
+                ) : (
+                  <button key={n.id} onClick={() => onNotificationClick(n)} className="block w-full text-left">
+                    {content}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

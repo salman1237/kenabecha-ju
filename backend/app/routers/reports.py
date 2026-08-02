@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user
@@ -12,7 +12,10 @@ router = APIRouter(prefix="/reports", tags=["reports"])
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_report(
-    payload: ReportCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    payload: ReportCreate,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    await report_service.create_report(db, user, payload)
+    await report_service.create_report(db, user, payload, background_tasks)
     return {"detail": "Report submitted"}

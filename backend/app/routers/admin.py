@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_admin
@@ -47,8 +47,10 @@ async def list_listings(
 
 
 @router.delete("/listings/{listing_id}", response_model=ListingOut)
-async def remove_listing(listing_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> ListingOut:
-    listing = await admin_service.admin_remove_listing(db, listing_id)
+async def remove_listing(
+    listing_id: uuid.UUID, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)
+) -> ListingOut:
+    listing = await admin_service.admin_remove_listing(db, listing_id, background_tasks)
     return ListingOut.model_validate(listing)
 
 
@@ -64,8 +66,10 @@ async def list_shops(limit: int = 50, offset: int = 0, db: AsyncSession = Depend
 
 
 @router.delete("/shops/{shop_id}", response_model=ShopOut)
-async def remove_shop(shop_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> ShopOut:
-    shop = await admin_service.admin_remove_shop(db, shop_id)
+async def remove_shop(
+    shop_id: uuid.UUID, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)
+) -> ShopOut:
+    shop = await admin_service.admin_remove_shop(db, shop_id, background_tasks)
     return ShopOut.model_validate(shop, from_attributes=True)
 
 
@@ -100,9 +104,10 @@ async def list_reports(
 async def resolve_report(
     report_id: uuid.UUID,
     payload: ResolveReportRequest,
+    background_tasks: BackgroundTasks,
     admin: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db),
 ) -> ReportOut:
     report = await report_service.get_report(db, report_id)
-    report = await report_service.resolve_report(db, report, admin, payload)
+    report = await report_service.resolve_report(db, report, admin, payload, background_tasks)
     return _report_to_out(report)

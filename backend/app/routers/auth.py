@@ -6,7 +6,14 @@ from app.core.dependencies import ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, get
 from app.core.security import create_access_token
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, ResendOtpRequest, SignupRequest, VerifyOtpRequest
+from app.schemas.auth import (
+    ForgotPasswordRequest,
+    LoginRequest,
+    ResendOtpRequest,
+    ResetPasswordRequest,
+    SignupRequest,
+    VerifyOtpRequest,
+)
 from app.schemas.user import UserPublic
 from app.services import auth_service
 
@@ -53,8 +60,10 @@ async def signup(
 
 
 @router.post("/verify-email", response_model=UserPublic)
-async def verify_email(payload: VerifyOtpRequest, db: AsyncSession = Depends(get_db)) -> User:
-    return await auth_service.verify_email(db, payload.email, payload.otp)
+async def verify_email(
+    payload: VerifyOtpRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)
+) -> User:
+    return await auth_service.verify_email(db, payload.email, payload.otp, background_tasks)
 
 
 @router.post("/resend-otp", status_code=status.HTTP_204_NO_CONTENT)
@@ -106,3 +115,17 @@ async def logout(request: Request, response: Response, db: AsyncSession = Depend
 @router.get("/me", response_model=UserPublic)
 async def me(user: User = Depends(get_current_user)) -> User:
     return user
+
+
+@router.post("/forgot-password", status_code=status.HTTP_204_NO_CONTENT)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    await auth_service.request_password_reset(db, payload.email, background_tasks)
+
+
+@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depends(get_db)) -> None:
+    await auth_service.reset_password(db, payload.token, payload.new_password)

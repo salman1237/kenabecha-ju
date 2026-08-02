@@ -1,4 +1,4 @@
-import type { Message } from "@/types/api";
+import type { Message, Notification } from "@/types/api";
 
 export interface WsMessageEvent {
   type: "message";
@@ -6,7 +6,14 @@ export interface WsMessageEvent {
   message: Message;
 }
 
-type Listener = (event: WsMessageEvent) => void;
+export interface WsNotificationEvent {
+  type: "notification";
+  notification: Notification;
+}
+
+export type WsEvent = WsMessageEvent | WsNotificationEvent;
+
+type Listener = (event: WsEvent) => void;
 
 const MAX_RECONNECT_DELAY_MS = 15000;
 
@@ -35,7 +42,7 @@ class WsClient {
 
     ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data) as WsMessageEvent;
+        const data = JSON.parse(event.data) as WsEvent;
         this.listeners.forEach((listener) => listener(data));
       } catch {
         // ignore malformed frames

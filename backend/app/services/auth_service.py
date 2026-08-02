@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.core.security import (
     generate_otp,
     generate_refresh_token,
+    generate_secure_token,
     hash_password,
     hash_token,
     verify_password,
@@ -17,7 +18,7 @@ from app.models.reference import Department, Hall
 from app.models.token import AuthToken, AuthTokenPurpose, RefreshToken
 from app.models.user import User
 from app.schemas.auth import LoginRequest, SignupRequest
-from app.services.email_service import send_otp_email
+from app.services.email_service import send_email, send_otp_email
 from app.services.reference_service import compute_batch
 
 settings = get_settings()
@@ -25,6 +26,8 @@ settings = get_settings()
 OTP_EXPIRE_MINUTES = 10
 OTP_MAX_ATTEMPTS = 5
 OTP_RESEND_COOLDOWN_SECONDS = 60
+PASSWORD_RESET_EXPIRE_MINUTES = 60
+PASSWORD_RESET_RESEND_COOLDOWN_SECONDS = 60
 
 
 async def _get_user_by_email(db: AsyncSession, email: str) -> User | None:
@@ -116,7 +119,9 @@ async def resend_otp(db: AsyncSession, email: str, background_tasks: BackgroundT
     await db.commit()
 
 
-async def verify_email(db: AsyncSession, email: str, otp: str) -> User:
+async def verify_email(
+    db: AsyncSession, email: str, otp: str, background_tasks: BackgroundTasks
+) -> User:
     user = await _get_user_by_email(db, email)
     invalid_error = HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or expired verification code")
     if user is None:
@@ -147,6 +152,18 @@ async def verify_email(db: AsyncSession, email: str, otp: str) -> User:
     user.is_verified = True
     await db.commit()
     await db.refresh(user)
+
+    background_tasks.add_task(
+        send_email,
+        user.email,
+        "Welcome to KenaBecha JU",
+        (
+            f"Hi {user.full_name},\n\n"
+            "Your email is verified and your account is ready to go. "
+            "Browse listings, list something to sell, or set up a shop:\n\n"
+            f"{settings.FRONTEND_URL}"
+        ),
+    )
     return user
 
 
@@ -237,3 +254,72 @@ async def revoke_refresh_token(db: AsyncSession, raw_token: str) -> None:
     if token is not None and token.revoked_at is None:
         token.revoked_at = datetime.now(UTC)
         await db.commit()
+
+
+async def request_password_reset(db: AsyncSession, email: str, background_tasks: BackgroundTasks) -> None:
+    user = await _get_user_by_email(db, email)
+    if user is None:
+        # Don't leak whether an account exists for this email.
+        return
+
+    result = await db.execute(
+        select(AuthToken)
+        .where(
+            AuthToken.user_id == user.id,
+            AuthToken.purpose == AuthTokenPurpose.password_reset,
+            AuthToken.used_at.is_(None),
+        )
+        .order_by(AuthToken.created_at.desc())
+        .limit(1)
+    )
+    latest = result.scalar_one_or_none()
+    if latest is not None:
+        age = datetime.now(UTC) - latest.created_at
+        if age < timedelta(seconds=PASSWORD_RESET_RESEND_COOLDOWN_SECONDS):
+            return  # silently ignore rapid re-requests rather than leaking timing info
+        latest.used_at = datetime.now(UTC)  # invalidate the previous link
+
+    raw_token = generate_secure_token()
+    auth_token = AuthToken(
+        user_id=user.id,
+        token_hash=hash_token(raw_token),
+        purpose=AuthTokenPurpose.password_reset,
+        expires_at=datetime.now(UTC) + timedelta(minutes=PASSWORD_RESET_EXPIRE_MINUTES),
+    )
+    db.add(auth_token)
+    await db.commit()
+
+    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={raw_token}"
+    background_tasks.add_task(
+        send_email,
+        user.email,
+        "Reset your KenaBecha JU password",
+        (
+            f"We received a request to reset your password.\n\n"
+            f"Reset it here (expires in {PASSWORD_RESET_EXPIRE_MINUTES} minutes): {reset_link}\n\n"
+            "If you didn't request this, you can safely ignore this email."
+        ),
+    )
+
+
+async def reset_password(db: AsyncSession, raw_token: str, new_password: str) -> None:
+    invalid_error = HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or expired reset link")
+    result = await db.execute(
+        select(AuthToken).where(
+            AuthToken.token_hash == hash_token(raw_token),
+            AuthToken.purpose == AuthTokenPurpose.password_reset,
+        )
+    )
+    token = result.scalar_one_or_none()
+    if token is None or token.used_at is not None or token.expires_at < datetime.now(UTC):
+        raise invalid_error
+
+    user = await db.get(User, token.user_id)
+    if user is None:
+        raise invalid_error
+
+    user.hashed_password = hash_password(new_password)
+    token.used_at = datetime.now(UTC)
+    # A password reset is a strong signal to end every other active session.
+    await revoke_all_user_tokens(db, user.id)
+    await db.commit()

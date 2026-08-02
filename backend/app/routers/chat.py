@@ -1,16 +1,20 @@
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.conversation import Conversation, Message
+from app.models.notification import NotificationType
 from app.models.user import User
 from app.schemas.chat import ConversationOut, MessageOut, SendMessageRequest
-from app.services import chat_service, listing_service
+from app.services import chat_service, listing_service, notification_service
 from app.websocket.manager import manager
+
+settings = get_settings()
 
 router = APIRouter(tags=["chat"])
 
@@ -81,6 +85,14 @@ async def get_messages(
     return await chat_service.list_messages(db, conversation, before, limit)
 
 
+def _sender_display_name(conversation: Conversation, sender_id: uuid.UUID) -> str:
+    if sender_id == conversation.buyer_id:
+        return conversation.buyer.full_name
+    if conversation.shop is not None:
+        return conversation.shop.shop_name
+    return conversation.seller.full_name
+
+
 @router.post(
     "/conversations/{conversation_id}/messages",
     response_model=MessageOut,
@@ -89,6 +101,7 @@ async def get_messages(
 async def post_message(
     conversation_id: uuid.UUID,
     payload: SendMessageRequest,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Message:
@@ -98,6 +111,26 @@ async def post_message(
         message.receiver_id,
         {"type": "message", "conversation_id": str(conversation.id), "message": MessageOut.model_validate(message).model_dump(mode="json")},
     )
+
+    sender_name = _sender_display_name(conversation, user.id)
+    await notification_service.notify(
+        db,
+        background_tasks,
+        message.receiver_id,
+        NotificationType.new_message,
+        title=f"New message from {sender_name}",
+        body=message.content[:200],
+        link_url=f"/inbox/{conversation.id}",
+        email_subject=f"New message from {sender_name} on KenaBecha JU",
+        email_body=(
+            f"{sender_name} sent you a message about \"{conversation.listing.title}\":\n\n"
+            f"{message.content}\n\n"
+            f"Reply at: {settings.FRONTEND_URL}/inbox/{conversation.id}"
+        ),
+        email_if_offline_only=True,
+        related_conversation_id=conversation.id,
+    )
+
     return message
 
 

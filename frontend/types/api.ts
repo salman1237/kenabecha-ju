@@ -192,3 +192,26 @@ export interface AdminStats {
   total_messages: number;
   pending_reports: number;
 }
+
+export type NotificationType =
+  | "new_message"
+  | "new_rating"
+  | "listing_reported"
+  | "listing_removed"
+  | "shop_reported"
+  | "shop_removed";
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  link_url: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface NotificationList {
+  items: Notification[];
+  unread_count: number;
+}

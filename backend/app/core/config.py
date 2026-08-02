@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    FRONTEND_URL: str = "http://localhost:3000"
 
     MEDIA_ROOT: str = "/app/media"
 

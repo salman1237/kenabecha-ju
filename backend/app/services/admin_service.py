@@ -1,17 +1,21 @@
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models.conversation import Message
 from app.models.listing import Listing, ListingStatus
+from app.models.notification import NotificationType
 from app.models.report import Report, ReportStatus
 from app.models.shop import Shop
 from app.models.user import User
 from app.schemas.admin import AdminStatsOut
-from app.services import auth_service
+from app.services import auth_service, notification_service
+
+settings = get_settings()
 
 
 async def list_users(
@@ -49,7 +53,9 @@ async def list_all_listings(db: AsyncSession, limit: int = 50, offset: int = 0) 
     return listings, count
 
 
-async def admin_remove_listing(db: AsyncSession, listing_id: uuid.UUID) -> Listing:
+async def admin_remove_listing(
+    db: AsyncSession, listing_id: uuid.UUID, background_tasks: BackgroundTasks
+) -> Listing:
     listing = await db.get(Listing, listing_id)
     if listing is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Listing not found")
@@ -58,6 +64,23 @@ async def admin_remove_listing(db: AsyncSession, listing_id: uuid.UUID) -> Listi
     listing.deleted_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(listing)
+
+    link_url = f"/listings/{listing.id}"
+    await notification_service.notify(
+        db,
+        background_tasks,
+        listing.seller_id,
+        NotificationType.listing_removed,
+        title="Your listing was removed",
+        body=f'"{listing.title}" was removed by a moderator.',
+        link_url=link_url,
+        email_subject="Your listing was removed from KenaBecha JU",
+        email_body=(
+            f'Your listing "{listing.title}" was removed by a moderator for violating platform policy.\n\n'
+            f"If you believe this was a mistake, reply to this email."
+        ),
+        related_listing_id=listing.id,
+    )
     return listing
 
 
@@ -70,7 +93,7 @@ async def list_all_shops(db: AsyncSession, limit: int = 50, offset: int = 0) -> 
     return shops, count
 
 
-async def admin_remove_shop(db: AsyncSession, shop_id: uuid.UUID) -> Shop:
+async def admin_remove_shop(db: AsyncSession, shop_id: uuid.UUID, background_tasks: BackgroundTasks) -> Shop:
     shop = await db.get(Shop, shop_id)
     if shop is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Shop not found")
@@ -78,6 +101,23 @@ async def admin_remove_shop(db: AsyncSession, shop_id: uuid.UUID) -> Shop:
     shop.deleted_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(shop)
+
+    link_url = f"/shops/{shop.slug}"
+    await notification_service.notify(
+        db,
+        background_tasks,
+        shop.owner_id,
+        NotificationType.shop_removed,
+        title="Your shop was removed",
+        body=f'"{shop.shop_name}" was removed by a moderator.',
+        link_url=link_url,
+        email_subject="Your shop was removed from KenaBecha JU",
+        email_body=(
+            f'Your shop "{shop.shop_name}" was removed by a moderator for violating platform policy.\n\n'
+            f"If you believe this was a mistake, reply to this email."
+        ),
+        related_shop_id=shop.id,
+    )
     return shop
 
 

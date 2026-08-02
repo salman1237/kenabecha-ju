@@ -34,7 +34,7 @@ export default function ChatWindowPage() {
 
   useEffect(() => {
     return wsClient.on((event) => {
-      if (event.conversation_id !== params.conversationId) return;
+      if (event.type !== "message" || event.conversation_id !== params.conversationId) return;
       setMessages((prev) => [...prev, event.message]);
       markConversationRead(params.conversationId).catch(() => {});
     });
