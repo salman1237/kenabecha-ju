@@ -10,7 +10,7 @@ from app.db.session import get_db
 from app.models.conversation import Conversation, Message
 from app.models.notification import NotificationType
 from app.models.user import User
-from app.schemas.chat import ConversationOut, MessageOut, SendMessageRequest
+from app.schemas.chat import ConversationListingOut, ConversationOut, MessageOut, SendMessageRequest
 from app.services import chat_service, listing_service, notification_service
 from app.websocket.manager import manager
 
@@ -24,10 +24,17 @@ def _to_conversation_out(
 ) -> ConversationOut:
     is_seller = user.id == conversation.seller_id
     counterparty = conversation.buyer if is_seller else conversation.seller
+    listing = conversation.listing
     return ConversationOut(
         id=conversation.id,
-        listing_id=conversation.listing_id,
-        listing_title=conversation.listing.title,
+        listing=ConversationListingOut(
+            id=listing.id,
+            title=listing.title,
+            price=listing.price,
+            price_type=listing.price_type,
+            status=listing.status,
+            image_url=listing.images[0].image_url if listing.images else None,
+        ),
         shop=conversation.shop,
         counterparty=counterparty,
         is_seller=is_seller,

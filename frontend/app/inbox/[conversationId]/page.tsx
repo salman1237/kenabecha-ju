@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,9 +17,44 @@ import {
   sendMessage,
 } from "@/lib/api/chat";
 import { ApiError } from "@/lib/api/client";
-import { cn } from "@/lib/utils";
+import { cn, formatPrice, mediaUrl } from "@/lib/utils";
 import { wsClient } from "@/lib/ws/client";
 import type { Conversation, Message } from "@/types/api";
+
+const STATUS_LABELS: Record<string, string> = {
+  active: "Active",
+  sold: "Sold",
+  out_of_stock: "Out of stock",
+  removed: "Removed",
+};
+
+function ProductCard({ conversation }: { conversation: Conversation }) {
+  const { listing } = conversation;
+  return (
+    <Link
+      href={`/listings/${listing.id}`}
+      className="mx-auto flex w-full max-w-sm items-center gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/50"
+    >
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-[10px] text-muted-foreground">
+        {listing.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={mediaUrl(listing.image_url)} alt="" className="h-full w-full object-cover" />
+        ) : (
+          "No photo"
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <p className="truncate text-sm font-medium">{listing.title}</p>
+        <p className="text-sm text-muted-foreground">{formatPrice(listing.price, listing.price_type)}</p>
+      </div>
+      {listing.status !== "active" && (
+        <Badge variant="secondary" className="shrink-0">
+          {STATUS_LABELS[listing.status]}
+        </Badge>
+      )}
+    </Link>
+  );
+}
 
 export default function ChatWindowPage() {
   const params = useParams<{ conversationId: string }>();
@@ -88,8 +124,8 @@ export default function ChatWindowPage() {
           </Link>
           <div>
             <p className="font-medium">{headerName}</p>
-            <Link href={`/listings/${conversation.listing_id}`} className="text-xs text-muted-foreground hover:underline">
-              {conversation.listing_title}
+            <Link href={`/listings/${conversation.listing.id}`} className="text-xs text-muted-foreground hover:underline">
+              {conversation.listing.title}
             </Link>
           </div>
         </div>
@@ -99,6 +135,7 @@ export default function ChatWindowPage() {
       </div>
 
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto py-4">
+        <ProductCard conversation={conversation} />
         {messages.map((m) => {
           const isMine = m.sender_id === user.id;
           return (

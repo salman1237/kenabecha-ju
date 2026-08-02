@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
 import { getConversations } from "@/lib/api/chat";
+import { mediaUrl } from "@/lib/utils";
 import { wsClient } from "@/lib/ws/client";
 import type { Conversation } from "@/types/api";
 
@@ -103,14 +104,22 @@ export default function InboxPage() {
                 href={`/inbox/${c.id}`}
                 className="flex items-center justify-between gap-4 py-4 transition-colors hover:bg-muted/50"
               >
-                <div className="flex flex-col gap-0.5 overflow-hidden">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-[10px] text-muted-foreground">
+                  {c.listing.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={mediaUrl(c.listing.image_url)} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    "No photo"
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{displayName}</span>
                     <Badge variant="secondary" className="text-[10px]">
                       {c.shop ? c.shop.shop_name : "Personal"}
                     </Badge>
                   </div>
-                  <p className="truncate text-xs text-muted-foreground">{c.listing_title}</p>
+                  <p className="truncate text-xs text-muted-foreground">{c.listing.title}</p>
                   {c.last_message_preview && (
                     <p className="truncate text-sm text-muted-foreground">{c.last_message_preview}</p>
                   )}

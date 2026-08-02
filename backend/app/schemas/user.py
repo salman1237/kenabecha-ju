@@ -33,16 +33,23 @@ class UserPublic(BaseModel):
 
 
 class UserProfileOut(BaseModel):
-    """Public-facing profile — deliberately excludes PII (email, phone, student_id,
-    registration_no, hall) that UserPublic includes for the self-view.
-    profile_complete is safe to expose publicly: it's just a boolean "completed JU
-    verification" trust signal, not the underlying identity fields themselves."""
+    """Public-facing profile. Contact/identity fields (email, phone, whatsapp_number,
+    student_id, registration_no, hall, session) are shown to any viewer by product
+    decision — this is a closed campus marketplace where full contact/verification
+    transparency is the point, not a general-purpose public app."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     full_name: str
     avatar_url: str | None
+    email: str
+    phone: str | None
+    whatsapp_number: str | None
+    student_id: str | None
+    registration_no: str | None
+    hall: HallOut | None
+    session: str | None
     bio: str | None
     department: DepartmentOut | None
     batch: int | None

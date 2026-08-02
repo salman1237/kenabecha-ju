@@ -99,10 +99,18 @@ export interface ChatUser {
   avatar_url: string | null;
 }
 
+export interface ConversationListing {
+  id: string;
+  title: string;
+  price: string | null;
+  price_type: PriceType;
+  status: ListingStatus;
+  image_url: string | null;
+}
+
 export interface Conversation {
   id: string;
-  listing_id: string;
-  listing_title: string;
+  listing: ConversationListing;
   shop: { id: string; shop_name: string; slug: string; logo_url: string | null } | null;
   counterparty: ChatUser;
   is_seller: boolean;
@@ -140,6 +148,13 @@ export interface UserProfile {
   id: string;
   full_name: string;
   avatar_url: string | null;
+  email: string;
+  phone: string | null;
+  whatsapp_number: string | null;
+  student_id: string | null;
+  registration_no: string | null;
+  hall: Hall | null;
+  session: string | null;
   bio: string | null;
   department: Department | null;
   batch: number | null;

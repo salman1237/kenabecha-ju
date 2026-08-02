@@ -138,24 +138,20 @@ function ProfileEditForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-function AccountDetails() {
-  const { user } = useAuth();
-  if (!user) return null;
-
+function AccountDetails({ profile, isOwnProfile }: { profile: UserProfile; isOwnProfile: boolean }) {
   const rows: [string, string][] = [
-    ["Email", user.email],
-    ["Phone", user.phone ?? "Not set"],
-    ["WhatsApp", user.whatsapp_number ?? "Not set"],
-    ["Student ID", user.student_id ?? "Not set"],
-    ["Registration no.", user.registration_no ?? "Not set"],
-    ["Hall", user.hall?.name ?? "Not set"],
-    ["Session", user.session ?? "Not set"],
+    ["Email", profile.email],
+    ["Phone", profile.phone ?? "Not set"],
+    ["WhatsApp", profile.whatsapp_number ?? "Not set"],
+    ["Student ID", profile.student_id ?? "Not set"],
+    ["Registration no.", profile.registration_no ?? "Not set"],
+    ["Hall", profile.hall?.name ?? "Not set"],
+    ["Session", profile.session ?? "Not set"],
   ];
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
-      <p className="text-sm font-medium">Your account details</p>
-      <p className="text-xs text-muted-foreground">Only visible to you.</p>
+      <p className="text-sm font-medium">Account details</p>
       <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
         {rows.map(([label, value]) => (
           <div key={label} className="flex items-baseline justify-between gap-3 text-sm sm:justify-start">
@@ -164,7 +160,7 @@ function AccountDetails() {
           </div>
         ))}
       </dl>
-      {!user.profile_complete && (
+      {!profile.profile_complete && isOwnProfile && (
         <p className="text-xs text-muted-foreground">
           Your JU verification isn&apos;t complete yet, so some fields above are empty — you&apos;ll be
           asked to fill them in the first time you try to sell.
@@ -267,7 +263,7 @@ export default function ProfilePage() {
         />
       )}
 
-      {isOwnProfile && !editing && <AccountDetails />}
+      {!(isOwnProfile && editing) && <AccountDetails profile={profile} isOwnProfile={isOwnProfile} />}
 
       <div className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Personal listings</h2>
