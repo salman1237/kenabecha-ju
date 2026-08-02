@@ -23,8 +23,8 @@ const HOW_IT_WORKS = [
     body: "Find what you need from students across campus, or list something you're done with in minutes.",
   },
   {
-    title: "Message or add to cart",
-    body: "Ask a question in chat, or add it to your cart and check out — no payment required either way.",
+    title: "Chat, call, or WhatsApp",
+    body: "Reach the seller however's easiest — in-app chat, a phone call, or WhatsApp.",
   },
   {
     title: "Meet up or arrange delivery",
@@ -70,8 +70,8 @@ export default function Home() {
           Buy, sell, and run shops — right here at JU.
         </h1>
         <p className="max-w-lg text-muted-foreground">
-          Browse everything for free. Sign up with one click to message a seller, add to cart, or list
-          something yourself.
+          Browse everything for free. Sign up with one click to chat, call, or WhatsApp a seller, or
+          list something yourself.
         </p>
 
         <form onSubmit={onSearch} className="flex w-full max-w-md gap-2">

@@ -17,6 +17,7 @@ class UserPublic(BaseModel):
     full_name: str
     avatar_url: str | None
     phone: str | None
+    whatsapp_number: str | None
     bio: str | None
     student_id: str | None
     registration_no: str | None

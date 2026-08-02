@@ -1,9 +1,9 @@
 "use client";
 
+import { Phone } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import {
   AlertDialog,
@@ -22,9 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
-import { addToCart } from "@/lib/api/cart";
 import { contactSeller } from "@/lib/api/chat";
-import { emitCartChanged } from "@/lib/cartEvents";
 import {
   deleteListing,
   deleteListingImage,
@@ -34,7 +32,7 @@ import {
 } from "@/lib/api/listings";
 import { ApiError } from "@/lib/api/client";
 import { getRatingEligibility } from "@/lib/api/ratings";
-import { CONDITION_LABELS, cn, formatPrice, mediaUrl } from "@/lib/utils";
+import { CONDITION_LABELS, cn, formatPrice, mediaUrl, toTelHref, toWhatsAppHref } from "@/lib/utils";
 import type { Listing, Rating, RatingEligibility } from "@/types/api";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -69,7 +67,6 @@ export default function ListingDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [eligibility, setEligibility] = useState<RatingEligibility | null>(null);
   const [submittedRating, setSubmittedRating] = useState<Rating | null>(null);
-  const [addingToCart, setAddingToCart] = useState(false);
 
   const mutate = () => {
     getListing(params.id)
@@ -139,22 +136,6 @@ export default function ListingDetailPage() {
       router.push(`/inbox/${conversation.id}`);
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Could not start conversation.");
-    }
-  };
-
-  const onAddToCart = async () => {
-    setActionError(null);
-    setAddingToCart(true);
-    try {
-      await addToCart(listing.id, 1);
-      emitCartChanged();
-      toast.success(`Added "${listing.title}" to your cart`, {
-        action: { label: "View cart", onClick: () => router.push("/cart") },
-      });
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Could not add to cart.");
-    } finally {
-      setAddingToCart(false);
     }
   };
 
@@ -275,17 +256,30 @@ export default function ListingDetailPage() {
         )}
         {isOwner ? (
           <Button variant="secondary" disabled title="This is your own listing">
-            Contact Seller
+            Chat
           </Button>
         ) : user ? (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" onClick={onContactSeller}>
-              Contact Seller
+              Chat
             </Button>
-            {listing.status === "active" && (
-              <Button onClick={onAddToCart} disabled={addingToCart}>
-                {addingToCart ? "Adding…" : "Add to Cart"}
-              </Button>
+            {listing.seller.phone && (
+              <a href={toTelHref(listing.seller.phone)} className={cn(buttonVariants())}>
+                <Phone /> Call
+              </a>
+            )}
+            {listing.seller.whatsapp_number && (
+              <a
+                href={toWhatsAppHref(
+                  listing.seller.whatsapp_number,
+                  `Hi, I'm interested in "${listing.title}" on KenaBecha JU.`
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(buttonVariants({ variant: "outline" }), "border-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/10")}
+              >
+                WhatsApp
+              </a>
             )}
           </div>
         ) : (

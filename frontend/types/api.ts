@@ -20,6 +20,7 @@ export interface User {
   full_name: string;
   avatar_url: string | null;
   phone: string | null;
+  whatsapp_number: string | null;
   bio: string | null;
   student_id: string | null;
   registration_no: string | null;
@@ -79,7 +80,7 @@ export interface Listing {
   fulfillment_type: FulfillmentType;
   pickup_address: string | null;
   created_at: string;
-  seller: { id: string; full_name: string; avatar_url: string | null };
+  seller: { id: string; full_name: string; avatar_url: string | null; phone: string | null; whatsapp_number: string | null };
   shop: { id: string; shop_name: string; slug: string; logo_url: string | null } | null;
   images: ListingImage[];
   tags: Tag[];
@@ -204,9 +205,7 @@ export type NotificationType =
   | "listing_reported"
   | "listing_removed"
   | "shop_reported"
-  | "shop_removed"
-  | "order_placed"
-  | "order_status_changed";
+  | "shop_removed";
 
 export interface Notification {
   id: string;
@@ -223,46 +222,3 @@ export interface NotificationList {
   unread_count: number;
 }
 
-export interface CartListing {
-  id: string;
-  title: string;
-  price: string | null;
-  price_type: PriceType;
-  quantity: number;
-  status: ListingStatus;
-  fulfillment_type: FulfillmentType;
-  pickup_address: string | null;
-  images: ListingImage[];
-  seller: { id: string; full_name: string; avatar_url: string | null };
-  shop: { id: string; shop_name: string; slug: string; logo_url: string | null } | null;
-}
-
-export interface CartItem {
-  id: string;
-  quantity: number;
-  listing: CartListing;
-  created_at: string;
-}
-
-export type OrderStatus = "pending" | "confirmed" | "completed" | "cancelled";
-
-export interface OrderItem {
-  id: string;
-  quantity: number;
-  unit_price: string | null;
-  price_type: PriceType;
-  listing: CartListing;
-}
-
-export interface Order {
-  id: string;
-  buyer: { id: string; full_name: string; avatar_url: string | null };
-  seller: { id: string; full_name: string; avatar_url: string | null };
-  shop: { id: string; shop_name: string; slug: string; logo_url: string | null } | null;
-  fulfillment_type: FulfillmentType;
-  delivery_address: string | null;
-  buyer_phone: string;
-  status: OrderStatus;
-  items: OrderItem[];
-  created_at: string;
-}

@@ -1,10 +1,9 @@
 "use client";
 
-import { LogOut, Menu, MessageSquare, Package, PlusCircle, Shield, ShoppingBag, User as UserIcon } from "lucide-react";
+import { LogOut, Menu, MessageSquare, PlusCircle, Shield, ShoppingBag, User as UserIcon } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 
-import { CartLink } from "@/components/cart/CartLink";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -41,10 +40,6 @@ export function Navbar() {
         {!isLoading &&
           (user ? (
             <>
-              <Link href="/orders" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden sm:inline-flex")}>
-                Orders
-              </Link>
-              <CartLink />
               <NotificationBell />
 
               <DropdownMenu>
@@ -98,10 +93,6 @@ export function Navbar() {
                     <SheetClose render={<Link href={`/profile/${user.id}`} className="flex items-center gap-2 rounded-md px-2 py-2.5 text-sm font-medium hover:bg-muted" />}>
                       <UserIcon className="size-4" />
                       Profile
-                    </SheetClose>
-                    <SheetClose render={<Link href="/orders" className="flex items-center gap-2 rounded-md px-2 py-2.5 text-sm font-medium hover:bg-muted" />}>
-                      <Package className="size-4" />
-                      Orders
                     </SheetClose>
                     <SheetClose render={<Link href="/inbox" className="flex items-center gap-2 rounded-md px-2 py-2.5 text-sm font-medium hover:bg-muted" />}>
                       <MessageSquare className="size-4" />

@@ -3,18 +3,74 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { ListingCard } from "@/components/listings/ListingCard";
 import { StarRating } from "@/components/ratings/StarRating";
 import { ReportButton } from "@/components/ReportButton";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/context/AuthContext";
+import { updateWhatsAppNumber } from "@/lib/api/auth";
+import { ApiError } from "@/lib/api/client";
 import { browseListings } from "@/lib/api/listings";
 import { getUserProfile } from "@/lib/api/users";
 import type { Listing, UserProfile } from "@/types/api";
 
+function ContactSettings() {
+  const { user, setUser } = useAuth();
+  const [value, setValue] = useState(user?.whatsapp_number ?? "");
+  const [saving, setSaving] = useState(false);
+  const [fieldError, setFieldError] = useState<string | null>(null);
+
+  if (!user) return null;
+
+  const onSave = async () => {
+    setSaving(true);
+    setFieldError(null);
+    try {
+      const updated = await updateWhatsAppNumber(value.trim() || null);
+      setUser(updated);
+      toast.success("WhatsApp number updated");
+    } catch (err) {
+      setFieldError(err instanceof ApiError ? err.message : "Could not update WhatsApp number.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
+      <div>
+        <p className="text-sm font-medium">Contact options for your listings</p>
+        <p className="text-xs text-muted-foreground">
+          Buyers will see a Call button using your verified phone ({user.phone ?? "not set"}), plus a
+          WhatsApp button if you add a number below.
+        </p>
+      </div>
+      <div className="flex flex-col gap-1.5 sm:max-w-xs">
+        <Label htmlFor="whatsapp_number">WhatsApp number</Label>
+        <Input
+          id="whatsapp_number"
+          placeholder="01XXXXXXXXX"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+        {fieldError && <p className="text-xs text-destructive">{fieldError}</p>}
+      </div>
+      <Button size="sm" className="self-start" onClick={onSave} disabled={saving}>
+        {saving ? "Saving…" : "Save"}
+      </Button>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const params = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [error, setError] = useState(false);
@@ -67,6 +123,8 @@ export default function ProfilePage() {
           <ReportButton targetType="user" targetId={profile.id} />
         </div>
       </div>
+
+      {user?.id === profile.id && <ContactSettings />}
 
       <div className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Personal listings</h2>

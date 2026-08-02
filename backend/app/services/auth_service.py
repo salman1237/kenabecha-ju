@@ -256,6 +256,13 @@ async def complete_profile(db: AsyncSession, user: User, payload: CompleteProfil
     return user
 
 
+async def update_whatsapp_number(db: AsyncSession, user: User, whatsapp_number: str | None) -> User:
+    user.whatsapp_number = whatsapp_number
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
 async def authenticate(db: AsyncSession, payload: LoginRequest) -> User:
     invalid_error = HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect email or password")
     user = await _get_user_by_email(db, payload.email)

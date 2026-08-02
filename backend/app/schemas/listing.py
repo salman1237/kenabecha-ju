@@ -22,6 +22,8 @@ class ListingSellerOut(BaseModel):
     id: uuid.UUID
     full_name: str
     avatar_url: str | None
+    phone: str | None
+    whatsapp_number: str | None
 
 
 class ListingShopOut(BaseModel):

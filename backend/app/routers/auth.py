@@ -14,6 +14,7 @@ from app.schemas.auth import (
     ResendOtpRequest,
     ResetPasswordRequest,
     SignupRequest,
+    UpdateWhatsAppRequest,
     VerifyOtpRequest,
 )
 from app.schemas.user import UserPublic
@@ -139,6 +140,15 @@ async def logout(request: Request, response: Response, db: AsyncSession = Depend
 @router.get("/me", response_model=UserPublic)
 async def me(user: User = Depends(get_current_user)) -> User:
     return user
+
+
+@router.patch("/whatsapp", response_model=UserPublic)
+async def update_whatsapp(
+    payload: UpdateWhatsAppRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    return await auth_service.update_whatsapp_number(db, user, payload.whatsapp_number)
 
 
 @router.post("/forgot-password", status_code=status.HTTP_204_NO_CONTENT)

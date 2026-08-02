@@ -43,6 +43,13 @@ export function completeProfile(payload: CompleteProfilePayload) {
   });
 }
 
+export function updateWhatsAppNumber(whatsappNumber: string | null) {
+  return apiFetch<User>("/auth/whatsapp", {
+    method: "PATCH",
+    body: JSON.stringify({ whatsapp_number: whatsappNumber }),
+  });
+}
+
 export function verifyEmail(email: string, otp: string) {
   return apiFetch<User>("/auth/verify-email", {
     method: "POST",

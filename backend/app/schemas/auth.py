@@ -37,6 +37,10 @@ class GoogleLoginRequest(BaseModel):
     credential: str
 
 
+class UpdateWhatsAppRequest(BaseModel):
+    whatsapp_number: str | None = Field(default=None, pattern=PHONE_PATTERN)
+
+
 class VerifyOtpRequest(BaseModel):
     email: EmailStr
     otp: str = Field(pattern=r"^\d{6}$")

@@ -17,6 +17,24 @@ export function formatPrice(price: string | null, priceType: "fixed" | "negotiab
   return priceType === "negotiable" ? `${amount} (negotiable)` : amount;
 }
 
+function toBangladeshDigits(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("880")) return digits;
+  if (digits.startsWith("0")) return `88${digits}`;
+  return digits;
+}
+
+export function toTelHref(phone: string) {
+  const digits = toBangladeshDigits(phone);
+  return `tel:+${digits}`;
+}
+
+export function toWhatsAppHref(phone: string, text?: string) {
+  const digits = toBangladeshDigits(phone);
+  const query = text ? `?text=${encodeURIComponent(text)}` : "";
+  return `https://wa.me/${digits}${query}`;
+}
+
 export const CONDITION_LABELS: Record<string, string> = {
   new: "New",
   used_like_new: "Used - Like New",

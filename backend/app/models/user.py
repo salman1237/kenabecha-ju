@@ -38,6 +38,7 @@ class User(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
     full_name: Mapped[str] = mapped_column(String(150), nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(Text)
     phone: Mapped[str | None] = mapped_column(String(30))
+    whatsapp_number: Mapped[str | None] = mapped_column(String(30))
     bio: Mapped[str | None] = mapped_column(Text)
 
     # JU student identity — required to sell (create a shop/listing), optional at
