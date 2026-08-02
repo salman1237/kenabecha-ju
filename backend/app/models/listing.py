@@ -45,6 +45,11 @@ class ListingStatus(str, enum.Enum):
     removed = "removed"
 
 
+class FulfillmentType(str, enum.Enum):
+    pickup = "pickup"
+    delivery = "delivery"
+
+
 listing_tags = Table(
     "listing_tags",
     Base.metadata,
@@ -103,6 +108,12 @@ class Listing(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
         nullable=False,
         index=True,
     )
+    fulfillment_type: Mapped[FulfillmentType] = mapped_column(
+        Enum(FulfillmentType, name="fulfillment_type"),
+        default=FulfillmentType.pickup,
+        nullable=False,
+    )
+    pickup_address: Mapped[str | None] = mapped_column(Text)
 
     seller: Mapped["User"] = relationship(lazy="selectin")
     shop: Mapped["Shop | None"] = relationship(lazy="selectin")

@@ -6,7 +6,15 @@ from fastapi import HTTPException, status
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.listing import Condition, Listing, ListingImage, ListingStatus, Tag, listing_tags
+from app.models.listing import (
+    Condition,
+    FulfillmentType,
+    Listing,
+    ListingImage,
+    ListingStatus,
+    Tag,
+    listing_tags,
+)
 from app.models.user import User
 from app.schemas.listing import ListingCreate, ListingUpdate
 from app.services import shop_service, tag_service
@@ -51,6 +59,8 @@ async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate)
         price_type=payload.price_type,
         condition=condition,
         quantity=quantity,
+        fulfillment_type=payload.fulfillment_type,
+        pickup_address=payload.pickup_address,
     )
     db.add(listing)
     await db.flush()
@@ -161,6 +171,13 @@ async def update_listing(db: AsyncSession, listing: Listing, payload: ListingUpd
     data = payload.model_dump(exclude_unset=True, exclude={"tags"})
     for field, value in data.items():
         setattr(listing, field, value)
+
+    if listing.fulfillment_type == FulfillmentType.delivery:
+        listing.pickup_address = None
+    elif listing.fulfillment_type == FulfillmentType.pickup and not listing.pickup_address:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Pickup address is required when pickup is selected"
+        )
 
     if listing.shop_id is not None:
         listing.condition = Condition.new

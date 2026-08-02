@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { RatingForm } from "@/components/ratings/RatingForm";
 import { ReportButton } from "@/components/ReportButton";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { addToCart } from "@/lib/api/cart";
 import { contactSeller } from "@/lib/api/chat";
+import { emitCartChanged } from "@/lib/cartEvents";
 import {
   deleteListing,
   deleteListingImage,
@@ -17,7 +21,7 @@ import {
 } from "@/lib/api/listings";
 import { ApiError } from "@/lib/api/client";
 import { getRatingEligibility } from "@/lib/api/ratings";
-import { CONDITION_LABELS, formatPrice, mediaUrl } from "@/lib/utils";
+import { CONDITION_LABELS, cn, formatPrice, mediaUrl } from "@/lib/utils";
 import type { Listing, Rating, RatingEligibility } from "@/types/api";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -41,6 +45,7 @@ export default function ListingDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [eligibility, setEligibility] = useState<RatingEligibility | null>(null);
   const [submittedRating, setSubmittedRating] = useState<Rating | null>(null);
+  const [addingToCart, setAddingToCart] = useState(false);
 
   const mutate = () => {
     getListing(params.id)
@@ -111,6 +116,22 @@ export default function ListingDetailPage() {
       router.push(`/inbox/${conversation.id}`);
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : "Could not start conversation.");
+    }
+  };
+
+  const onAddToCart = async () => {
+    setActionError(null);
+    setAddingToCart(true);
+    try {
+      await addToCart(listing.id, 1);
+      emitCartChanged();
+      toast.success(`Added "${listing.title}" to your cart`, {
+        action: { label: "View cart", onClick: () => router.push("/cart") },
+      });
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Could not add to cart.");
+    } finally {
+      setAddingToCart(false);
     }
   };
 
@@ -197,6 +218,11 @@ export default function ListingDetailPage() {
           {listing.shop ? "New" : CONDITION_LABELS[listing.condition]}
           {listing.shop && listing.quantity > 0 && ` · ${listing.quantity} in stock`}
         </p>
+        <p className="text-sm text-zinc-500">
+          {listing.fulfillment_type === "pickup"
+            ? `Pickup from: ${listing.pickup_address ?? "contact seller for details"}`
+            : "Delivery — you'll provide your address at checkout"}
+        </p>
       </div>
 
       <p className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">{listing.description}</p>
@@ -233,19 +259,23 @@ export default function ListingDetailPage() {
             Contact Seller
           </button>
         ) : user ? (
-          <button
-            onClick={onContactSeller}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900"
-          >
-            Contact Seller
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onContactSeller}
+              className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            >
+              Contact Seller
+            </button>
+            {listing.status === "active" && (
+              <Button onClick={onAddToCart} disabled={addingToCart}>
+                {addingToCart ? "Adding…" : "Add to Cart"}
+              </Button>
+            )}
+          </div>
         ) : (
-          <a
-            href="/login"
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900"
-          >
-            Log in to contact seller
-          </a>
+          <Link href={`/login?next=/listings/${listing.id}`} className={cn(buttonVariants())}>
+            Log in to buy or contact seller
+          </Link>
         )}
       </div>
       {actionError && !isOwner && <p className="text-sm text-red-600">{actionError}</p>}

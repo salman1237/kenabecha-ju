@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
-import type { Condition, Listing, ListingImage, Page, PriceType } from "@/types/api";
+import type { Condition, FulfillmentType, Listing, ListingImage, Page, PriceType } from "@/types/api";
 
 export interface ListingPayload {
   title: string;
@@ -10,6 +10,8 @@ export interface ListingPayload {
   quantity?: number | null;
   shop_id?: string | null;
   tags: string[];
+  fulfillment_type: FulfillmentType;
+  pickup_address?: string | null;
 }
 
 export function createListing(payload: ListingPayload) {

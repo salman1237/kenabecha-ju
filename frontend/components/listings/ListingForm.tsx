@@ -43,6 +43,8 @@ export function ListingForm({
       condition: listing?.condition,
       quantity: listing?.quantity ? String(listing.quantity) : "",
       shop_id: listing?.shop?.id ?? defaultShopId ?? "",
+      fulfillment_type: listing?.fulfillment_type ?? "pickup",
+      pickup_address: listing?.pickup_address ?? "",
     },
   });
 
@@ -52,6 +54,7 @@ export function ListingForm({
 
   const priceType = watch("price_type");
   const shopId = watch("shop_id");
+  const fulfillmentType = watch("fulfillment_type");
   const isShopListing = mode === "edit" ? Boolean(listing?.shop) : Boolean(shopId);
 
   const onSubmit = async (values: ListingFormValues) => {
@@ -65,6 +68,8 @@ export function ListingForm({
       quantity: isShopListing && values.quantity ? Number(values.quantity) : undefined,
       shop_id: mode === "create" ? values.shop_id || null : undefined,
       tags,
+      fulfillment_type: values.fulfillment_type,
+      pickup_address: values.fulfillment_type === "pickup" ? values.pickup_address : null,
     };
 
     try {
@@ -138,6 +143,24 @@ export function ListingForm({
       {isShopListing && (
         <FormField label="Quantity" htmlFor="quantity" hint="Leave blank for 1">
           <input id="quantity" type="number" min="0" className={inputClass} {...register("quantity")} />
+        </FormField>
+      )}
+
+      <FormField label="Fulfillment" htmlFor="fulfillment_type" hint="How will the buyer get this item?">
+        <select id="fulfillment_type" className={inputClass} {...register("fulfillment_type")}>
+          <option value="pickup">Pickup — buyer collects from you</option>
+          <option value="delivery">Delivery — buyer provides an address at checkout</option>
+        </select>
+      </FormField>
+
+      {fulfillmentType === "pickup" && (
+        <FormField
+          label="Pickup address"
+          htmlFor="pickup_address"
+          error={errors.pickup_address?.message}
+          hint="e.g. Room 204, Al Beruni Hall"
+        >
+          <input id="pickup_address" className={inputClass} {...register("pickup_address")} />
         </FormField>
       )}
 

@@ -9,9 +9,11 @@ from app.core.logging import setup_logging
 from app.routers import (
     admin,
     auth,
+    cart,
     chat,
     listings,
     notifications,
+    orders,
     ratings,
     reference,
     reports,
@@ -54,6 +56,8 @@ app.include_router(users.router)
 app.include_router(reports.router)
 app.include_router(admin.router)
 app.include_router(notifications.router)
+app.include_router(cart.router)
+app.include_router(orders.router)
 
 
 @app.get("/health", tags=["meta"])

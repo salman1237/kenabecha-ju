@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "motion/react";
 
+import { CartLink } from "@/components/cart/CartLink";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -29,6 +30,10 @@ export function Navbar() {
         {!isLoading &&
           (user ? (
             <>
+              <Link href="/orders" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+                Orders
+              </Link>
+              <CartLink />
               <NotificationBell />
               <Button variant="ghost" size="sm" onClick={logout}>
                 Log out

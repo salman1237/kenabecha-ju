@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.models.listing import Condition, ListingStatus, PriceType
+from app.models.listing import Condition, FulfillmentType, ListingStatus, PriceType
 from app.schemas.tag import TagOut
 
 
@@ -42,6 +42,8 @@ class ListingCreate(BaseModel):
     quantity: int | None = Field(default=None, ge=0)
     shop_id: uuid.UUID | None = None
     tags: list[str] = Field(default_factory=list, max_length=10)
+    fulfillment_type: FulfillmentType = FulfillmentType.pickup
+    pickup_address: str | None = Field(default=None, max_length=500)
 
     @model_validator(mode="after")
     def check_price_and_condition(self) -> "ListingCreate":
@@ -49,6 +51,10 @@ class ListingCreate(BaseModel):
             raise ValueError("Price is required for fixed-price listings")
         if self.shop_id is None and self.condition is None:
             raise ValueError("Condition is required for personal listings")
+        if self.fulfillment_type == FulfillmentType.pickup and not self.pickup_address:
+            raise ValueError("Pickup address is required when pickup is selected")
+        if self.fulfillment_type == FulfillmentType.delivery:
+            self.pickup_address = None
         return self
 
 
@@ -60,6 +66,11 @@ class ListingUpdate(BaseModel):
     condition: Condition | None = None
     quantity: int | None = Field(default=None, ge=0)
     tags: list[str] | None = Field(default=None, max_length=10)
+    fulfillment_type: FulfillmentType | None = None
+    pickup_address: str | None = Field(default=None, max_length=500)
+    # Note: pickup/delivery consistency for updates is validated in listing_service.update_listing
+    # against the merged final state, not here — a partial update might change only one of the two
+    # fields while the other keeps its existing value on the model.
 
 
 class ListingOut(BaseModel):
@@ -73,6 +84,8 @@ class ListingOut(BaseModel):
     condition: Condition
     quantity: int
     status: ListingStatus
+    fulfillment_type: FulfillmentType
+    pickup_address: str | None
     created_at: datetime
     seller: ListingSellerOut
     shop: ListingShopOut | None
