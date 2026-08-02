@@ -19,8 +19,6 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 12 — Public landing page.** Commit `4eff70a`. Real homepage: hero + search, trending tags, newest listings, featured shops, "how it works," sign-up CTA — all public, all built on the Phase 9 design system with scroll-triggered fade-ins. Added `GET /shops` (public browse — didn't exist before). Fixed a real bug this surfaced: `/listings` never read `q`/`tags` from the URL, so the landing page's search and tag links would have gone nowhere.
 - [x] **Phase 13 — Full application redesign pass.** Commit `c43a1af`. Every remaining page from Phases 3–8 retrofitted onto the Phase 9 system — consistent Card/Input/Label/Button/Badge/Table/Skeleton throughout, `confirm()` replaced with AlertDialog everywhere destructive, admin panel rebuilt on Table, Navbar gained a Sheet-based mobile hamburger menu. **This closes out the UI/UX redesign initiative (Phases 9–13).**
 
-- [ ] **Phase 14 — Category taxonomy & discovery.** A fixed, JU-relevant category list (Books & Notes, Electronics & Gadgets, Furniture & Room Essentials, Clothing & Fashion, Cycles & Transport, Stationery & Supplies, Sports & Hobbies, Food & Snacks, Others), plus a hall-based location filter and a seller tenure badge — informed by public competitive research on Bikroy.com and ekhanei.com. See "Phase 14 — Category Taxonomy & Discovery" below for the detailed breakdown.
-
 See "Phase 9+ — UI/UX Redesign, Tiered Auth & Cart/Orders" below (before "## Context") for the detailed breakdown of these five phases, written 2026-08-01 per user request. All five are now complete.
 
 ### Deviations from the original plan below
@@ -98,30 +96,6 @@ Replace the current placeholder `/` homepage with a real landing page usable wit
 
 ### Phase 13 — Full application redesign pass
 Retrofit every page built in Phases 3–8 (auth, listings browse/new/detail/edit, shops storefront/dashboard, inbox, profile, admin) onto the Phase 9 system: palette, motion presets, dark/light support. Mobile-first responsive audit on every page (single-column stacking below `sm`, ≥44px tap targets, bottom-sheet modals on mobile vs. centered dialogs on desktop, revisit the Navbar for a mobile nav pattern once Cart/Orders links are added). Standardize empty/loading/error states (skeletons instead of the blank returns several pages currently use during loading). Final z-index/overlap audit against the Phase 9 scale across dropdowns, modals, toasts, and the sticky navbar.
-
----
-
-## Phase 14 — Category Taxonomy & Discovery (planned 2026-08-02)
-
-Planning-only, per explicit user request — implementation starts when told to continue, same pattern as every other phase.
-
-**Why this exists:** two independent public research passes — a Bikroy.com architecture audit and a follow-up look at ekhanei.com — both turned up the same structural gap independently. Both are general-purpose Bangladeshi classifieds platforms, and both organize browsing around a fixed category taxonomy with per-category listing counts and location filtering, layered under free-text search. KenaBecha JU currently has neither — listings are only findable through free-text tags with no structured grouping at all. Two unrelated competitors converging on the same pattern is a strong signal it's worth adopting, adapted to a campus rather than national scope.
-
-**Not copied from either site:** the specific category list, colors, and layout below are original to this phase, not reproduced from Bikroy or ekhanei — their category sets (Property, Jobs, Vehicles-at-national-scale) don't fit a JU-only marketplace, and their visual identity is their own. Only the *structural pattern* — a fixed taxonomy with counts, sitting alongside free-text search — is being adapted, built entirely in the existing Phase 9 design system.
-
-### Scope
-
-1. **Category taxonomy** (the core of this phase):
-   - New `categories` table: `id`, `name`, `slug`, `icon` (a lucide icon name, rendered client-side — no image assets), `sort_order`. Seeded via migration with a starting list, confirmable/adjustable when this phase begins:
-     Books & Notes · Electronics & Gadgets · Furniture & Room Essentials · Clothing & Fashion · Cycles & Transport · Stationery & Supplies · Sports & Hobbies · Food & Snacks · Others.
-   - `listings.category_id` — nullable FK (existing listings stay uncategorized rather than breaking migration; category becomes a **required** field for new listings going forward, enforced at the service layer the same way condition/pickup-address already are).
-   - Tags are **not** replaced — they stay as the free-form, fine-grained layer ("calculus," "iphone-12"); category becomes the structured top-level grouping. Both competitors run this same two-layer model (fixed categories + free search/filter).
-   - `GET /categories` (public, includes live per-category active-listing counts). `GET /listings` gains a `category_id` filter.
-   - Frontend: a category-tile section on the landing page (icon + name + count, `Card`-based, linking to `/listings?category=slug`), a category filter on the browse page alongside the existing price/condition/sort filters, and a required category `<select>` in `ListingForm`.
-
-2. **Hall-based location filter** (smaller, folded into the same phase): every user already has a `hall_id` from JU-verification signup, and pickup listings already collect a `pickup_address`. A "near my hall" filter on browse — reusing the halls reference data that already powers the signup dropdown — is a campus-scale adaptation of the location filtering both competitors lead with, and arguably more useful here than a generic city/region filter would be at this scope.
-
-3. **Seller tenure badge** (cheap, no schema change): "Member since [month/year]" on profile pages and shop cards, using the `created_at` column that already exists on `users`. Mirrors what both competitors lean on as a trust signal in place of identity verification — KenaBecha JU already has real identity verification (JU student ID), so this is additive polish, not a trust-model replacement.
 
 ---
 
