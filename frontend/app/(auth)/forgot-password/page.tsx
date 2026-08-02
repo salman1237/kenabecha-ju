@@ -4,7 +4,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { FormField, inputClass } from "@/components/ui/FormField";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { forgotPassword } from "@/lib/api/auth";
 import { type ForgotPasswordFormValues, forgotPasswordSchema } from "@/lib/validation/auth";
 
@@ -23,39 +26,38 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col gap-6 px-6 py-12">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Reset your password</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Enter your email and we&apos;ll send you a link to reset your password.
-        </p>
-      </div>
-
-      {submitted ? (
-        <p className="text-sm text-green-600">
-          If an account exists for that email, a reset link is on its way.
-        </p>
-      ) : (
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <FormField label="Email" htmlFor="email" error={errors.email?.message}>
-            <input id="email" type="email" className={inputClass} {...register("email")} />
-          </FormField>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-          >
-            {isSubmitting ? "Sending…" : "Send reset link"}
-          </button>
-
-          <p className="text-center text-sm text-zinc-500">
-            <a href="/login" className="font-medium text-zinc-900 dark:text-zinc-100">
-              Back to login
-            </a>
+    <div className="mx-auto flex w-full max-w-sm flex-col gap-6 px-4 py-16">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Reset your password</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Enter your email and we&apos;ll send you a link to reset your password.
           </p>
-        </form>
-      )}
+        </CardHeader>
+        <CardContent>
+          {submitted ? (
+            <p className="text-sm text-success">If an account exists for that email, a reset link is on its way.</p>
+          ) : (
+            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" {...register("email")} />
+                {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+              </div>
+
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Sending…" : "Send reset link"}
+              </Button>
+
+              <p className="text-center text-sm text-muted-foreground">
+                <a href="/login" className="font-medium text-foreground">
+                  Back to login
+                </a>
+              </p>
+            </form>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

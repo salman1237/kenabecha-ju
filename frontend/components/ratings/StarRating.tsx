@@ -1,3 +1,7 @@
+import { Star } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
 export function StarRating({
   value,
   count,
@@ -8,16 +12,21 @@ export function StarRating({
   size?: "sm" | "md";
 }) {
   if (value === null) {
-    return <span className="text-xs text-zinc-400">No ratings yet</span>;
+    return <span className="text-xs text-muted-foreground">No ratings yet</span>;
   }
   const rounded = Math.round(value);
+  const starSize = size === "md" ? "size-4" : "size-3.5";
   return (
     <span className="flex items-center gap-1">
-      <span className={size === "md" ? "text-base text-amber-500" : "text-sm text-amber-500"}>
-        {"★".repeat(rounded)}
-        {"☆".repeat(5 - rounded)}
+      <span className="flex items-center">
+        {Array.from({ length: 5 }, (_, i) => (
+          <Star
+            key={i}
+            className={cn(starSize, i < rounded ? "fill-amber-500 text-amber-500" : "fill-none text-muted-foreground/40")}
+          />
+        ))}
       </span>
-      <span className="text-xs text-zinc-500">
+      <span className="text-xs text-muted-foreground">
         {value.toFixed(1)}
         {count !== undefined && ` (${count})`}
       </span>

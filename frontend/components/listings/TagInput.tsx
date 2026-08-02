@@ -1,8 +1,10 @@
 "use client";
 
+import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { inputClass } from "@/components/ui/FormField";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { autocompleteTags } from "@/lib/api/tags";
 
 export function TagInput({
@@ -46,21 +48,24 @@ export function TagInput({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-2">
-        {value.map((tag) => (
-          <span
-            key={tag}
-            className="flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-          >
-            {tag}
-            <button type="button" onClick={() => removeTag(tag)} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
-              ×
-            </button>
-          </span>
-        ))}
-      </div>
-      <input
-        className={inputClass}
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {value.map((tag) => (
+            <Badge key={tag} variant="secondary" className="gap-1 pr-1">
+              {tag}
+              <button
+                type="button"
+                onClick={() => removeTag(tag)}
+                className="rounded-full p-0.5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+                aria-label={`Remove ${tag}`}
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+      <Input
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
@@ -75,13 +80,10 @@ export function TagInput({
       {suggestions.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {suggestions.slice(0, 6).map((s) => (
-            <button
-              type="button"
-              key={s}
-              onClick={() => addTag(s)}
-              className="rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-900"
-            >
-              {s}
+            <button type="button" key={s} onClick={() => addTag(s)}>
+              <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                {s}
+              </Badge>
             </button>
           ))}
         </div>

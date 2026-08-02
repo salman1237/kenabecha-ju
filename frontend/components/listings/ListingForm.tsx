@@ -4,8 +4,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { FormField, inputClass } from "@/components/ui/FormField";
 import { TagInput } from "@/components/listings/TagInput";
+import { Button } from "@/components/ui/button";
+import { selectClass } from "@/components/ui/FormField";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api/client";
 import { createListing, updateListing, type ListingPayload } from "@/lib/api/listings";
 import { getMyShops } from "@/lib/api/shops";
@@ -86,8 +90,9 @@ export function ListingForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
       {mode === "create" && (
-        <FormField label="Sell as" htmlFor="shop_id" hint="Leave as Personal for a used-item listing">
-          <select id="shop_id" className={inputClass} {...register("shop_id")}>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="shop_id">Sell as</Label>
+          <select id="shop_id" className={selectClass} {...register("shop_id")}>
             <option value="">Personal listing</option>
             {shops.map((shop) => (
               <option key={shop.id} value={shop.id}>
@@ -95,39 +100,48 @@ export function ListingForm({
               </option>
             ))}
           </select>
-        </FormField>
+          <p className="text-xs text-muted-foreground">Leave as Personal for a used-item listing</p>
+        </div>
       )}
       {mode === "edit" && (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           {listing?.shop ? `Shop listing under ${listing.shop.shop_name}` : "Personal listing"}
         </p>
       )}
 
-      <FormField label="Title" htmlFor="title" error={errors.title?.message}>
-        <input id="title" className={inputClass} {...register("title")} />
-      </FormField>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="title">Title</Label>
+        <Input id="title" {...register("title")} />
+        {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+      </div>
 
-      <FormField label="Description" htmlFor="description" error={errors.description?.message}>
-        <textarea id="description" rows={5} className={inputClass} {...register("description")} />
-      </FormField>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="description">Description</Label>
+        <Textarea id="description" rows={5} {...register("description")} />
+        {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
+      </div>
 
-      <FormField label="Price type" htmlFor="price_type">
-        <select id="price_type" className={inputClass} {...register("price_type")}>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="price_type">Price type</Label>
+        <select id="price_type" className={selectClass} {...register("price_type")}>
           <option value="fixed">Fixed price</option>
           <option value="negotiable">Negotiable</option>
           <option value="free">Free</option>
         </select>
-      </FormField>
+      </div>
 
       {priceType !== "free" && (
-        <FormField label="Price (৳)" htmlFor="price" error={errors.price?.message}>
-          <input id="price" type="number" min="0" step="0.01" className={inputClass} {...register("price")} />
-        </FormField>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="price">Price (৳)</Label>
+          <Input id="price" type="number" min="0" step="0.01" {...register("price")} />
+          {errors.price && <p className="text-xs text-destructive">{errors.price.message}</p>}
+        </div>
       )}
 
       {!isShopListing && (
-        <FormField label="Condition" htmlFor="condition" error={errors.condition?.message}>
-          <select id="condition" className={inputClass} {...register("condition")} defaultValue="">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="condition">Condition</Label>
+          <select id="condition" className={selectClass} {...register("condition")} defaultValue="">
             <option value="" disabled>
               Select condition
             </option>
@@ -137,46 +151,49 @@ export function ListingForm({
               </option>
             ))}
           </select>
-        </FormField>
+          {errors.condition && <p className="text-xs text-destructive">{errors.condition.message}</p>}
+        </div>
       )}
 
       {isShopListing && (
-        <FormField label="Quantity" htmlFor="quantity" hint="Leave blank for 1">
-          <input id="quantity" type="number" min="0" className={inputClass} {...register("quantity")} />
-        </FormField>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="quantity">Quantity</Label>
+          <Input id="quantity" type="number" min="0" {...register("quantity")} />
+          <p className="text-xs text-muted-foreground">Leave blank for 1</p>
+        </div>
       )}
 
-      <FormField label="Fulfillment" htmlFor="fulfillment_type" hint="How will the buyer get this item?">
-        <select id="fulfillment_type" className={inputClass} {...register("fulfillment_type")}>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="fulfillment_type">Fulfillment</Label>
+        <select id="fulfillment_type" className={selectClass} {...register("fulfillment_type")}>
           <option value="pickup">Pickup — buyer collects from you</option>
           <option value="delivery">Delivery — buyer provides an address at checkout</option>
         </select>
-      </FormField>
+        <p className="text-xs text-muted-foreground">How will the buyer get this item?</p>
+      </div>
 
       {fulfillmentType === "pickup" && (
-        <FormField
-          label="Pickup address"
-          htmlFor="pickup_address"
-          error={errors.pickup_address?.message}
-          hint="e.g. Room 204, Al Beruni Hall"
-        >
-          <input id="pickup_address" className={inputClass} {...register("pickup_address")} />
-        </FormField>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="pickup_address">Pickup address</Label>
+          <Input id="pickup_address" {...register("pickup_address")} />
+          {errors.pickup_address ? (
+            <p className="text-xs text-destructive">{errors.pickup_address.message}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">e.g. Room 204, Al Beruni Hall</p>
+          )}
+        </div>
       )}
 
-      <FormField label="Tags" htmlFor="tags">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="tags">Tags</Label>
         <TagInput value={tags} onChange={setTags} />
-      </FormField>
+      </div>
 
-      {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+      {serverError && <p className="text-sm text-destructive">{serverError}</p>}
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="self-start rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-      >
+      <Button type="submit" disabled={isSubmitting} className="self-start">
         {isSubmitting ? "Saving…" : mode === "create" ? "Create listing" : "Save changes"}
-      </button>
+      </Button>
     </form>
   );
 }

@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
 import {
   getConversation,
@@ -12,6 +16,7 @@ import {
   sendMessage,
 } from "@/lib/api/chat";
 import { ApiError } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 import { wsClient } from "@/lib/ws/client";
 import type { Conversation, Message } from "@/types/api";
 
@@ -60,26 +65,35 @@ export default function ChatWindowPage() {
     }
   };
 
-  if (error) return <p className="mx-auto max-w-2xl px-6 py-12 text-sm text-red-600">{error}</p>;
-  if (!conversation || !user) return null;
+  if (error) return <p className="mx-auto max-w-2xl px-6 py-12 text-sm text-destructive">{error}</p>;
+  if (!conversation || !user) {
+    return (
+      <div className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-2xl flex-col gap-3 px-4 py-6 sm:px-6">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="flex-1 w-full" />
+      </div>
+    );
+  }
 
   const headerName = conversation.is_seller
     ? conversation.counterparty.full_name
     : conversation.shop?.shop_name ?? conversation.counterparty.full_name;
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-2xl flex-col px-6 py-6">
-      <div className="flex items-center justify-between border-b border-zinc-200 pb-4 dark:border-zinc-800">
-        <div>
-          <p className="font-medium">{headerName}</p>
-          <Link href={`/listings/${conversation.listing_id}`} className="text-xs text-zinc-500 hover:underline">
-            {conversation.listing_title}
+    <div className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-2xl flex-col px-4 py-4 sm:px-6 sm:py-6">
+      <div className="flex items-center justify-between border-b border-border pb-3 sm:pb-4">
+        <div className="flex items-center gap-2">
+          <Link href="/inbox" className="rounded-full p-1.5 text-muted-foreground hover:bg-muted sm:hidden">
+            <ArrowLeft className="size-4" />
           </Link>
+          <div>
+            <p className="font-medium">{headerName}</p>
+            <Link href={`/listings/${conversation.listing_id}`} className="text-xs text-muted-foreground hover:underline">
+              {conversation.listing_title}
+            </Link>
+          </div>
         </div>
-        <Link
-          href="/inbox"
-          className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-        >
+        <Link href="/inbox" className="hidden text-sm text-muted-foreground hover:text-foreground sm:block">
           ← Inbox
         </Link>
       </div>
@@ -88,13 +102,12 @@ export default function ChatWindowPage() {
         {messages.map((m) => {
           const isMine = m.sender_id === user.id;
           return (
-            <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+            <div key={m.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
               <div
-                className={`max-w-[75%] rounded-lg px-3 py-2 text-sm ${
-                  isMine
-                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                    : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
-                }`}
+                className={cn(
+                  "max-w-[75%] rounded-lg px-3 py-2 text-sm",
+                  isMine ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                )}
               >
                 {m.content}
               </div>
@@ -104,11 +117,10 @@ export default function ChatWindowPage() {
         <div ref={bottomRef} />
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <div className="flex gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-        <input
-          className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900"
+      <div className="flex gap-2 border-t border-border pt-4">
+        <Input
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={(e) => {
@@ -118,14 +130,11 @@ export default function ChatWindowPage() {
             }
           }}
           placeholder="Type a message…"
+          className="h-10 flex-1"
         />
-        <button
-          onClick={onSend}
-          disabled={sending || !content.trim()}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-        >
+        <Button onClick={onSend} disabled={sending || !content.trim()} className="h-10">
           Send
-        </button>
+        </Button>
       </div>
     </div>
   );

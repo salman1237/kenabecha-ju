@@ -3,6 +3,21 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { listAdminListings, removeAdminListing } from "@/lib/api/admin";
 import { formatPrice } from "@/lib/utils";
 import type { Listing } from "@/types/api";
@@ -21,48 +36,70 @@ export default function AdminListingsPage() {
   useEffect(load, []);
 
   const onRemove = async (listing: Listing) => {
-    if (!confirm(`Remove "${listing.title}"?`)) return;
     await removeAdminListing(listing.id);
     load();
   };
 
-  if (loading) return <p className="text-sm text-zinc-500">Loading…</p>;
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 5 }, (_, i) => (
+          <Skeleton key={i} className="h-9 w-full" />
+        ))}
+      </div>
+    );
+  }
 
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500 dark:border-zinc-800">
-          <th className="py-2">Title</th>
-          <th className="py-2">Seller</th>
-          <th className="py-2">Price</th>
-          <th className="py-2">Status</th>
-          <th className="py-2"></th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Title</TableHead>
+          <TableHead>Seller</TableHead>
+          <TableHead>Price</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead></TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {listings.map((l) => (
-          <tr key={l.id} className="border-b border-zinc-100 dark:border-zinc-900">
-            <td className="py-2">
-              <Link href={`/listings/${l.id}`} className="hover:underline">
+          <TableRow key={l.id}>
+            <TableCell>
+              <Link href={`/listings/${l.id}`} className="font-medium hover:underline">
                 {l.title}
               </Link>
-            </td>
-            <td className="py-2 text-zinc-500">{l.seller.full_name}</td>
-            <td className="py-2 text-zinc-500">{formatPrice(l.price, l.price_type)}</td>
-            <td className="py-2">{l.status}</td>
-            <td className="py-2 text-right">
+            </TableCell>
+            <TableCell className="text-muted-foreground">{l.seller.full_name}</TableCell>
+            <TableCell className="text-muted-foreground">{formatPrice(l.price, l.price_type)}</TableCell>
+            <TableCell>
+              <Badge variant={l.status === "removed" ? "destructive" : "secondary"} className="capitalize">
+                {l.status.replace("_", " ")}
+              </Badge>
+            </TableCell>
+            <TableCell className="text-right">
               {l.status !== "removed" && (
-                <button
-                  onClick={() => onRemove(l)}
-                  className="text-xs font-medium text-red-600 hover:text-red-700"
-                >
-                  Remove
-                </button>
+                <AlertDialog>
+                  <AlertDialogTrigger render={<Button variant="ghost" size="sm" className="text-destructive" />}>
+                    Remove
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remove &quot;{l.title}&quot;?</AlertDialogTitle>
+                      <AlertDialogDescription>This soft-deletes the listing immediately.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onRemove(l)} variant="destructive">
+                        Remove
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
-            </td>
-          </tr>
+            </TableCell>
+          </TableRow>
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   );
 }

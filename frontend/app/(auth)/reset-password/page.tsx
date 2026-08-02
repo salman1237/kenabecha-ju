@@ -5,7 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { FormField, inputClass } from "@/components/ui/FormField";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { resetPassword } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { type ResetPasswordFormValues, resetPasswordSchema } from "@/lib/validation/auth";
@@ -23,7 +26,7 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <p className="text-sm text-red-600">
+      <p className="text-sm text-destructive">
         This reset link is missing its token. Request a new one from the{" "}
         <a href="/forgot-password" className="font-medium underline">
           forgot password
@@ -45,33 +48,39 @@ function ResetPasswordForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-      <FormField label="New password" htmlFor="password" error={errors.password?.message}>
-        <input id="password" type="password" className={inputClass} {...register("password")} />
-      </FormField>
-      <FormField label="Confirm new password" htmlFor="confirmPassword" error={errors.confirmPassword?.message}>
-        <input id="confirmPassword" type="password" className={inputClass} {...register("confirmPassword")} />
-      </FormField>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="password">New password</Label>
+        <Input id="password" type="password" {...register("password")} />
+        {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="confirmPassword">Confirm new password</Label>
+        <Input id="confirmPassword" type="password" {...register("confirmPassword")} />
+        {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
+      </div>
 
-      {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+      {serverError && <p className="text-sm text-destructive">{serverError}</p>}
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-      >
+      <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Resetting…" : "Reset password"}
-      </button>
+      </Button>
     </form>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col gap-6 px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">Set a new password</h1>
-      <Suspense>
-        <ResetPasswordForm />
-      </Suspense>
+    <div className="mx-auto flex w-full max-w-sm flex-col gap-6 px-4 py-16">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Set a new password</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Suspense>
+            <ResetPasswordForm />
+          </Suspense>
+        </CardContent>
+      </Card>
     </div>
   );
 }

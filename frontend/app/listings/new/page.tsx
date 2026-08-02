@@ -5,6 +5,7 @@ import { Suspense } from "react";
 
 import { CompleteProfilePrompt } from "@/components/auth/CompleteProfilePrompt";
 import { ListingForm } from "@/components/listings/ListingForm";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 
 function NewListingForm() {
@@ -15,8 +16,8 @@ function NewListingForm() {
   if (isLoading) return null;
   if (!user) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-12 text-center text-sm text-zinc-500">
-        <a href="/login?next=/listings/new" className="font-medium text-zinc-900 dark:text-zinc-100">
+      <div className="mx-auto max-w-2xl px-4 py-16 text-center text-sm text-muted-foreground">
+        <a href="/login?next=/listings/new" className="font-medium text-foreground">
           Log in
         </a>{" "}
         to create a listing.
@@ -28,9 +29,15 @@ function NewListingForm() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">New listing</h1>
-      <ListingForm mode="create" defaultShopId={shopId} onSuccess={(listing) => router.push(`/listings/${listing.id}`)} />
+    <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-12 sm:px-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">New listing</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ListingForm mode="create" defaultShopId={shopId} onSuccess={(listing) => router.push(`/listings/${listing.id}`)} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

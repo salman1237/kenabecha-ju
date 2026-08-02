@@ -5,7 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { FormField, inputClass } from "@/components/ui/FormField";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { resendOtp, verifyEmail } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
 import { type VerifyOtpFormValues, verifyOtpSchema } from "@/lib/validation/auth";
@@ -48,45 +51,41 @@ function VerifyEmailForm() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col gap-6 px-6 py-12">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Verify your email</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Enter the 6-digit code we sent to <span className="font-medium">{email || "your email"}</span>.
-        </p>
-      </div>
+    <div className="mx-auto flex w-full max-w-sm flex-col gap-6 px-4 py-16">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Verify your email</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Enter the 6-digit code we sent to <span className="font-medium text-foreground">{email || "your email"}</span>.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="otp">Verification code</Label>
+              <Input
+                id="otp"
+                inputMode="numeric"
+                maxLength={6}
+                className="text-center text-lg tracking-[0.5em]"
+                {...register("otp")}
+              />
+              {errors.otp && <p className="text-xs text-destructive">{errors.otp.message}</p>}
+            </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-        <FormField label="Verification code" htmlFor="otp" error={errors.otp?.message}>
-          <input
-            id="otp"
-            inputMode="numeric"
-            maxLength={6}
-            className={`${inputClass} text-center text-lg tracking-[0.5em]`}
-            {...register("otp")}
-          />
-        </FormField>
+            {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+            {resendMessage && <p className="text-sm text-success">{resendMessage}</p>}
 
-        {serverError && <p className="text-sm text-red-600">{serverError}</p>}
-        {resendMessage && <p className="text-sm text-green-600">{resendMessage}</p>}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Verifying…" : "Verify"}
+            </Button>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-        >
-          {isSubmitting ? "Verifying…" : "Verify"}
-        </button>
-
-        <button
-          type="button"
-          onClick={onResend}
-          disabled={resending}
-          className="text-sm font-medium text-zinc-600 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:text-zinc-100"
-        >
-          {resending ? "Sending…" : "Resend code"}
-        </button>
-      </form>
+            <Button type="button" variant="ghost" onClick={onResend} disabled={resending}>
+              {resending ? "Sending…" : "Resend code"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
