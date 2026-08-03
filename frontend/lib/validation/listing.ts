@@ -7,7 +7,13 @@ export const listingSchema = z
     price_type: z.enum(["fixed", "negotiable", "free"]),
     price: z.string().optional(),
     unit: z.string().max(20).optional(),
-    condition: z.enum(["new", "used_like_new", "used_good", "used_fair"]).optional(),
+    // .or(z.literal("")) because the native <select> still carries its old
+    // defaultValue="" in form state after the field unmounts (switching from
+    // Personal to a shop hides it, but react-hook-form doesn't clear values
+    // on unmount) — plain .optional() only accepts undefined, not "", and
+    // rejected it silently since the Condition field's error text is inside
+    // the same hidden block.
+    condition: z.enum(["new", "used_like_new", "used_good", "used_fair"]).optional().or(z.literal("")),
     shop_id: z.string().optional(),
     tagsInput: z.string().optional(),
     fulfillment_type: z.enum(["pickup", "delivery"]),
