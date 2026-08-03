@@ -21,9 +21,9 @@ function extractMessage(detail: unknown): string {
   return "Something went wrong";
 }
 
-export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+function doFetch(path: string, options: RequestInit): Promise<Response> {
   const isFormData = options.body instanceof FormData;
-  const res = await fetch(`${API_URL}${path}`, {
+  return fetch(`${API_URL}${path}`, {
     ...options,
     credentials: "include",
     headers: {
@@ -31,6 +31,42 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
       ...options.headers,
     },
   });
+}
+
+// Access tokens are short-lived (15min); refresh_token is the long-lived
+// (30 day) cookie that's supposed to make sessions durable. Without this,
+// any tab left open past 15 minutes would silently 401 on its next request
+// — e.g. a listing form filled out slowly, or reopened after a break.
+//
+// Concurrent 401s share one in-flight refresh rather than each calling
+// /auth/refresh themselves: the backend rotates the refresh token on every
+// use and treats reuse of an already-rotated one as theft, revoking the
+// whole session — so two parallel refresh calls would log the user out.
+// This uses a bare fetch (not apiFetch) so it can never recurse into this
+// same 401-handling path.
+let refreshPromise: Promise<boolean> | null = null;
+
+function refreshAccessToken(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_URL}/auth/refresh`, { method: "POST", credentials: "include" })
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
+export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  let res = await doFetch(path, options);
+
+  if (res.status === 401 && path !== "/auth/refresh") {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      res = await doFetch(path, options);
+    }
+  }
 
   if (!res.ok) {
     let detail: unknown = res.statusText;
