@@ -28,6 +28,39 @@ const STATUS_LABELS: Record<string, string> = {
   removed: "Removed",
 };
 
+function Avatar({
+  url,
+  label,
+  className,
+}: {
+  url: string | null;
+  label: string;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold text-muted-foreground",
+        className
+      )}
+      title={label}
+    >
+      {url && !failed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={mediaUrl(url)}
+          alt=""
+          className="h-full w-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        label.charAt(0).toUpperCase()
+      )}
+    </div>
+  );
+}
+
 function ProductCard({ conversation }: { conversation: Conversation }) {
   const { listing } = conversation;
   return (
@@ -115,6 +148,17 @@ export default function ChatWindowPage() {
     ? conversation.counterparty.full_name
     : conversation.shop?.shop_name ?? conversation.counterparty.full_name;
 
+  // The seller side of a shop listing is represented by the shop's own logo,
+  // not the owner's personal avatar; the buyer side is always personal.
+  const myAvatar =
+    conversation.is_seller && conversation.shop
+      ? { url: conversation.shop.logo_url, label: conversation.shop.shop_name }
+      : { url: user.avatar_url, label: user.full_name };
+  const counterpartyAvatar =
+    !conversation.is_seller && conversation.shop
+      ? { url: conversation.shop.logo_url, label: conversation.shop.shop_name }
+      : { url: conversation.counterparty.avatar_url, label: conversation.counterparty.full_name };
+
   return (
     <div className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-2xl flex-col px-4 py-4 sm:px-6 sm:py-6">
       <div className="flex items-center justify-between border-b border-border pb-3 sm:pb-4">
@@ -122,6 +166,7 @@ export default function ChatWindowPage() {
           <Link href="/inbox" className="rounded-full p-1.5 text-muted-foreground hover:bg-muted sm:hidden">
             <ArrowLeft className="size-4" />
           </Link>
+          <Avatar url={counterpartyAvatar.url} label={counterpartyAvatar.label} className="h-9 w-9 text-sm" />
           <div>
             <p className="font-medium">{headerName}</p>
             <Link href={`/listings/${conversation.listing.id}`} className="text-xs text-muted-foreground hover:underline">
@@ -138,8 +183,10 @@ export default function ChatWindowPage() {
         <ProductCard conversation={conversation} />
         {messages.map((m) => {
           const isMine = m.sender_id === user.id;
+          const avatar = isMine ? myAvatar : counterpartyAvatar;
           return (
-            <div key={m.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
+            <div key={m.id} className={cn("flex items-end gap-2", isMine ? "justify-end" : "justify-start")}>
+              {!isMine && <Avatar url={avatar.url} label={avatar.label} className="h-7 w-7 text-[11px]" />}
               <div
                 className={cn(
                   "max-w-[75%] rounded-lg px-3 py-2 text-sm",
@@ -148,6 +195,7 @@ export default function ChatWindowPage() {
               >
                 {m.content}
               </div>
+              {isMine && <Avatar url={avatar.url} label={avatar.label} className="h-7 w-7 text-[11px]" />}
             </div>
           );
         })}
