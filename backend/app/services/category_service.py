@@ -3,6 +3,7 @@ import uuid
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.category import Category
 from app.models.listing import Listing, ListingStatus
@@ -35,7 +36,10 @@ async def list_tree(db: AsyncSession) -> list[dict]:
     show 40 would read as a bug.
     """
     result = await db.execute(
-        select(Category).where(Category.parent_id.is_(None)).order_by(Category.sort_order)
+        select(Category)
+        .where(Category.parent_id.is_(None))
+        .options(selectinload(Category.children))
+        .order_by(Category.sort_order)
     )
     parents = list(result.scalars().unique().all())
     counts = await _active_counts(db)
