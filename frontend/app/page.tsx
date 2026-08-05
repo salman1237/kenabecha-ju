@@ -21,8 +21,9 @@ import { useLanguage } from "@/context/LanguageContext";
 import { browseListings } from "@/lib/api/listings";
 import { getShops } from "@/lib/api/shops";
 import { trendingTags } from "@/lib/api/tags";
+import { getCategories } from "@/lib/api/categories";
 import { cn } from "@/lib/utils";
-import type { Listing, Shop, Tag } from "@/types/api";
+import type { Listing, Shop, Tag, Category } from "@/types/api";
 
 export default function Home() {
   const router = useRouter();
@@ -33,6 +34,7 @@ export default function Home() {
   const [latestListings, setLatestListings] = useState<Listing[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -55,19 +57,17 @@ export default function Home() {
     trendingTags()
       .then(setTags)
       .catch(() => {});
+
+    // Fetch categories
+    getCategories()
+      .then(setCategories)
+      .catch(() => {});
   }, []);
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
     router.push(`/listings${query ? `?q=${encodeURIComponent(query)}` : ""}`);
   };
-
-  const categories = [
-    { label: "Textbooks & Notes", icon: BookOpen, tag: "textbook" },
-    { label: "Gadgets & Tech", icon: Laptop, tag: "electronics" },
-    { label: "Campus Shops", icon: Store, tag: "shop" },
-    { label: "Delivery Ready", icon: Truck, tag: "delivery" },
-  ];
 
   return (
     <div className="flex flex-col overflow-hidden">
@@ -233,18 +233,15 @@ export default function Home() {
         className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6"
       >
         <h2 className="text-2xl font-bold tracking-tight mb-6">{t.sections.allProducts}</h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
           {categories.map((cat) => (
-            <Link key={cat.label} href={`/listings?tags=${cat.tag}`}>
-              <GradientCard className="flex items-center gap-4 cursor-pointer p-4 group">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-md group-hover:scale-110 transition-transform">
-                  <cat.icon className="size-6" />
+            <Link key={cat.id} href={`/listings?category=${cat.slug}`}>
+              <GradientCard className="flex flex-col items-center justify-center gap-3 cursor-pointer p-4 group text-center h-full">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-md group-hover:scale-110 transition-transform text-2xl">
+                  {cat.icon || "📦"}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{cat.label}</h3>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    Explore <ArrowRight className="size-3" />
-                  </p>
+                  <h3 className="font-semibold text-sm group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{cat.name}</h3>
                 </div>
               </GradientCard>
             </Link>
