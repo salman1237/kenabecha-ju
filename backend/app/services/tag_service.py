@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.search import LIKE_ESCAPE, like_contains
 from app.models.listing import Tag
 
 MAX_TAGS_PER_LISTING = 10
@@ -16,7 +17,7 @@ async def autocomplete(db: AsyncSession, query: str, limit: int = 10) -> list[Ta
         return []
     result = await db.execute(
         select(Tag)
-        .where(Tag.normalized_name.ilike(f"%{normalized}%"))
+        .where(Tag.normalized_name.ilike(like_contains(normalized), escape=LIKE_ESCAPE))
         .order_by(Tag.usage_count.desc())
         .limit(limit)
     )

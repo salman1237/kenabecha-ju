@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.models.conversation import Message
+from app.core.search import LIKE_ESCAPE, like_contains
 from app.models.listing import Listing, ListingStatus
 from app.models.notification import NotificationType
 from app.models.report import Report, ReportStatus
@@ -23,8 +24,12 @@ async def list_users(
 ) -> tuple[list[User], int]:
     query = select(User)
     if q:
-        like = f"%{q}%"
-        query = query.where((User.full_name.ilike(like)) | (User.email.ilike(like)) | (User.student_id.ilike(like)))
+        like = like_contains(q)
+        query = query.where(
+            User.full_name.ilike(like, escape=LIKE_ESCAPE)
+            | User.email.ilike(like, escape=LIKE_ESCAPE)
+            | User.student_id.ilike(like, escape=LIKE_ESCAPE)
+        )
     count = (await db.execute(select(func.count()).select_from(query.with_only_columns(User.id).subquery()))).scalar_one()
     query = query.order_by(User.created_at.desc()).limit(limit).offset(offset)
     users = list((await db.execute(query)).scalars().all())
@@ -61,15 +66,26 @@ async def admin_remove_listing(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Listing not found")
     if listing.deleted_at is None:
         listing.deleted_at = datetime.now(UTC)
+        listing.is_active = False
         listing.status = ListingStatus.removed
+        # Positional db/background_tasks/user_id/ntype to match notify()'s
+        # signature — this previously passed `type=` and `user_id=` as
+        # keywords and omitted the required email_subject/email_body, so
+        # every admin removal raised TypeError before the commit landed.
         await notification_service.notify(
             db,
-            background_tasks=background_tasks,
-            user_id=listing.seller_id,
-            type=NotificationType.listing_removed,
+            background_tasks,
+            listing.seller_id,
+            NotificationType.listing_removed,
             title="Your listing was removed",
             body=f'"{listing.title}" was removed by a moderator for violating campus guidelines.',
             link_url="/listings",
+            email_subject="Your listing was removed from KenaBecha JU",
+            email_body=(
+                f'Your listing "{listing.title}" was removed by a moderator for violating '
+                "campus guidelines.\n\n"
+                "If you believe this was a mistake, reply to this email."
+            ),
             related_listing_id=listing.id,
         )
         await db.commit()

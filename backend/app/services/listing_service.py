@@ -15,6 +15,7 @@ from app.models.listing import (
     Tag,
     listing_tags,
 )
+from app.core.search import LIKE_ESCAPE, like_contains
 from app.models.user import User
 from app.schemas.listing import ListingCreate, ListingUpdate
 from app.services import shop_service, tag_service
@@ -75,7 +76,11 @@ async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate)
 
 async def get_listing(db: AsyncSession, listing_id: uuid.UUID) -> Listing:
     listing = await db.get(Listing, listing_id)
-    if listing is None or listing.deleted_at is not None:
+    # Check both halves of the soft-delete. delete_listing() sets them
+    # together today, so is_active is belt-and-braces — but any future path
+    # that deactivates without stamping deleted_at would otherwise leave the
+    # listing publicly reachable.
+    if listing is None or listing.deleted_at is not None or not listing.is_active:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Listing not found")
     return listing
 
@@ -124,8 +129,11 @@ async def browse_listings(db: AsyncSession, filters: BrowseFilters) -> tuple[lis
         query = query.where(Listing.is_top == filters.is_top)
 
     if filters.q:
-        like = f"%{filters.q}%"
-        query = query.where((Listing.title.ilike(like)) | (Listing.description.ilike(like)))
+        like = like_contains(filters.q)
+        query = query.where(
+            Listing.title.ilike(like, escape=LIKE_ESCAPE)
+            | Listing.description.ilike(like, escape=LIKE_ESCAPE)
+        )
     if filters.tags:
         normalized = [t.strip().lower() for t in filters.tags]
         query = query.where(

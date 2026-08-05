@@ -12,6 +12,7 @@ from app.models.rating import Rating
 from app.models.shop import Shop
 from app.models.user import User
 from app.schemas.shop import ShopCreate, ShopUpdate
+from app.services import media_service
 
 SLUG_INVALID_CHARS = re.compile(r"[^a-z0-9]+")
 
@@ -178,16 +179,22 @@ async def update_shop(db: AsyncSession, shop: Shop, payload: ShopUpdate) -> Shop
 
 
 async def set_logo(db: AsyncSession, shop: Shop, image_url: str) -> Shop:
+    previous = shop.logo_url
     shop.logo_url = image_url
     await db.commit()
     await db.refresh(shop)
+    # After commit: a failed commit must not leave the row pointing at a
+    # file that's already been unlinked.
+    media_service.delete_media(previous)
     return shop
 
 
 async def set_cover(db: AsyncSession, shop: Shop, image_url: str) -> Shop:
+    previous = shop.cover_url
     shop.cover_url = image_url
     await db.commit()
     await db.refresh(shop)
+    media_service.delete_media(previous)
     return shop
 
 

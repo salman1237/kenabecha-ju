@@ -33,7 +33,56 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 
 **This closes out the gap_analysis.md frontend initiative (Phases 15–24).** Deliberately not done, and why: image-only chat previews, the listing-form blob previews and the zoomable lightbox still use raw `<img>` — object URLs and CSS-transform zoom don't work through the optimizer. Emoji picker, pull-to-refresh, keyboard shortcuts, search suggestions, context menus and virtualized lists from the gap analysis were judged low-value relative to their cost at this scale and were skipped rather than half-built.
 
-See "Phase 9+ — UI/UX Redesign, Tiered Auth & Cart/Orders" below (before "## Context") for the detailed breakdown of these five phases, written 2026-08-01 per user request. All five are now complete. See "Phases 15–24 — Frontend Gap Closure" for the current initiative.
+- [x] **Phase 25 — Critical bugs & security hardening.** No migration. **BUG-01** was a genuine production crash: `admin_remove_listing` passed `type=`/`user_id=` as keywords and omitted the required `email_subject`/`email_body`, so *every* admin listing removal raised `TypeError: missing a required argument: 'ntype'` before the commit — moderation was completely broken. Proved it by binding the exact call signature, fixed it, and verified end-to-end (HTTP 200, seller notified, listing 404s publicly). **BUG-05** `get_listing` now also checks `is_active`. **SEC-01** `get_settings()` refuses to start outside development with the placeholder JWT secret (warns in dev so local work isn't blocked). **SEC-03** LIKE metacharacters are escaped via a new shared `app/core/search.py` — `q=%` used to return every listing and now returns 0; applied to all three search sites (listings, admin users, tag autocomplete), not just the one the audit named. **SEC-04** uploads are validated by magic bytes rather than the client-supplied `content_type`, and the sniffed type decides the stored extension; a renamed executable is now rejected with 400. Chose stdlib header checks over adding Pillow — a 12-byte check didn't justify a new dependency and container rebuild. **SEC-05** superseded avatars/logos/covers are unlinked after the replacement commits (never before, so a failed commit can't orphan the row), with a `MEDIA_ROOT` containment check so a traversal payload in the DB can't delete arbitrary files; external Google avatar URLs are left alone. **Excluded as not-real after verification:** BUG-02 (the `ORDER BY` the audit asks for is already present) and BUG-03 (`is_top` is `NOT NULL DEFAULT false`, 0 NULL rows).
+- [ ] **Phase 26 — Rate limiting & WebSocket resilience.** Not started.
+- [ ] **Phase 27 — Category system.** Not started.
+- [ ] **Phase 28 — Search page & autocomplete.** Not started.
+- [ ] **Phase 29 — Data-integrity & query-performance fixes.** Not started.
+- [ ] **Phase 30 — View counts, listing expiry & promotion.** Not started.
+- [ ] **Phase 31 — i18n completion (Bangla + English).** Not started.
+- [ ] **Phase 32 — SEO, error boundaries, 404 & mobile bottom nav.** Not started.
+- [ ] **Phase 33 — Backend test suite.** Not started.
+- [ ] **Phase 34 — DevOps: production compose, CI, backups.** Not started.
+
+See "Phase 9+ — UI/UX Redesign, Tiered Auth & Cart/Orders" below (before "## Context") for the detailed breakdown of those five phases, written 2026-08-01 per user request. All five are complete. "Phases 15–24 — Frontend Gap Closure" is likewise complete. "Phases 25–34" is the current initiative.
+
+---
+
+## Phases 25–34 — System Audit Remediation (planned 2026-08-05)
+
+Driven by `improvement.md`, a full audit of `backend/app/` and `frontend/app/`.
+
+**Important caveat recorded up front:** the audit was written *before* Phases 15–24 landed, so a large share of its findings are already resolved. Verified as **already done**: FE-FEAT-01 (browse page), FE-FEAT-04 (footer), FE-FEAT-06 (breadcrumbs), FE-FEAT-07 (lightbox), FE-FEAT-08 (share), FE-FEAT-09 (Chat/Call/WhatsApp CTAs), FE-FEAT-11/13 (dashboard + shop management), FE-FEAT-14 (infinite scroll), FEAT-01 (wishlist/saved), FEAT-09 (related listings), FEAT-12 (seller contact), FE-BUG-01 (skeletons), FE-BUG-06 (`mediaUrl` external URLs), plus the chat typing/seen/image items and the auth split-screen. Two findings are **not real**: BUG-02 (the `ORDER BY conversation_id, created_at DESC` the audit asks for is already there) and BUG-03 (`listings.is_top` is `NOT NULL DEFAULT false` with zero NULL rows). Those are excluded rather than "fixed" for show.
+
+### Phase 25 — Critical bugs & security hardening
+BUG-01 (`admin_remove_listing` passes `type=`/`user_id=` as kwargs and omits the required `email_subject`/`email_body` — a guaranteed `TypeError` every time a moderator removes a listing), BUG-05 (`get_listing` ignores `is_active`), SEC-01 (startup guard against the default JWT secret), SEC-03 (escape `%`/`_` in search so `%` doesn't match everything), SEC-04 (validate image magic bytes, not the client-supplied `content_type`), SEC-05 (delete the superseded file when an avatar/logo/cover is replaced).
+
+### Phase 26 — Rate limiting & WebSocket resilience
+SEC-02 (rate-limit login/signup/forgot-password/google), SEC-06 + BUG-04 (WS heartbeat so dropped connections don't linger and skew `is_online`, and harden the auth-session handling).
+
+### Phase 27 — Category system
+FEAT-02 / LOGIC-02 — hierarchical `Category` model, listing association, category browse + sidebar navigation with counts. The audit's top-priority structural gap.
+
+### Phase 28 — Search page & autocomplete
+FE-FEAT-02 / FEAT-03 — dedicated `/search` route, navbar search wired to it, and a suggestions endpoint.
+
+### Phase 29 — Data-integrity & query-performance fixes
+LOGIC-01 (hide listings from deactivated sellers), LOGIC-03 (paginate shops; `/shops` is hard-capped at 6), LOGIC-04/PERF-01 (batch the per-shop rating queries), LOGIC-06 (decrement `usage_count` when tags are replaced), LOGIC-07 (re-sequence `sort_order` after image delete), LOGIC-08 (block chat on removed listings), PERF-05 (explicit connection-pool settings).
+
+### Phase 30 — View counts, listing expiry & promotion
+FEAT-04, FEAT-05, FEAT-07.
+
+### Phase 31 — i18n completion
+I18N-01→04 — the `LanguageContext` and `messages/{en,bn}.ts` exist but cover only the landing page; extract the remaining strings, add Noto Sans Bengali, and localize dates/currency/numerals.
+
+### Phase 32 — SEO, error boundaries, 404 & mobile bottom nav
+FE-BUG-02, FE-BUG-03, FE-FEAT-16, FE-FEAT-17, FEAT-14 (legal pages).
+
+### Phase 33 — Backend test suite
+FEAT-16 — `backend/tests/` is empty; zero coverage.
+
+### Phase 34 — DevOps
+DEVOPS-01→05.
 
 ---
 

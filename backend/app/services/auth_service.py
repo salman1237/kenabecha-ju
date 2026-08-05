@@ -21,6 +21,7 @@ from app.models.reference import Department, Hall
 from app.models.token import AuthToken, AuthTokenPurpose, RefreshToken
 from app.models.user import AuthProvider, User
 from app.schemas.auth import CompleteProfileRequest, LoginRequest, SignupRequest
+from app.services import media_service
 from app.services.email_service import send_email, send_otp_email
 from app.services.reference_service import compute_batch
 
@@ -272,9 +273,14 @@ async def update_profile(db: AsyncSession, user: User, full_name: str, bio: str 
 
 
 async def update_avatar(db: AsyncSession, user: User, avatar_url: str) -> User:
+    previous = user.avatar_url
     user.avatar_url = avatar_url
     await db.commit()
     await db.refresh(user)
+    # Only after the new URL is durably committed — otherwise a failed commit
+    # would leave the row pointing at a file we'd already deleted.
+    # delete_media ignores external URLs, so Google avatars are left alone.
+    media_service.delete_media(previous)
     return user
 
 
