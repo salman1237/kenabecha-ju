@@ -141,6 +141,17 @@ export interface Rating {
   rater: ChatUser;
 }
 
+export interface SellerReviews {
+  target_type: "shop" | "user";
+  target_name: string;
+  target_url: string;
+  average_rating: number | null;
+  rating_count: number;
+  /** Star value → count. Always has all five keys, zero-filled. */
+  breakdown: Record<string, number>;
+  reviews: Rating[];
+}
+
 export interface RatingEligibility {
   can_rate: boolean;
   reason: string | null;

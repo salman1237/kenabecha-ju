@@ -7,10 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_current_user, get_seller
 from app.db.session import get_db
 from app.models.listing import Condition
+from app.models.shop import Shop
 from app.models.user import User
 from app.schemas.common import Page
 from app.schemas.listing import ListingCreate, ListingImageOut, ListingOut, ListingUpdate
-from app.services import listing_service, media_service
+from app.schemas.rating import RatingOut, SellerReviewsOut
+from app.services import listing_service, media_service, rating_service
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -73,6 +75,48 @@ async def list_my_listings(
 async def get_listing(listing_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> ListingOut:
     listing = await listing_service.get_listing(db, listing_id)
     return ListingOut.model_validate(listing)
+
+
+@router.get("/{listing_id}/related", response_model=list[ListingOut])
+async def get_related_listings(
+    listing_id: uuid.UUID,
+    limit: int = Query(default=8, le=24),
+    db: AsyncSession = Depends(get_db),
+) -> list[ListingOut]:
+    listing = await listing_service.get_listing(db, listing_id)
+    related = await listing_service.list_related_listings(db, listing, limit)
+    return [ListingOut.model_validate(i) for i in related]
+
+
+@router.get("/{listing_id}/seller-reviews", response_model=SellerReviewsOut)
+async def get_seller_reviews(listing_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> SellerReviewsOut:
+    """Reviews for whoever is selling this listing — the shop if it's a shop
+    listing, otherwise the individual seller. Same split the rating system
+    itself uses when deciding what a rating targets."""
+    listing = await listing_service.get_listing(db, listing_id)
+
+    if listing.shop_id is not None:
+        shop = await db.get(Shop, listing.shop_id)
+        average, count = await rating_service.get_shop_rating_summary(db, shop.id)
+        breakdown = await rating_service.get_star_breakdown(db, shop_id=shop.id)
+        reviews = await rating_service.list_shop_ratings(db, shop.id)
+        target_type, target_name, target_url = "shop", shop.shop_name, f"/shops/{shop.slug}"
+    else:
+        seller = listing.seller
+        average, count = await rating_service.get_user_rating_summary(db, seller.id)
+        breakdown = await rating_service.get_star_breakdown(db, user_id=seller.id)
+        reviews = await rating_service.list_user_ratings(db, seller.id)
+        target_type, target_name, target_url = "user", seller.full_name, f"/profile/{seller.id}"
+
+    return SellerReviewsOut(
+        target_type=target_type,
+        target_name=target_name,
+        target_url=target_url,
+        average_rating=average,
+        rating_count=count,
+        breakdown=breakdown,
+        reviews=[RatingOut.model_validate(r) for r in reviews],
+    )
 
 
 @router.patch("/{listing_id}", response_model=ListingOut)

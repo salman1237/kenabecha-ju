@@ -163,6 +163,51 @@ async def browse_listings(db: AsyncSession, filters: BrowseFilters) -> tuple[lis
     return items, total
 
 
+async def list_related_listings(db: AsyncSession, listing: Listing, limit: int = 8) -> list[Listing]:
+    """Other listings a viewer of `listing` might also want, ranked by how
+    related they are: same shop first, then shared tags, then anything else
+    recent. Falls through the tiers until it has `limit` items, so a listing
+    with no tags and no shop still gets a useful rail instead of nothing."""
+    base = select(Listing).where(
+        Listing.id != listing.id,
+        Listing.status == ListingStatus.active,
+        Listing.deleted_at.is_(None),
+    )
+
+    collected: list[Listing] = []
+    seen: set[uuid.UUID] = {listing.id}
+
+    def take(candidates: list[Listing]) -> None:
+        for c in candidates:
+            if c.id not in seen and len(collected) < limit:
+                seen.add(c.id)
+                collected.append(c)
+
+    if listing.shop_id is not None:
+        rows = await db.execute(
+            base.where(Listing.shop_id == listing.shop_id).order_by(Listing.created_at.desc()).limit(limit)
+        )
+        take(list(rows.scalars().unique().all()))
+
+    if len(collected) < limit:
+        tag_ids = [t.id for t in listing.tags]
+        if tag_ids:
+            rows = await db.execute(
+                base.where(
+                    Listing.id.in_(select(listing_tags.c.listing_id).where(listing_tags.c.tag_id.in_(tag_ids)))
+                )
+                .order_by(Listing.created_at.desc())
+                .limit(limit)
+            )
+            take(list(rows.scalars().unique().all()))
+
+    if len(collected) < limit:
+        rows = await db.execute(base.order_by(Listing.created_at.desc()).limit(limit))
+        take(list(rows.scalars().unique().all()))
+
+    return collected
+
+
 async def list_my_listings(db: AsyncSession, seller_id: uuid.UUID, shop_id: uuid.UUID | None = None) -> list[Listing]:
     query = select(Listing).where(Listing.seller_id == seller_id, Listing.deleted_at.is_(None))
     if shop_id is not None:

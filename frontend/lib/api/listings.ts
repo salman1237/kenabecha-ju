@@ -1,5 +1,13 @@
 import { apiFetch } from "@/lib/api/client";
-import type { Condition, FulfillmentType, Listing, ListingImage, Page, PriceType } from "@/types/api";
+import type {
+  Condition,
+  FulfillmentType,
+  Listing,
+  ListingImage,
+  Page,
+  PriceType,
+  SellerReviews,
+} from "@/types/api";
 
 export interface ListingPayload {
   title: string;
@@ -55,6 +63,14 @@ export function getMyListings(shopId?: string | null) {
 
 export function getListing(id: string) {
   return apiFetch<Listing>(`/listings/${id}`);
+}
+
+export function getRelatedListings(id: string, limit = 8) {
+  return apiFetch<Listing[]>(`/listings/${id}/related?limit=${limit}`);
+}
+
+export function getSellerReviews(id: string) {
+  return apiFetch<SellerReviews>(`/listings/${id}/seller-reviews`);
 }
 
 export function updateListing(id: string, payload: Partial<ListingPayload>) {

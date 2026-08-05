@@ -105,6 +105,23 @@ async def list_user_ratings(db: AsyncSession, user_id: uuid.UUID, limit: int = 2
     return list(result.scalars().all())
 
 
+async def get_star_breakdown(
+    db: AsyncSession, *, shop_id: uuid.UUID | None = None, user_id: uuid.UUID | None = None
+) -> dict[int, int]:
+    """Counts per star value, always with all five keys present (zero-filled)
+    so callers can render a full 5→1 bar chart without patching gaps."""
+    column = Rating.target_shop_id if shop_id is not None else Rating.target_user_id
+    target = shop_id if shop_id is not None else user_id
+
+    rows = await db.execute(
+        select(Rating.stars, func.count()).where(column == target).group_by(Rating.stars)
+    )
+    counts = {star: 0 for star in range(1, 6)}
+    for star, count in rows.all():
+        counts[star] = count
+    return counts
+
+
 async def list_recent_reviews(db: AsyncSession, limit: int = 6) -> list[Rating]:
     """Newest ratings across the whole platform, for the public landing page.
     Only those with written text — a bare star score makes a poor testimonial."""

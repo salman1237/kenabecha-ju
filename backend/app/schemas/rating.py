@@ -27,6 +27,20 @@ class RatingSummary(BaseModel):
     rating_count: int
 
 
+class SellerReviewsOut(BaseModel):
+    """Everything the listing detail page's Reviews tab needs about whoever
+    is selling: who they are, their aggregate score, the 5→1 star spread,
+    and the most recent written reviews."""
+
+    target_type: str  # "shop" | "user"
+    target_name: str
+    target_url: str
+    average_rating: float | None
+    rating_count: int
+    breakdown: dict[int, int]
+    reviews: list[RatingOut]
+
+
 class RatingEligibility(BaseModel):
     can_rate: bool
     reason: str | None
