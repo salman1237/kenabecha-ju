@@ -302,3 +302,25 @@ async def delete_image(db: AsyncSession, listing: Listing, image_id: uuid.UUID) 
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Image not found")
     await db.delete(image)
     await db.commit()
+
+
+async def get_search_suggestions(db: AsyncSession, q: str, limit: int = 5) -> list[str]:
+    """Returns a list of matching titles for active listings."""
+    if not q or len(q) < 2:
+        return []
+        
+    stmt = (
+        select(Listing.title)
+        .where(
+            Listing.is_active.is_(True),
+            Listing.deleted_at.is_(None),
+            like_contains(Listing.title, q),
+        )
+        .order_by(Listing.created_at.desc())
+        .limit(limit)
+    )
+    
+    result = await db.execute(stmt)
+    # Return unique titles (preserving order by using a dict as an ordered set)
+    titles = result.scalars().all()
+    return list(dict.fromkeys(titles))

@@ -4,6 +4,7 @@ import { Globe, LayoutDashboard, LogOut, Menu, MessageSquare, PlusCircle, Shield
 import { motion } from "motion/react";
 import Link from "next/link";
 
+import { NavbarSearch } from "@/components/layout/NavbarSearch";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -49,6 +50,11 @@ export function Navbar() {
             {t.nav.browse}
           </Link>
         </nav>
+      </div>
+
+      {/* Search Bar */}
+      <div className="flex-1 mx-4 max-w-2xl hidden md:flex justify-center">
+        <NavbarSearch />
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">

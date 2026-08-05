@@ -65,6 +65,16 @@ async def browse_listings(
     )
 
 
+@router.get("/suggestions", response_model=list[str])
+async def get_search_suggestions(
+    q: str = Query(..., min_length=2),
+    limit: int = Query(default=5, le=10),
+    db: AsyncSession = Depends(get_db),
+) -> list[str]:
+    """Returns a list of search suggestions for the given query."""
+    return await listing_service.get_search_suggestions(db, q, limit)
+
+
 @router.get("/mine", response_model=list[ListingOut])
 async def list_my_listings(
     shop_id: uuid.UUID | None = None,

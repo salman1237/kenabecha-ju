@@ -59,6 +59,11 @@ export function browseListings(filters: BrowseFilters = {}) {
   return apiFetch<Page<Listing>>(`/listings${qs ? `?${qs}` : ""}`);
 }
 
+export function getSearchSuggestions(q: string, limit = 5) {
+  return apiFetch<string[]>(`/listings/suggestions?q=${encodeURIComponent(q)}&limit=${limit}`);
+}
+
+
 export function getMyListings(shopId?: string | null) {
   const qs = shopId ? `?shop_id=${shopId}` : "";
   return apiFetch<Listing[]>(`/listings/mine${qs}`);
