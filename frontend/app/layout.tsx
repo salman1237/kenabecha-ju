@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { Footer } from "@/components/layout/Footer";
 import { MotionProvider } from "@/components/layout/MotionProvider";
 import { Navbar } from "@/components/layout/Navbar";
 import { PageTransition } from "@/components/layout/PageTransition";
@@ -40,6 +41,7 @@ export default function RootLayout({
                 <main className="flex-1">
                   <PageTransition>{children}</PageTransition>
                 </main>
+                <Footer />
                 <Toaster />
               </AuthProvider>
             </LanguageProvider>

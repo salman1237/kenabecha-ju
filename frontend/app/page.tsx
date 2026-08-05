@@ -6,6 +6,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { NewsletterSection } from "@/components/home/NewsletterSection";
+import { ReviewsSection } from "@/components/home/ReviewsSection";
+import { StatsSection } from "@/components/home/StatsSection";
 import { ListingCard } from "@/components/listings/ListingCard";
 import { ShopCard } from "@/components/shops/ShopCard";
 import { AnimatedButton } from "@/components/ui/AnimatedButton";
@@ -139,6 +142,9 @@ export default function Home() {
           )}
         </motion.div>
       </section>
+
+      {/* 1b. PLATFORM STATISTICS */}
+      <StatsSection />
 
       {/* 2. TOP PRODUCTS SECTION (Admin Set) */}
       {topListings.length > 0 && (
@@ -286,7 +292,10 @@ export default function Home() {
         </div>
       </motion.section>
 
-      {/* 7. CTA BANNER SECTION */}
+      {/* 7. LATEST REVIEWS SECTION */}
+      <ReviewsSection />
+
+      {/* 8. CTA BANNER SECTION */}
       {!isLoading && !user && (
         <motion.section
           initial={{ opacity: 0, y: 20 }}
@@ -309,6 +318,9 @@ export default function Home() {
           </div>
         </motion.section>
       )}
+
+      {/* 9. NEWSLETTER SECTION */}
+      <NewsletterSection />
     </div>
   );
 }

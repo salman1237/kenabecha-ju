@@ -1,5 +1,6 @@
 from app.models.conversation import Conversation, Message
 from app.models.listing import Listing, ListingImage, Tag, listing_tags
+from app.models.newsletter import NewsletterSubscriber
 from app.models.notification import Notification
 from app.models.rating import Rating
 from app.models.reference import Department, Hall
@@ -22,6 +23,7 @@ __all__ = [
     "Rating",
     "Report",
     "Notification",
+    "NewsletterSubscriber",
     "RefreshToken",
     "AuthToken",
 ]

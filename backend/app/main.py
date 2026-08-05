@@ -12,6 +12,7 @@ from app.routers import (
     chat,
     listings,
     notifications,
+    public,
     ratings,
     reference,
     reports,
@@ -43,6 +44,7 @@ app.add_middleware(
 app.mount("/media", StaticFiles(directory=settings.MEDIA_ROOT), name="media")
 
 app.include_router(auth.router)
+app.include_router(public.router)
 app.include_router(reference.router)
 app.include_router(shops.router)
 app.include_router(tags.router)

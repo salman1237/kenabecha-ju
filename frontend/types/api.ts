@@ -168,6 +168,24 @@ export interface UserProfile {
   shops: Shop[];
 }
 
+export interface PublicStats {
+  total_users: number;
+  total_shops: number;
+  total_active_listings: number;
+  total_ratings: number;
+}
+
+export interface PublicReview {
+  id: string;
+  stars: number;
+  review_text: string;
+  created_at: string;
+  rater: { id: string; full_name: string; avatar_url: string | null };
+  target_name: string;
+  target_url: string;
+  listing_title: string;
+}
+
 export type ReportTargetType = "listing" | "shop" | "user";
 export type ReportReason =
   | "spam"

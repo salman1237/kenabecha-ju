@@ -103,3 +103,15 @@ async def list_user_ratings(db: AsyncSession, user_id: uuid.UUID, limit: int = 2
         .limit(limit)
     )
     return list(result.scalars().all())
+
+
+async def list_recent_reviews(db: AsyncSession, limit: int = 6) -> list[Rating]:
+    """Newest ratings across the whole platform, for the public landing page.
+    Only those with written text — a bare star score makes a poor testimonial."""
+    result = await db.execute(
+        select(Rating)
+        .where(Rating.review_text.is_not(None), Rating.review_text != "")
+        .order_by(Rating.created_at.desc())
+        .limit(limit)
+    )
+    return list(result.scalars().all())
