@@ -314,7 +314,7 @@ async def get_search_suggestions(db: AsyncSession, q: str, limit: int = 5) -> li
         .where(
             Listing.is_active.is_(True),
             Listing.deleted_at.is_(None),
-            like_contains(Listing.title, q),
+            Listing.title.ilike(like_contains(q), escape=LIKE_ESCAPE),
         )
         .order_by(Listing.created_at.desc())
         .limit(limit)
