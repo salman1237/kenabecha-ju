@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, LogOut, Menu, MessageSquare, PlusCircle, Shield, ShoppingBag, Store, User as UserIcon } from "lucide-react";
+import { Globe, LayoutDashboard, LogOut, Menu, MessageSquare, PlusCircle, Shield, ShoppingBag, Store, User as UserIcon } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 
@@ -86,6 +86,9 @@ export function Navbar() {
                     <DropdownMenuLabel className="truncate px-2 py-1.5 font-semibold">{user.full_name}</DropdownMenuLabel>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator className="bg-emerald-500/10" />
+                  <DropdownMenuItem render={<Link href="/dashboard" />}>
+                    <LayoutDashboard className="size-4 text-emerald-600 dark:text-emerald-400" /> Dashboard
+                  </DropdownMenuItem>
                   <DropdownMenuItem render={<Link href={`/profile/${user.id}`} />}>
                     <UserIcon className="size-4 text-emerald-600 dark:text-emerald-400" /> {t.nav.profile}
                   </DropdownMenuItem>
@@ -123,6 +126,10 @@ export function Navbar() {
                     <SheetClose render={<Link href="/listings" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
                       <Store className="size-4 text-emerald-600 dark:text-emerald-400" />
                       {t.nav.browse}
+                    </SheetClose>
+                    <SheetClose render={<Link href="/dashboard" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
+                      <LayoutDashboard className="size-4 text-emerald-600 dark:text-emerald-400" />
+                      Dashboard
                     </SheetClose>
                     <SheetClose render={<Link href={`/profile/${user.id}`} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
                       <UserIcon className="size-4 text-emerald-600 dark:text-emerald-400" />

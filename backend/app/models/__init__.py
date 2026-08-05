@@ -5,6 +5,7 @@ from app.models.notification import Notification
 from app.models.rating import Rating
 from app.models.reference import Department, Hall
 from app.models.report import Report
+from app.models.saved import SavedListing
 from app.models.shop import Shop
 from app.models.token import AuthToken, RefreshToken
 from app.models.user import User
@@ -24,6 +25,7 @@ __all__ = [
     "Report",
     "Notification",
     "NewsletterSubscriber",
+    "SavedListing",
     "RefreshToken",
     "AuthToken",
 ]

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SaveButton } from "@/components/listings/SaveButton";
 import { Badge } from "@/components/ui/badge";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { CONDITION_LABELS, cn, formatPrice } from "@/lib/utils";
@@ -89,6 +90,14 @@ export function ListingCard({
         />
         {listing.is_top && <TopBadge />}
         {listing.status !== "active" && <StatusBadge status={listing.status} />}
+        <SaveButton
+          listingId={listing.id}
+          className={cn(
+            "absolute bottom-2 right-2 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100",
+            // Always visible on touch devices, where there's no hover to reveal it.
+            "[@media(hover:none)]:opacity-100"
+          )}
+        />
       </div>
       <div className="flex flex-col gap-1 px-1 pb-1">
         <p className="truncate text-sm font-semibold transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-400">

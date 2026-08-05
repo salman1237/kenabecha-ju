@@ -10,6 +10,7 @@ from app.routers import (
     admin,
     auth,
     chat,
+    dashboard,
     listings,
     notifications,
     public,
@@ -56,6 +57,7 @@ app.include_router(users.router)
 app.include_router(reports.router)
 app.include_router(admin.router)
 app.include_router(notifications.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/health", tags=["meta"])

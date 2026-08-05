@@ -78,6 +78,7 @@ export interface Listing {
   condition: Condition;
   quantity: number;
   status: ListingStatus;
+  is_top: boolean;
   fulfillment_type: FulfillmentType;
   pickup_address: string | null;
   created_at: string;
@@ -177,6 +178,22 @@ export interface UserProfile {
   rating_count: number;
   recent_ratings: Rating[];
   shops: Shop[];
+}
+
+export interface DashboardStats {
+  active_listings: number;
+  sold_listings: number;
+  shops: number;
+  unread_messages: number;
+  conversations: number;
+  saved_count: number;
+  average_rating: number | null;
+  rating_count: number;
+}
+
+export interface ActivityPoint {
+  date: string;
+  count: number;
 }
 
 export interface PublicStats {
