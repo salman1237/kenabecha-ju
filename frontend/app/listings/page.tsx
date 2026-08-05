@@ -1,180 +1,293 @@
 "use client";
 
+import { LayoutGrid, List, Loader2, PackageSearch, Search, SlidersHorizontal } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { ListingCard } from "@/components/listings/ListingCard";
-import { Badge } from "@/components/ui/badge";
-import { selectClass } from "@/components/ui/FormField";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DEFAULT_FILTERS,
+  ListingFilters,
+  PRICE_MAX,
+  type FilterState,
+} from "@/components/listings/ListingFilters";
 import { Button } from "@/components/ui/button";
-import { browseListings, type BrowseFilters } from "@/lib/api/listings";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useDebounce } from "@/hooks/useDebounce";
+import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
+import { browseListings } from "@/lib/api/listings";
 import { trendingTags } from "@/lib/api/tags";
-import { cn, CONDITION_LABELS } from "@/lib/utils";
+import { staggerContainer, staggerItem } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 import type { Listing, Tag } from "@/types/api";
 
 const PAGE_SIZE = 24;
+type ViewMode = "grid" | "list";
+
+function ResultsSkeleton({ view }: { view: ViewMode }) {
+  if (view === "list") {
+    return (
+      <div className="flex flex-col gap-3">
+        {Array.from({ length: 6 }, (_, i) => (
+          <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      {Array.from({ length: 12 }, (_, i) => (
+        <div key={i} className="flex flex-col gap-2">
+          <Skeleton className="aspect-square w-full rounded-lg" />
+          <Skeleton className="h-3.5 w-3/4" />
+          <Skeleton className="h-3.5 w-1/2" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function BrowseListingsContent() {
   const searchParams = useSearchParams();
+
   const [q, setQ] = useState(() => searchParams.get("q") ?? "");
-  const [debouncedQ, setDebouncedQ] = useState(() => searchParams.get("q") ?? "");
-  const [selectedTags, setSelectedTags] = useState<string[]>(() =>
-    searchParams.getAll("tags").map((t) => t.toLowerCase())
-  );
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
-  const [condition, setCondition] = useState("");
-  const [sort, setSort] = useState<BrowseFilters["sort"]>("newest");
-  const [offset, setOffset] = useState(0);
+  const debouncedQ = useDebounce(q, 350);
+  const [filters, setFilters] = useState<FilterState>(() => ({
+    ...DEFAULT_FILTERS,
+    tags: searchParams.getAll("tags").map((t) => t.toLowerCase()),
+  }));
+  const [view, setView] = useState<ViewMode>("grid");
 
   const [trending, setTrending] = useState<Tag[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  // Bumped to force a refetch on "Try again" without touching the filters.
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     trendingTags().then(setTrending).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQ(q), 300);
-    return () => clearTimeout(timer);
-  }, [q]);
-
-  useEffect(() => {
-    browseListings({
+  const buildQuery = useCallback(
+    (offset: number) => ({
       q: debouncedQ || undefined,
-      tags: selectedTags.length ? selectedTags : undefined,
-      min_price: minPrice ? Number(minPrice) : undefined,
-      max_price: maxPrice ? Number(maxPrice) : undefined,
-      condition: (condition as BrowseFilters["condition"]) || undefined,
-      sort,
+      tags: filters.tags.length ? filters.tags : undefined,
+      min_price: filters.price[0] > 0 ? filters.price[0] : undefined,
+      // At the top of the slider the max filter is dropped so the range
+      // reads as "and above" instead of hiding anything more expensive.
+      max_price: filters.price[1] < PRICE_MAX ? filters.price[1] : undefined,
+      condition: (filters.condition || undefined) as never,
+      sort: filters.sort,
       limit: PAGE_SIZE,
       offset,
-    })
+    }),
+    [debouncedQ, filters]
+  );
+
+  // First page — refetches whenever the query changes.
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setFailed(false);
+
+    browseListings(buildQuery(0))
       .then((page) => {
+        if (cancelled) return;
         setListings(page.items);
         setTotal(page.total);
       })
-      .finally(() => setLoading(false));
-  }, [debouncedQ, selectedTags, minPrice, maxPrice, condition, sort, offset]);
+      .catch(() => !cancelled && setFailed(true))
+      .finally(() => !cancelled && setLoading(false));
 
-  const toggleTag = (name: string) => {
-    setSelectedTags((prev) => (prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name]));
-  };
+    // Guards against an older, slower request landing after a newer one and
+    // overwriting fresher results with stale ones.
+    return () => {
+      cancelled = true;
+    };
+  }, [buildQuery, reloadKey]);
+
+  const hasMore = listings.length < total;
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || loading || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await browseListings(buildQuery(listings.length));
+      // Concatenate by id to stay safe if a sentinel fires twice before
+      // state settles — duplicate keys would otherwise crash the list.
+      setListings((prev) => {
+        const seen = new Set(prev.map((l) => l.id));
+        return [...prev, ...page.items.filter((l) => !seen.has(l.id))];
+      });
+      setTotal(page.total);
+    } catch {
+      /* keep what's already rendered; the sentinel can retry on next scroll */
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [buildQuery, hasMore, listings.length, loading, loadingMore]);
+
+  const { ref: sentinelRef, isIntersecting } = useIntersectionObserver<HTMLDivElement>({
+    rootMargin: "400px",
+  });
+
+  useEffect(() => {
+    if (isIntersecting) loadMore();
+  }, [isIntersecting, loadMore]);
+
+  const filterPanel = (
+    <ListingFilters filters={filters} onChange={setFilters} trending={trending} />
+  );
+
+  const resultCount = loading ? null : `${total} ${total === 1 ? "listing" : "listings"}`;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-12 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Browse listings</h1>
-
-      <div className="flex flex-col gap-4">
-        <Input placeholder="Search by title or description…" value={q} onChange={(e) => setQ(e.target.value)} />
-
-        {trending.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {trending.map((tag) => {
-              const active = selectedTags.includes(tag.name.toLowerCase());
-              return (
-                <button type="button" key={tag.id} onClick={() => toggleTag(tag.name.toLowerCase())}>
-                  <Badge variant={active ? "default" : "outline"} className="cursor-pointer">
-                    {tag.name}
-                  </Badge>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">Min price</Label>
-            <Input
-              type="number"
-              className="w-24"
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">Max price</Label>
-            <Input
-              type="number"
-              className="w-24"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">Condition</Label>
-            <select className={cn(selectClass, "w-40")} value={condition} onChange={(e) => setCondition(e.target.value)}>
-              <option value="">Any</option>
-              {Object.entries(CONDITION_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">Sort by</Label>
-            <select
-              className={cn(selectClass, "w-44")}
-              value={sort}
-              onChange={(e) => setSort(e.target.value as BrowseFilters["sort"])}
-            >
-              <option value="newest">Newest</option>
-              <option value="price_asc">Price: low to high</option>
-              <option value="price_desc">Price: high to low</option>
-            </select>
-          </div>
-        </div>
+    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
+      <div className="mb-6 flex flex-col gap-1">
+        <h1 className="text-2xl font-bold tracking-tight">Browse listings</h1>
+        <p className="text-sm text-muted-foreground">
+          Everything on sale across campus{resultCount ? ` — ${resultCount}` : ""}
+        </p>
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {Array.from({ length: 10 }, (_, i) => (
-            <div key={i} className="flex flex-col gap-2">
-              <Skeleton className="aspect-square w-full rounded-md" />
-              <Skeleton className="h-3.5 w-3/4" />
-              <Skeleton className="h-3.5 w-1/2" />
+      <div className="flex gap-8">
+        {/* Sticky desktop sidebar */}
+        <aside className="hidden w-60 shrink-0 lg:block">
+          <div className="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto pb-4">
+            {filterPanel}
+          </div>
+        </aside>
+
+        <div className="min-w-0 flex-1">
+          {/* Search + view controls */}
+          <div className="mb-5 flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search by title or description…"
+                aria-label="Search listings"
+                className="h-10 rounded-xl pl-9 shadow-[var(--shadow-soft-xs)]"
+              />
             </div>
-          ))}
+
+            {/* Filters live in a sheet below lg, where there's no room for a sidebar */}
+            <Sheet>
+              <SheetTrigger
+                render={<Button variant="outline" className="h-10 shrink-0 rounded-xl lg:hidden" />}
+              >
+                <SlidersHorizontal /> Filters
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[85vw] max-w-sm overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>Filters</SheetTitle>
+                </SheetHeader>
+                <div className="px-4 pb-8">{filterPanel}</div>
+              </SheetContent>
+            </Sheet>
+
+            <div className="hidden items-center gap-1 rounded-xl border border-border p-0.5 sm:flex">
+              {([
+                ["grid", LayoutGrid, "Grid view"],
+                ["list", List, "List view"],
+              ] as const).map(([mode, Icon, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setView(mode)}
+                  aria-label={label}
+                  aria-pressed={view === mode}
+                  className={cn(
+                    "flex size-9 items-center justify-center rounded-lg transition-colors",
+                    view === mode
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Icon className="size-4" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Results */}
+          {failed ? (
+            <ErrorState
+              title="Couldn't load listings"
+              description="Something went wrong reaching the server."
+              onRetry={() => setReloadKey((k) => k + 1)}
+            />
+          ) : loading ? (
+            <ResultsSkeleton view={view} />
+          ) : listings.length === 0 ? (
+            <EmptyState
+              icon={PackageSearch}
+              title="No listings match your filters"
+              description="Try widening the price range, clearing tags, or searching for something else."
+              action={
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setFilters(DEFAULT_FILTERS);
+                    setQ("");
+                  }}
+                >
+                  Clear all filters
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  // Re-keying on view makes the grid/list swap crossfade
+                  // instead of snapping between two very different layouts.
+                  key={view}
+                  variants={staggerContainer(0.03)}
+                  initial="hidden"
+                  animate="visible"
+                  exit={{ opacity: 0 }}
+                  className={cn(
+                    view === "grid"
+                      ? "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
+                      : "flex flex-col gap-3"
+                  )}
+                >
+                  {listings.map((listing) => (
+                    <motion.div key={listing.id} variants={staggerItem}>
+                      <ListingCard listing={listing} variant={view} />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Infinite-scroll sentinel */}
+              <div ref={sentinelRef} className="flex h-16 items-center justify-center">
+                {loadingMore && (
+                  <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" /> Loading more…
+                  </span>
+                )}
+                {!hasMore && listings.length > PAGE_SIZE && (
+                  <span className="text-sm text-muted-foreground">
+                    That&apos;s everything — {total} listings
+                  </span>
+                )}
+              </div>
+            </>
+          )}
         </div>
-      ) : listings.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No listings match your filters.</p>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {listings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
-          </div>
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={offset === 0}
-              onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-            >
-              ← Previous
-            </Button>
-            <span>
-              {offset + 1}-{Math.min(offset + PAGE_SIZE, total)} of {total}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={offset + PAGE_SIZE >= total}
-              onClick={() => setOffset(offset + PAGE_SIZE)}
-            >
-              Next →
-            </Button>
-          </div>
-        </>
-      )}
+      </div>
     </div>
   );
 }
