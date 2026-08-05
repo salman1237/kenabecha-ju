@@ -72,6 +72,7 @@ class ListingUpdate(BaseModel):
     tags: list[str] | None = Field(default=None, max_length=10)
     fulfillment_type: FulfillmentType | None = None
     pickup_address: str | None = Field(default=None, max_length=500)
+    is_top: bool | None = None
     # Note: pickup/delivery consistency for updates is validated in listing_service.update_listing
     # against the merged final state, not here — a partial update might change only one of the two
     # fields while the other keeps its existing value on the model.
@@ -91,6 +92,7 @@ class ListingOut(BaseModel):
     status: ListingStatus
     fulfillment_type: FulfillmentType
     pickup_address: str | None
+    is_top: bool
     created_at: datetime
     seller: ListingSellerOut
     shop: ListingShopOut | None

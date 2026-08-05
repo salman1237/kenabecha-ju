@@ -98,6 +98,7 @@ class BrowseFilters:
         shop_id: uuid.UUID | None = None,
         seller_id: uuid.UUID | None = None,
         personal_only: bool = False,
+        is_top: bool | None = None,
         sort: str = "newest",
         limit: int = 20,
         offset: int = 0,
@@ -110,6 +111,7 @@ class BrowseFilters:
         self.shop_id = shop_id
         self.seller_id = seller_id
         self.personal_only = personal_only
+        self.is_top = is_top
         self.sort = sort
         self.limit = min(limit, 100)
         self.offset = offset
@@ -117,6 +119,9 @@ class BrowseFilters:
 
 async def browse_listings(db: AsyncSession, filters: BrowseFilters) -> tuple[list[Listing], int]:
     query = select(Listing).where(Listing.status == ListingStatus.active, Listing.deleted_at.is_(None))
+
+    if filters.is_top is not None:
+        query = query.where(Listing.is_top == filters.is_top)
 
     if filters.q:
         like = f"%{filters.q}%"

@@ -223,7 +223,10 @@ export default function MyShopsPage() {
   };
 
   useEffect(() => {
-    if (user) load();
+    if (!user) return;
+    getMyShops()
+      .then(setShops)
+      .finally(() => setLoading(false));
   }, [user]);
 
   const onSubmit = async (values: ShopFormValues) => {

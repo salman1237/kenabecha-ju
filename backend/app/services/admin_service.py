@@ -59,28 +59,31 @@ async def admin_remove_listing(
     listing = await db.get(Listing, listing_id)
     if listing is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Listing not found")
-    listing.status = ListingStatus.removed
-    listing.is_active = False
-    listing.deleted_at = datetime.now(UTC)
+    if listing.deleted_at is None:
+        listing.deleted_at = datetime.now(UTC)
+        listing.status = ListingStatus.removed
+        await notification_service.notify(
+            db,
+            background_tasks=background_tasks,
+            user_id=listing.seller_id,
+            type=NotificationType.listing_removed,
+            title="Your listing was removed",
+            body=f'"{listing.title}" was removed by a moderator for violating campus guidelines.',
+            link_url="/listings",
+            related_listing_id=listing.id,
+        )
+        await db.commit()
+        await db.refresh(listing)
+    return listing
+
+
+async def toggle_listing_top(db: AsyncSession, listing_id: uuid.UUID, is_top: bool) -> Listing:
+    listing = await db.get(Listing, listing_id)
+    if listing is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Listing not found")
+    listing.is_top = is_top
     await db.commit()
     await db.refresh(listing)
-
-    link_url = f"/listings/{listing.id}"
-    await notification_service.notify(
-        db,
-        background_tasks,
-        listing.seller_id,
-        NotificationType.listing_removed,
-        title="Your listing was removed",
-        body=f'"{listing.title}" was removed by a moderator.',
-        link_url=link_url,
-        email_subject="Your listing was removed from KenaBecha JU",
-        email_body=(
-            f'Your listing "{listing.title}" was removed by a moderator for violating platform policy.\n\n'
-            f"If you believe this was a mistake, reply to this email."
-        ),
-        related_listing_id=listing.id,
-    )
     return listing
 
 

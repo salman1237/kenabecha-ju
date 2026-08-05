@@ -1,5 +1,6 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
+import { Loader2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -44,14 +45,31 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  loading = false,
+  loadingText,
+  disabled,
+  children,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariants> & {
+    /** Swaps the leading content for a spinner and blocks interaction. */
+    loading?: boolean
+    /** Optional label to show while loading, e.g. "Saving…". */
+    loadingText?: React.ReactNode
+  }) {
   return (
     <ButtonPrimitive
       data-slot="button"
+      // aria-busy (not just `disabled`) so screen readers announce the
+      // pending state rather than just "unavailable".
+      aria-busy={loading || undefined}
+      disabled={disabled || loading}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+    >
+      {loading && <Loader2 className="animate-spin" aria-hidden="true" />}
+      {loading && loadingText ? loadingText : children}
+    </ButtonPrimitive>
   )
 }
 

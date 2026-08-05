@@ -1,23 +1,22 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
+import { MotionProvider } from "@/components/layout/MotionProvider";
 import { Navbar } from "@/components/layout/Navbar";
+import { PageTransition } from "@/components/layout/PageTransition";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/AuthContext";
+import { LanguageProvider } from "@/context/LanguageContext";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "KenaBecha JU",
+  title: "KenaBecha JU — Jahangirnagar University Marketplace",
   description: "Buy, sell, and run shops within the Jahangirnagar University community.",
 };
 
@@ -29,16 +28,22 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} font-sans h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col bg-background text-foreground">
         <ThemeProvider>
-          <AuthProvider>
-            <Navbar />
-            {children}
-            <Toaster />
-          </AuthProvider>
+          <MotionProvider>
+            <LanguageProvider>
+              <AuthProvider>
+                <Navbar />
+                <main className="flex-1">
+                  <PageTransition>{children}</PageTransition>
+                </main>
+                <Toaster />
+              </AuthProvider>
+            </LanguageProvider>
+          </MotionProvider>
         </ThemeProvider>
       </body>
     </html>

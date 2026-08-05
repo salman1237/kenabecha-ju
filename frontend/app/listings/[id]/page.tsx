@@ -75,7 +75,6 @@ export default function ListingDetailPage() {
   };
 
   useEffect(() => {
-    setIsLoading(true);
     getListing(params.id)
       .then(setListing)
       .catch(() => setError(true))

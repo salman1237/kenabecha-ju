@@ -25,14 +25,11 @@ export default function AdminShopsPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = () => {
-    setLoading(true);
+  useEffect(() => {
     listAdminShops()
       .then((page) => setShops(page.items))
       .finally(() => setLoading(false));
-  };
-
-  useEffect(load, []);
+  }, []);
 
   const onRemove = async (shop: Shop) => {
     await removeAdminShop(shop.id);

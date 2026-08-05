@@ -3,6 +3,7 @@ import uuid
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     Enum,
@@ -115,6 +116,9 @@ class Listing(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
         nullable=False,
     )
     pickup_address: Mapped[str | None] = mapped_column(Text)
+    is_top: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
 
     seller: Mapped["User"] = relationship(lazy="selectin")
     shop: Mapped["Shop | None"] = relationship(lazy="selectin")

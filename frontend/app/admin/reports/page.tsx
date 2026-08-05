@@ -50,14 +50,11 @@ export default function AdminReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<{ report: Report; action: Action } | null>(null);
 
-  const load = () => {
-    setLoading(true);
+  useEffect(() => {
     listAdminReports(statusFilter === "all" ? undefined : statusFilter)
       .then(setReports)
       .finally(() => setLoading(false));
-  };
-
-  useEffect(load, [statusFilter]);
+  }, [statusFilter]);
 
   const onConfirm = async () => {
     if (!pending) return;

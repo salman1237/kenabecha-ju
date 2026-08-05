@@ -18,8 +18,56 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 11 — Cart & orders, pickup/delivery fulfillment.** Commit `01a213b`. Listings choose pickup (with address) or delivery at creation; cart/orders/order_items added; checkout splits by (seller, shop, fulfillment_type) into separate orders with no payment fields. Order status flow (pending → confirmed → completed, either side can cancel while pending) notifies the other party. Simplified from the original 3-way `pickup/delivery/both` plan to a strict either/or per listing — see Deviations.
 - [x] **Phase 12 — Public landing page.** Commit `4eff70a`. Real homepage: hero + search, trending tags, newest listings, featured shops, "how it works," sign-up CTA — all public, all built on the Phase 9 design system with scroll-triggered fade-ins. Added `GET /shops` (public browse — didn't exist before). Fixed a real bug this surfaced: `/listings` never read `q`/`tags` from the URL, so the landing page's search and tag links would have gone nowhere.
 - [x] **Phase 13 — Full application redesign pass.** Commit `c43a1af`. Every remaining page from Phases 3–8 retrofitted onto the Phase 9 system — consistent Card/Input/Label/Button/Badge/Table/Skeleton throughout, `confirm()` replaced with AlertDialog everywhere destructive, admin panel rebuilt on Table, Navbar gained a Sheet-based mobile hamburger menu. **This closes out the UI/UX redesign initiative (Phases 9–13).**
+- [x] **Phase 14 — Modern Animated & Glassmorphism Frontend Redesign + i18n + Admin Top Products.** Complete UI overhaul: green/teal gradient palette, glassmorphism utilities (`glass-card`, `glass-navbar`, `gradient-bg-hero`), Inter Google Font typography, Framer Motion micro-animations (`AnimatedButton`, `GradientCard`), bilingual Bangla + English translation context (`LanguageContext`), fixed React hook `set-state-in-effect` lint bugs across 6 components, added `is_top` column & Alembic migration `e8b9f0a1c2d3` for admin-curated Top Products, and revamped landing page with Top Products, Latest Picks, Featured Shops, Categories, and How It Works sections.
 
-See "Phase 9+ — UI/UX Redesign, Tiered Auth & Cart/Orders" below (before "## Context") for the detailed breakdown of these five phases, written 2026-08-01 per user request. All five are now complete.
+- [x] **Phase 15 — Design system & motion foundation.** Fixed `--font-sans` (was Geist while `layout.tsx` loaded Inter — literal family name, not `var()`, since Tailwind v4 `@theme inline` resolves at parse time). Added a two-layer soft-shadow scale (`--shadow-soft-xs…xl` + emerald-tinted `soft-primary`), `scroll-behavior: smooth`, a global `:focus-visible` ring, and a CSS `prefers-reduced-motion` block. `lib/motion.ts` centralizes the motion vocabulary (fade/slideUp/scaleIn/stagger/pageTransition/hoverLift + spring presets) so sections stop re-declaring variants ad hoc. New hooks `useMediaQuery` (+`useIsMobile`/`useIsDesktop`), `useDebounce`, `useIntersectionObserver`. New `EmptyState`, `ErrorState`, `FieldError` (animated), and `SmartImage` (fade-in, lazy, error fallback, shimmer). `Button` gained `loading`/`loadingText` with `aria-busy`. `MotionProvider` (`MotionConfig reducedMotion="user"`) + `PageTransition` wired into the root layout.
+- [ ] **Phase 16 — Footer & homepage completion.** Not started.
+- [ ] **Phase 17 — Browse page overhaul.** Not started.
+- [ ] **Phase 18 — Product detail page.** Not started.
+- [ ] **Phase 19 — User dashboard.** Not started.
+- [ ] **Phase 20 — Auth pages polish.** Not started.
+- [ ] **Phase 21 — Chat enhancements.** Not started.
+- [ ] **Phase 22 — Shop pages.** Not started.
+- [ ] **Phase 23 — Admin dashboard.** Not started.
+- [ ] **Phase 24 — Performance & accessibility.** Not started.
+
+See "Phase 9+ — UI/UX Redesign, Tiered Auth & Cart/Orders" below (before "## Context") for the detailed breakdown of these five phases, written 2026-08-01 per user request. All five are now complete. See "Phases 15–24 — Frontend Gap Closure" for the current initiative.
+
+---
+
+## Phases 15–24 — Frontend Gap Closure (planned 2026-08-05)
+
+Driven by `gap_analysis.md`, which scored the frontend at **~28% coverage** against a "production-grade marketplace frontend" target (Airbnb/Facebook Marketplace/Stripe Dashboard class). ~80 features missing across 10+ pages. Ordered so foundations land before the pages that consume them, and highest-impact user-visible gaps land early.
+
+### Phase 15 — Design system & motion foundation
+Everything later phases build on. `--font-sans` currently points at Geist while `layout.tsx` loads Inter — fix so Inter actually applies. Add a soft-shadow scale and consistent `rounded-xl/2xl` tokens. Central motion primitives (`lib/motion.ts`: fade/slideUp/scaleIn/stagger variants) so animations stop being re-declared ad hoc per section. Global `prefers-reduced-motion` handling and `scroll-behavior: smooth`. Reusable hooks the gap analysis calls out as missing: `useMediaQuery`, `useDebounce`, `useIntersectionObserver`. Shared `EmptyState` / `ErrorState` components to replace bare `<p>` text. `Button` gains a real loading state. Page-transition wrapper.
+
+### Phase 16 — Footer & homepage completion
+Top-listed gap: **there is no footer at all** — the landing page just ends. Build a real multi-column footer (brand, links, contact, social, legal). Add the three missing homepage sections: platform statistics, latest reviews, newsletter signup. Restyle the categories strip from basic icon+text to premium cards.
+
+### Phase 17 — Browse page overhaul
+Lowest-coverage page at ~12%. Sticky sidebar filter panel (replacing inline selects), price **range slider** instead of two number inputs, grid/list view toggle, infinite scroll replacing manual pagination, animated filter/result transitions, and proper empty states.
+
+### Phase 18 — Product detail page
+Image zoom/lightbox, animated tabs (description / details / reviews) instead of everything inline, related-products rail, rating summary with star breakdown, share button, and breadcrumbs.
+
+### Phase 19 — User dashboard
+**0% coverage — the entire section doesn't exist.** New `/dashboard`: overview stat cards, my-listings management, activity chart, and a settings page. Saved/bookmarked listings need a backend table + endpoints, so that's scoped here too.
+
+### Phase 20 — Auth pages polish
+Floating labels, password visibility toggle, password strength meter, animated validation feedback, a proper segmented OTP input for verify-email, and a split-screen layout with brand illustration.
+
+### Phase 21 — Chat enhancements
+Message enter animations, typing indicator (new WS event type), read receipts surfaced in UI (`read_at` already exists in the schema), and image/file attachments in chat (needs backend upload support).
+
+### Phase 22 — Shop pages
+Cover banner, shop statistics row, shop reviews section, and a follow/followers concept (new backend table).
+
+### Phase 23 — Admin dashboard
+Charts for the stats currently rendered as bare numbers, table search, CSV export, plus sortable + responsive (card-fallback) tables with sticky headers.
+
+### Phase 24 — Performance & accessibility
+Migrate every `<img>` to `next/image`, add lazy loading, dynamic-import heavy components (charts, emoji picker), visible focus states, ARIA labels, contrast audit, and mobile bottom-sheet dialogs.
 
 ### Deviations from the original plan below
 

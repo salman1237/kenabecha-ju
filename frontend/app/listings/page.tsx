@@ -45,11 +45,6 @@ function BrowseListingsContent() {
   }, [q]);
 
   useEffect(() => {
-    setOffset(0);
-  }, [debouncedQ, selectedTags, minPrice, maxPrice, condition, sort]);
-
-  useEffect(() => {
-    setLoading(true);
     browseListings({
       q: debouncedQ || undefined,
       tags: selectedTags.length ? selectedTags : undefined,

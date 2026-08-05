@@ -26,14 +26,11 @@ export default function AdminListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = () => {
-    setLoading(true);
+  useEffect(() => {
     listAdminListings()
       .then((page) => setListings(page.items))
       .finally(() => setLoading(false));
-  };
-
-  useEffect(load, []);
+  }, []);
 
   const onRemove = async (listing: Listing) => {
     await removeAdminListing(listing.id);

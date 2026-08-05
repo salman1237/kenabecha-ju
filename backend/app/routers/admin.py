@@ -54,6 +54,14 @@ async def remove_listing(
     return ListingOut.model_validate(listing)
 
 
+@router.patch("/listings/{listing_id}/top", response_model=ListingOut)
+async def set_listing_top(
+    listing_id: uuid.UUID, is_top: bool, db: AsyncSession = Depends(get_db)
+) -> ListingOut:
+    listing = await admin_service.toggle_listing_top(db, listing_id, is_top)
+    return ListingOut.model_validate(listing)
+
+
 @router.get("/shops", response_model=Page[ShopOut])
 async def list_shops(limit: int = 50, offset: int = 0, db: AsyncSession = Depends(get_db)) -> Page[ShopOut]:
     shops, total = await admin_service.list_all_shops(db, limit, offset)

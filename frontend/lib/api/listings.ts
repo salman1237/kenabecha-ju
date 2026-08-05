@@ -28,6 +28,7 @@ export interface BrowseFilters {
   shop_id?: string;
   seller_id?: string;
   personal_only?: boolean;
+  is_top?: boolean;
   sort?: "newest" | "price_asc" | "price_desc";
   limit?: number;
   offset?: number;

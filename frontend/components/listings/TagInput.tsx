@@ -22,10 +22,7 @@ export function TagInput({
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!text.trim()) {
-      setSuggestions([]);
-      return;
-    }
+    if (!text.trim()) return;
     debounceRef.current = setTimeout(() => {
       autocompleteTags(text.trim())
         .then((tags) => setSuggestions(tags.map((t) => t.name).filter((n) => !value.includes(n))))
@@ -35,6 +32,13 @@ export function TagInput({
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [text, value]);
+
+  const handleTextChange = (val: string) => {
+    setText(val);
+    if (!val.trim()) {
+      setSuggestions([]);
+    }
+  };
 
   const addTag = (tag: string) => {
     const trimmed = tag.trim();
@@ -67,7 +71,7 @@ export function TagInput({
       )}
       <Input
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => handleTextChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === ",") {
             e.preventDefault();
