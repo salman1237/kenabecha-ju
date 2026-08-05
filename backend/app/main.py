@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -6,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
 from app.core.logging import setup_logging
+from app.websocket.manager import manager
 from app.routers import (
     admin,
     auth,
@@ -28,10 +30,20 @@ settings = get_settings()
 
 Path(settings.MEDIA_ROOT).mkdir(parents=True, exist_ok=True)
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # The heartbeat has to be started inside the running event loop, not at
+    # import time — asyncio.create_task needs a loop to attach to.
+    manager.start_heartbeat()
+    yield
+    await manager.stop_heartbeat()
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Marketplace API for Jahangirnagar University students to buy, sell, and run shops.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

@@ -52,22 +52,33 @@ async def websocket_endpoint(
 ) -> None:
     async with async_session_maker() as db:
         user = await get_current_user_ws(access_token, db)
+        # Copy the id out while the session is still open. The ORM object is
+        # detached once this block exits, so touching any lazy attribute on
+        # it later would raise DetachedInstanceError — holding a plain UUID
+        # makes that impossible rather than merely unlikely.
+        user_id = user.id if user is not None else None
 
-    if user is None:
+    if user_id is None:
         await websocket.close(code=4401)
         return
 
-    await manager.connect(user.id, websocket)
+    await manager.connect(user_id, websocket)
     try:
         while True:
             payload = await websocket.receive_json()
-            # Typing is the only client→server frame acted on; anything else
-            # (ping keepalives, future types) is drained harmlessly.
-            if isinstance(payload, dict) and payload.get("type") == "typing":
-                await _relay_typing(user.id, payload)
+            # Any inbound frame proves the client is alive.
+            manager.touch(websocket)
+
+            if not isinstance(payload, dict):
+                continue
+            message_type = payload.get("type")
+            if message_type == "typing":
+                await _relay_typing(user_id, payload)
+            # "pong" needs no handling beyond the touch() above; anything
+            # else is drained harmlessly.
     except WebSocketDisconnect:
-        manager.disconnect(user.id, websocket)
+        manager.disconnect(user_id, websocket)
     except Exception:
         # Malformed JSON or a mid-frame error shouldn't leave a dead socket
         # in the manager's registry.
-        manager.disconnect(user.id, websocket)
+        manager.disconnect(user_id, websocket)

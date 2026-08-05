@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
     FRONTEND_URL: str = "http://localhost:3000"
 
+    # Only enable behind a proxy that overwrites X-Forwarded-For (e.g.
+    # Traefik/Dokploy). Off by default because trusting the header when
+    # nothing sets it authoritatively lets any caller spoof their IP and
+    # walk straight past the rate limiter.
+    TRUST_PROXY_HEADERS: bool = False
+
     MEDIA_ROOT: str = "/app/media"
 
     SMTP_HOST: str = ""

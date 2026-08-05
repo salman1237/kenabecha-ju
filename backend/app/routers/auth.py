@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.dependencies import ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, get_current_user
+from app.core.rate_limit import rate_limit
 from app.core.security import create_access_token
 from app.db.session import get_db
 from app.models.user import User
@@ -54,7 +55,13 @@ def _clear_auth_cookies(response: Response) -> None:
     response.delete_cookie(REFRESH_TOKEN_COOKIE, path=REFRESH_COOKIE_PATH)
 
 
-@router.post("/signup", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/signup",
+    response_model=UserPublic,
+    status_code=status.HTTP_201_CREATED,
+    # Mass account creation.
+    dependencies=[Depends(rate_limit("signup", times=5, seconds=3600))],
+)
 async def signup(
     payload: SignupRequest,
     background_tasks: BackgroundTasks,
@@ -63,14 +70,24 @@ async def signup(
     return await auth_service.signup(db, payload, background_tasks)
 
 
-@router.post("/verify-email", response_model=UserPublic)
+@router.post(
+    "/verify-email",
+    response_model=UserPublic,
+    # OTP guessing across accounts (per-token attempts are capped separately).
+    dependencies=[Depends(rate_limit("verify_email", times=20, seconds=900))],
+)
 async def verify_email(
     payload: VerifyOtpRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)
 ) -> User:
     return await auth_service.verify_email(db, payload.email, payload.otp, background_tasks)
 
 
-@router.post("/resend-otp", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/resend-otp",
+    status_code=status.HTTP_204_NO_CONTENT,
+    # Complements the existing per-account 60s cooldown with a per-IP cap.
+    dependencies=[Depends(rate_limit("resend_otp", times=10, seconds=3600))],
+)
 async def resend_otp(
     payload: ResendOtpRequest,
     background_tasks: BackgroundTasks,
@@ -79,7 +96,13 @@ async def resend_otp(
     await auth_service.resend_otp(db, payload.email, background_tasks)
 
 
-@router.post("/login", response_model=UserPublic)
+@router.post(
+    "/login",
+    response_model=UserPublic,
+    # Credential brute force. Generous enough for a genuine user fumbling
+    # their password, far too tight to sweep a password list.
+    dependencies=[Depends(rate_limit("login", times=10, seconds=300))],
+)
 async def login(
     payload: LoginRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)
 ) -> User:
@@ -92,7 +115,11 @@ async def login(
     return user
 
 
-@router.post("/google", response_model=UserPublic)
+@router.post(
+    "/google",
+    response_model=UserPublic,
+    dependencies=[Depends(rate_limit("google", times=20, seconds=300))],
+)
 async def google_login(
     payload: GoogleLoginRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)
 ) -> User:
@@ -171,7 +198,12 @@ async def update_avatar(
     return await auth_service.update_avatar(db, user, avatar_url)
 
 
-@router.post("/forgot-password", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/forgot-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    # Email bombing a third party via our SMTP.
+    dependencies=[Depends(rate_limit("forgot_password", times=5, seconds=3600))],
+)
 async def forgot_password(
     payload: ForgotPasswordRequest,
     background_tasks: BackgroundTasks,
@@ -180,6 +212,11 @@ async def forgot_password(
     await auth_service.request_password_reset(db, payload.email, background_tasks)
 
 
-@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/reset-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    # Guessing reset tokens.
+    dependencies=[Depends(rate_limit("reset_password", times=10, seconds=3600))],
+)
 async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depends(get_db)) -> None:
     await auth_service.reset_password(db, payload.token, payload.new_password)
