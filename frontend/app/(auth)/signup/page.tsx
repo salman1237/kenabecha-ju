@@ -1,16 +1,21 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "motion/react";
 import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { AuthShell } from "@/components/auth/AuthShell";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldError } from "@/components/ui/ErrorState";
 import { selectClass } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/PasswordInput";
+import { PasswordStrength } from "@/components/ui/PasswordStrength";
 import { Separator } from "@/components/ui/separator";
 import { signup } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
@@ -68,17 +73,22 @@ function SignupForm() {
     return acc;
   }, {});
 
+  const passwordValue = watch("password") ?? "";
+
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-16">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Join KenaBecha JU</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Buying? One click with Google gets you browsing and buying in seconds. Selling? You&apos;ll
-            need your full JU details so buyers can trust who they&apos;re dealing with.
-          </p>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
+    <AuthShell
+      title="Join KenaBecha JU"
+      subtitle="One click with Google gets you browsing. Selling needs your full JU details so buyers know who they're dealing with."
+      footer={
+        <>
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-foreground hover:underline">
+            Log in
+          </Link>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-5">
           <GoogleSignInButton next={next} onError={setServerError} />
           <p className="text-center text-xs text-muted-foreground">
             Fast signup for buyers — add fuller details later if you decide to sell.
@@ -95,7 +105,12 @@ function SignupForm() {
               Sign up with full JU details (for selling)
             </Button>
           ) : (
-            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <motion.form
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              onSubmit={handleSubmit(onSubmit)}
+              className="flex flex-col gap-4"
+            >
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="full_name">Full name</Label>
                 <Input id="full_name" {...register("full_name")} />
@@ -108,19 +123,25 @@ function SignupForm() {
                 {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="password">Password</Label>
-                  <Input id="password" type="password" {...register("password")} />
-                  {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="confirmPassword">Confirm password</Label>
-                  <Input id="confirmPassword" type="password" {...register("confirmPassword")} />
-                  {errors.confirmPassword && (
-                    <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
-                  )}
-                </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="password">Password</Label>
+                <PasswordInput id="password" autoComplete="new-password" {...register("password")} />
+                <AnimatePresence>
+                  <FieldError>{errors.password?.message}</FieldError>
+                </AnimatePresence>
+                <PasswordStrength password={passwordValue} />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="confirmPassword">Confirm password</Label>
+                <PasswordInput
+                  id="confirmPassword"
+                  autoComplete="new-password"
+                  {...register("confirmPassword")}
+                />
+                <AnimatePresence>
+                  <FieldError>{errors.confirmPassword?.message}</FieldError>
+                </AnimatePresence>
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -206,23 +227,22 @@ function SignupForm() {
                 </div>
               </div>
 
-              {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+              <AnimatePresence>
+                <FieldError className="text-sm">{serverError}</FieldError>
+              </AnimatePresence>
 
-              <Button type="submit" disabled={isSubmitting} className="mt-1">
-                {isSubmitting ? "Creating account…" : "Create account"}
+              <Button
+                type="submit"
+                loading={isSubmitting}
+                loadingText="Creating account…"
+                className="mt-1 h-10"
+              >
+                Create account
               </Button>
-            </form>
+            </motion.form>
           )}
-
-          <p className="text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <a href="/login" className="font-medium text-foreground">
-              Log in
-            </a>
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+      </div>
+    </AuthShell>
   );
 }
 

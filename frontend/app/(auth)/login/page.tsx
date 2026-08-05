@@ -1,15 +1,20 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { CheckCircle2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence } from "motion/react";
 import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { AuthShell } from "@/components/auth/AuthShell";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FieldError } from "@/components/ui/ErrorState";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Separator } from "@/components/ui/separator";
 import { login } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
@@ -43,55 +48,83 @@ function LoginForm() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col gap-6 px-4 py-16">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Log in</CardTitle>
-          {justVerified && <p className="text-sm text-success">Email verified — you can log in now.</p>}
-          {justReset && <p className="text-sm text-success">Password reset — log in with your new password.</p>}
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <GoogleSignInButton next={next} onError={setServerError} />
+    <AuthShell
+      title="Welcome back"
+      subtitle="Log in to message sellers, save listings, and manage your shop."
+      footer={
+        <>
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="font-medium text-foreground hover:underline">
+            Sign up
+          </Link>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-5">
+        {(justVerified || justReset) && (
+          <p className="flex items-center gap-2 rounded-xl border border-success/25 bg-success/10 px-3 py-2.5 text-sm text-success">
+            <CheckCircle2 className="size-4 shrink-0" />
+            {justVerified
+              ? "Email verified — you can log in now."
+              : "Password reset — log in with your new password."}
+          </p>
+        )}
 
-          <div className="flex items-center gap-3">
-            <Separator className="flex-1" />
-            <span className="text-xs text-muted-foreground">or</span>
-            <Separator className="flex-1" />
+        <GoogleSignInButton next={next} onError={setServerError} />
+
+        <div className="flex items-center gap-3">
+          <Separator className="flex-1" />
+          <span className="text-xs text-muted-foreground">or continue with email</span>
+          <Separator className="flex-1" />
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              placeholder="you@juniv.edu"
+              className="h-10"
+              {...register("email")}
+            />
+            <AnimatePresence>
+              <FieldError>{errors.email?.message}</FieldError>
+            </AnimatePresence>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" {...register("email")} />
-              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
-            </div>
-
-            <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" {...register("password")} />
-              {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+              <Link
+                href="/forgot-password"
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Forgot password?
+              </Link>
             </div>
+            <PasswordInput
+              id="password"
+              autoComplete="current-password"
+              className="h-10"
+              {...register("password")}
+            />
+            <AnimatePresence>
+              <FieldError>{errors.password?.message}</FieldError>
+            </AnimatePresence>
+          </div>
 
-            <a href="/forgot-password" className="-mt-2 text-sm text-muted-foreground hover:text-foreground">
-              Forgot password?
-            </a>
+          <AnimatePresence>
+            <FieldError className="text-sm">{serverError}</FieldError>
+          </AnimatePresence>
 
-            {serverError && <p className="text-sm text-destructive">{serverError}</p>}
-
-            <Button type="submit" disabled={isSubmitting} className="mt-1">
-              {isSubmitting ? "Logging in…" : "Log in"}
-            </Button>
-
-            <p className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <a href="/signup" className="font-medium text-foreground">
-                Sign up
-              </a>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+          <Button type="submit" loading={isSubmitting} loadingText="Logging in…" className="mt-1 h-10">
+            Log in
+          </Button>
+        </form>
+      </div>
+    </AuthShell>
   );
 }
 

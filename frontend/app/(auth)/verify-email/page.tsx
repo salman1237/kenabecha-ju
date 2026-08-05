@@ -1,38 +1,41 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { CheckCircle2, MailCheck } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence } from "motion/react";
 import { Suspense, useState } from "react";
-import { useForm } from "react-hook-form";
 
+import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FieldError } from "@/components/ui/ErrorState";
+import { OtpInput } from "@/components/ui/OtpInput";
 import { resendOtp, verifyEmail } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
-import { type VerifyOtpFormValues, verifyOtpSchema } from "@/lib/validation/auth";
 
 function VerifyEmailForm() {
   const router = useRouter();
   const email = useSearchParams().get("email") ?? "";
+
+  const [code, setCode] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<VerifyOtpFormValues>({ resolver: zodResolver(verifyOtpSchema) });
-
-  const onSubmit = async ({ otp }: VerifyOtpFormValues) => {
+  const submit = async (value: string) => {
+    if (value.length !== 6 || verifying) return;
+    setVerifying(true);
     setServerError(null);
     try {
-      await verifyEmail(email, otp);
+      await verifyEmail(email, value);
       router.push("/login?verified=1");
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Verification failed.");
+      // Clear so the next attempt starts from an empty field rather than
+      // making the user backspace six times.
+      setCode("");
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -51,42 +54,66 @@ function VerifyEmailForm() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col gap-6 px-4 py-16">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Verify your email</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Enter the 6-digit code we sent to <span className="font-medium text-foreground">{email || "your email"}</span>.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="otp">Verification code</Label>
-              <Input
-                id="otp"
-                inputMode="numeric"
-                maxLength={6}
-                className="text-center text-lg tracking-[0.5em]"
-                {...register("otp")}
-              />
-              {errors.otp && <p className="text-xs text-destructive">{errors.otp.message}</p>}
-            </div>
+    <AuthShell
+      title="Verify your email"
+      subtitle={`Enter the 6-digit code we sent to ${email || "your email"}.`}
+    >
+      <div className="flex flex-col gap-6">
+        <div className="flex justify-center">
+          <span className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <MailCheck className="size-7" strokeWidth={1.75} />
+          </span>
+        </div>
 
-            {serverError && <p className="text-sm text-destructive">{serverError}</p>}
-            {resendMessage && <p className="text-sm text-success">{resendMessage}</p>}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit(code);
+          }}
+          className="flex flex-col gap-5"
+        >
+          <OtpInput
+            value={code}
+            onChange={setCode}
+            disabled={verifying}
+            // Auto-submit on the sixth digit — nobody wants to type the
+            // code and then hunt for a button.
+            onComplete={submit}
+          />
 
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Verifying…" : "Verify"}
-            </Button>
+          <AnimatePresence>
+            <FieldError className="text-center text-sm">{serverError}</FieldError>
+          </AnimatePresence>
 
-            <Button type="button" variant="ghost" onClick={onResend} disabled={resending}>
-              {resending ? "Sending…" : "Resend code"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+          {resendMessage && (
+            <p className="flex items-center justify-center gap-1.5 text-sm text-success">
+              <CheckCircle2 className="size-4" />
+              {resendMessage}
+            </p>
+          )}
+
+          <Button
+            type="submit"
+            loading={verifying}
+            loadingText="Verifying…"
+            disabled={code.length !== 6}
+            className="h-10"
+          >
+            Verify
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onResend}
+            loading={resending}
+            loadingText="Sending…"
+          >
+            Resend code
+          </Button>
+        </form>
+      </div>
+    </AuthShell>
   );
 }
 
