@@ -6,9 +6,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function mediaUrl(path: string) {
+  // Already absolute (e.g. a Google avatar) — leave it alone.
   if (/^https?:\/\//.test(path)) return path;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-  return `${apiUrl}${path}`;
+  // Backend media paths stay relative: next.config rewrites /media/* to the
+  // backend's internal address, which keeps them same-origin so next/image
+  // can optimize them without an allow-list. See the comment in next.config.ts.
+  return path;
 }
 
 export function formatPrice(

@@ -20,7 +20,7 @@ import { updateProfile, updateWhatsAppNumber, uploadAvatar } from "@/lib/api/aut
 import { ApiError } from "@/lib/api/client";
 import { browseListings } from "@/lib/api/listings";
 import { getUserProfile } from "@/lib/api/users";
-import { mediaUrl } from "@/lib/utils";
+import { SmartImage } from "@/components/ui/SmartImage";
 import type { Listing, UserProfile } from "@/types/api";
 
 function AvatarPicker() {
@@ -49,13 +49,13 @@ function AvatarPicker() {
       className="group relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-lg font-semibold text-muted-foreground"
       title="Change photo"
     >
-      {user.avatar_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={mediaUrl(user.avatar_url)} alt="" className="h-full w-full object-cover" />
-      ) : (
-        user.full_name.charAt(0).toUpperCase()
-      )}
-      <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-[9px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+      <SmartImage
+        src={user.avatar_url}
+        alt=""
+        sizes="56px"
+        fallback={<span className="text-lg font-semibold">{user.full_name.charAt(0).toUpperCase()}</span>}
+      />
+      <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 text-[9px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
         {uploading ? "…" : "Change"}
       </span>
       <input
@@ -212,13 +212,18 @@ export default function ProfilePage() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-12 sm:px-6">
       <div className="flex flex-col gap-2 border-b border-border pb-6">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-lg font-semibold text-muted-foreground">
-            {profile.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={mediaUrl(profile.avatar_url)} alt="" className="h-full w-full object-cover" />
-            ) : (
-              profile.full_name.charAt(0).toUpperCase()
-            )}
+          <div className="size-14 shrink-0 overflow-hidden rounded-full">
+            <SmartImage
+              src={profile.avatar_url}
+              alt=""
+              sizes="56px"
+              eager
+              fallback={
+                <span className="text-lg font-semibold">
+                  {profile.full_name.charAt(0).toUpperCase()}
+                </span>
+              }
+            />
           </div>
           <div>
             <div className="flex items-center gap-2">

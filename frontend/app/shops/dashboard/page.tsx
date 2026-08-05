@@ -27,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { createShop, deleteShop, getMyShops, updateShop, uploadShopCover, uploadShopLogo } from "@/lib/api/shops";
 import { ApiError } from "@/lib/api/client";
-import { mediaUrl } from "@/lib/utils";
+import { SmartImage } from "@/components/ui/SmartImage";
 import { type ShopFormValues, shopSchema } from "@/lib/validation/shop";
 import type { Shop } from "@/types/api";
 
@@ -55,13 +55,13 @@ function ShopLogoPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Sho
       className="group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-semibold text-muted-foreground"
       title="Change logo"
     >
-      {shop.logo_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={mediaUrl(shop.logo_url)} alt="" className="h-full w-full object-cover" />
-      ) : (
-        shop.shop_name.charAt(0).toUpperCase()
-      )}
-      <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-[9px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+      <SmartImage
+        src={shop.logo_url}
+        alt=""
+        sizes="48px"
+        fallback={<span className="text-sm font-semibold">{shop.shop_name.charAt(0).toUpperCase()}</span>}
+      />
+      <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 text-[9px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
         {uploading ? "…" : "Change"}
       </span>
       <input
@@ -102,13 +102,8 @@ function ShopCoverPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Sh
       disabled={uploading}
       className="group relative flex h-24 w-full items-center justify-center overflow-hidden rounded-md bg-muted text-xs font-medium text-muted-foreground"
     >
-      {shop.cover_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={mediaUrl(shop.cover_url)} alt="" className="h-full w-full object-cover" />
-      ) : (
-        "No cover image"
-      )}
-      <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+      <SmartImage src={shop.cover_url} alt="" sizes="100vw" fallback="No cover image" />
+      <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
         {uploading ? "Uploading…" : "Change cover"}
       </span>
       <input

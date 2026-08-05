@@ -41,6 +41,10 @@ services:
       - ./frontend/.env.local
     environment:
       - WATCHPACK_POLLING=true
+      # Container-network address of the API. Used only by Next's server side
+      # (the /media rewrite + image optimizer), which can't reach the
+      # browser-facing localhost:8000 from inside this container.
+      - INTERNAL_API_URL=http://backend:8000
     ports:
       - "3000:3000"
     volumes:

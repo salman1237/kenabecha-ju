@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
 import { getConversations } from "@/lib/api/chat";
-import { mediaUrl } from "@/lib/utils";
+import { SmartImage } from "@/components/ui/SmartImage";
 import { wsClient } from "@/lib/ws/client";
 import type { Conversation } from "@/types/api";
 
@@ -104,13 +104,8 @@ export default function InboxPage() {
                 href={`/inbox/${c.id}`}
                 className="flex items-center justify-between gap-4 py-4 transition-colors hover:bg-muted/50"
               >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-[10px] text-muted-foreground">
-                  {c.listing.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={mediaUrl(c.listing.image_url)} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    "No photo"
-                  )}
+                <div className="size-11 shrink-0 overflow-hidden rounded-md">
+                  <SmartImage src={c.listing.image_url} alt="" sizes="44px" />
                 </div>
                 <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
                   <div className="flex items-center gap-2">

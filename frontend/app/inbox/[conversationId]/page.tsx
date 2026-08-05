@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SmartImage } from "@/components/ui/SmartImage";
 import { useAuth } from "@/context/AuthContext";
 import {
   getConversation,
@@ -40,26 +41,14 @@ function Avatar({
   label: string;
   className?: string;
 }) {
-  const [failed, setFailed] = useState(false);
   return (
-    <div
-      className={cn(
-        "flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold text-muted-foreground",
-        className
-      )}
-      title={label}
-    >
-      {url && !failed ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={mediaUrl(url)}
-          alt=""
-          className="h-full w-full object-cover"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        label.charAt(0).toUpperCase()
-      )}
+    <div className={cn("shrink-0 overflow-hidden rounded-full", className)} title={label}>
+      <SmartImage
+        src={url}
+        alt=""
+        sizes="32px"
+        fallback={<span className="font-semibold">{label.charAt(0).toUpperCase()}</span>}
+      />
     </div>
   );
 }
@@ -71,13 +60,8 @@ function ProductCard({ conversation }: { conversation: Conversation }) {
       href={`/listings/${listing.id}`}
       className="mx-auto flex w-full max-w-sm items-center gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/50"
     >
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-[10px] text-muted-foreground">
-        {listing.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={mediaUrl(listing.image_url)} alt="" className="h-full w-full object-cover" />
-        ) : (
-          "No photo"
-        )}
+      <div className="size-14 shrink-0 overflow-hidden rounded-md">
+        <SmartImage src={listing.image_url} alt="" sizes="56px" />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className="truncate text-sm font-medium">{listing.title}</p>
