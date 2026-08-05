@@ -18,6 +18,7 @@ export interface ListingPayload {
   condition?: Condition | null;
   quantity?: number | null;
   shop_id?: string | null;
+  category_id?: string | null;
   tags: string[];
   fulfillment_type: FulfillmentType;
   pickup_address?: string | null;
@@ -37,6 +38,8 @@ export interface BrowseFilters {
   seller_id?: string;
   personal_only?: boolean;
   is_top?: boolean;
+  category_id?: string;
+  category?: string;
   sort?: "newest" | "price_asc" | "price_desc";
   limit?: number;
   offset?: number;

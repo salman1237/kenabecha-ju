@@ -11,12 +11,13 @@ import { selectClass } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getCategories } from "@/lib/api/categories";
 import { ApiError } from "@/lib/api/client";
 import { createListing, updateListing, uploadListingImage, type ListingPayload } from "@/lib/api/listings";
 import { getMyShops } from "@/lib/api/shops";
 import { CONDITION_LABELS } from "@/lib/utils";
 import { type ListingFormValues, listingSchema } from "@/lib/validation/listing";
-import type { Listing, Shop } from "@/types/api";
+import type { Category, Listing, Shop } from "@/types/api";
 
 const MAX_PHOTOS = 8;
 
@@ -32,6 +33,7 @@ export function ListingForm({
   onSuccess: (listing: Listing) => void;
 }) {
   const [shops, setShops] = useState<Shop[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [tags, setTags] = useState<string[]>(listing?.tags.map((t) => t.name) ?? []);
   const [photos, setPhotos] = useState<File[]>([]);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -52,13 +54,19 @@ export function ListingForm({
       unit: listing?.unit ?? "",
       condition: listing?.condition,
       shop_id: listing?.shop?.id ?? defaultShopId ?? "",
+      category_id: listing?.category?.id ?? "",
       fulfillment_type: listing?.fulfillment_type ?? "pickup",
       pickup_address: listing?.pickup_address ?? "",
     },
   });
 
   useEffect(() => {
-    getMyShops().then(setShops).catch(() => {});
+    Promise.all([getMyShops(), getCategories()])
+      .then(([shopsRes, catsRes]) => {
+        setShops(shopsRes);
+        setCategories(catsRes);
+      })
+      .catch(() => {});
   }, []);
 
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
@@ -83,6 +91,7 @@ export function ListingForm({
       unit: values.price_type === "free" ? null : values.unit || null,
       condition: isShopListing ? undefined : values.condition,
       shop_id: mode === "create" ? values.shop_id || null : undefined,
+      category_id: values.category_id || null,
       tags,
       fulfillment_type: values.fulfillment_type,
       pickup_address: values.fulfillment_type === "pickup" ? values.pickup_address : null,
@@ -194,6 +203,23 @@ export function ListingForm({
         <Label htmlFor="description">Description</Label>
         <Textarea id="description" rows={5} {...register("description")} />
         {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="category_id">Category</Label>
+        <select id="category_id" className={selectClass} {...register("category_id")} defaultValue="">
+          <option value="" disabled>Select category</option>
+          {categories.map((cat) => (
+            <optgroup key={cat.id} label={`${cat.icon || ""} ${cat.name}`.trim()}>
+              {cat.children.map((child) => (
+                <option key={child.id} value={child.id}>
+                  {child.name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        {errors.category_id && <p className="text-xs text-destructive">{errors.category_id.message}</p>}
       </div>
 
       <div className="flex flex-col gap-1.5">

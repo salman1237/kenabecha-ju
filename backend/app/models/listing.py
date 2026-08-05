@@ -22,6 +22,7 @@ from app.db.base import Base
 from app.models.mixins import CreatedAtMixin, SoftDeleteMixin, TimestampMixin, UUIDPKMixin
 
 if TYPE_CHECKING:
+    from app.models.category import Category
     from app.models.shop import Shop
     from app.models.user import User
 
@@ -93,6 +94,12 @@ class Listing(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
     shop_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("shops.id", ondelete="CASCADE"), index=True
     )
+    # Nullable so the thousands of listings that predate the taxonomy stay
+    # valid and browsable; new ones are required to pick one at the schema
+    # layer. ondelete=SET NULL so retiring a category never deletes stock.
+    category_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("categories.id", ondelete="SET NULL"), index=True
+    )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     price: Mapped[float | None] = mapped_column(Numeric(10, 2))
@@ -122,6 +129,7 @@ class Listing(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
 
     seller: Mapped["User"] = relationship(lazy="selectin")
     shop: Mapped["Shop | None"] = relationship(lazy="selectin")
+    category: Mapped["Category | None"] = relationship(lazy="selectin")
     images: Mapped[list["ListingImage"]] = relationship(
         back_populates="listing",
         cascade="all, delete-orphan",

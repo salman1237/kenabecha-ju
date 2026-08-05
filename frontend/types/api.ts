@@ -67,6 +67,21 @@ export interface Tag {
   usage_count: number;
 }
 
+export interface CategoryRef {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string | null;
+}
+
+export interface CategoryChild extends CategoryRef {
+  listing_count: number;
+}
+
+export interface Category extends CategoryChild {
+  children: CategoryChild[];
+}
+
 export interface ListingImage {
   id: string;
   image_url: string;
@@ -94,6 +109,7 @@ export interface Listing {
   created_at: string;
   seller: { id: string; full_name: string; avatar_url: string | null; phone: string | null; whatsapp_number: string | null };
   shop: { id: string; shop_name: string; slug: string; logo_url: string | null } | null;
+  category: CategoryRef | null;
   images: ListingImage[];
   tags: Tag[];
 }

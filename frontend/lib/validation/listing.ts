@@ -15,6 +15,7 @@ export const listingSchema = z
     // the same hidden block.
     condition: z.enum(["new", "used_like_new", "used_good", "used_fair"]).optional().or(z.literal("")),
     shop_id: z.string().optional(),
+    category_id: z.string().optional().or(z.literal("")),
     tagsInput: z.string().optional(),
     fulfillment_type: z.enum(["pickup", "delivery"]),
     pickup_address: z.string().max(500).optional(),

@@ -158,6 +158,7 @@ export default function ListingDetailPage() {
         items={[
           { label: "Home", href: "/" },
           { label: "Listings", href: "/listings" },
+          ...(listing.category ? [{ label: listing.category.name, href: `/listings?category=${listing.category.slug}` }] : []),
           ...(listing.shop ? [{ label: listing.shop.shop_name, href: sellerHref }] : []),
           { label: listing.title },
         ]}

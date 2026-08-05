@@ -11,7 +11,7 @@ import { selectClass } from "@/components/ui/FormField";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { cn, CONDITION_LABELS } from "@/lib/utils";
 import type { BrowseFilters } from "@/lib/api/listings";
-import type { Tag } from "@/types/api";
+import type { Category, Tag } from "@/types/api";
 
 /** Upper bound of the price slider. At exactly this value the max filter is
  *  dropped entirely, so the top of the range reads as "and above" rather
@@ -22,6 +22,7 @@ export interface FilterState {
   tags: string[];
   price: [number, number];
   condition: string;
+  category: string;
   sort: BrowseFilters["sort"];
 }
 
@@ -29,6 +30,7 @@ export const DEFAULT_FILTERS: FilterState = {
   tags: [],
   price: [0, PRICE_MAX],
   condition: "",
+  category: "",
   sort: "newest",
 };
 
@@ -40,6 +42,7 @@ export function ListingFilters({
 }: {
   filters: FilterState;
   onChange: (next: FilterState) => void;
+  categories: Category[];
   trending: Tag[];
   className?: string;
 }) {
@@ -55,6 +58,7 @@ export function ListingFilters({
   const isDirty =
     filters.tags.length > 0 ||
     filters.condition !== "" ||
+    filters.category !== "" ||
     filters.price[0] !== 0 ||
     filters.price[1] !== PRICE_MAX ||
     filters.sort !== "newest";
@@ -96,6 +100,31 @@ export function ListingFilters({
           step={500}
           onValueChange={(v) => set("price", (Array.isArray(v) ? v : [0, v]) as [number, number])}
         />
+      </motion.div>
+
+      {/* Category */}
+      <motion.div variants={staggerItem} className="flex flex-col gap-2">
+        <Label htmlFor="filter-category" className="text-xs font-medium">
+          Category
+        </Label>
+        <select
+          id="filter-category"
+          className={selectClass}
+          value={filters.category}
+          onChange={(e) => set("category", e.target.value)}
+        >
+          <option value="">All categories</option>
+          {categories.map((cat) => (
+            <optgroup key={cat.id} label={`${cat.icon || ""} ${cat.name}`.trim()}>
+              <option value={cat.slug}>{cat.name} (All)</option>
+              {cat.children.map((child) => (
+                <option key={child.id} value={child.slug}>
+                  {child.name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
       </motion.div>
 
       {/* Condition */}

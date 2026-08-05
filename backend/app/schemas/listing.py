@@ -5,6 +5,7 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.listing import Condition, FulfillmentType, ListingStatus, PriceType
+from app.schemas.category import CategoryRef
 from app.schemas.tag import TagOut
 
 
@@ -47,6 +48,7 @@ class ListingCreate(BaseModel):
     tags: list[str] = Field(default_factory=list, max_length=10)
     fulfillment_type: FulfillmentType = FulfillmentType.pickup
     pickup_address: str | None = Field(default=None, max_length=500)
+    category_id: uuid.UUID | None = None
 
     @model_validator(mode="after")
     def check_price_and_condition(self) -> "ListingCreate":
@@ -72,6 +74,7 @@ class ListingUpdate(BaseModel):
     tags: list[str] | None = Field(default=None, max_length=10)
     fulfillment_type: FulfillmentType | None = None
     pickup_address: str | None = Field(default=None, max_length=500)
+    category_id: uuid.UUID | None = None
     is_top: bool | None = None
     # Note: pickup/delivery consistency for updates is validated in listing_service.update_listing
     # against the merged final state, not here — a partial update might change only one of the two
@@ -96,5 +99,6 @@ class ListingOut(BaseModel):
     created_at: datetime
     seller: ListingSellerOut
     shop: ListingShopOut | None
+    category: CategoryRef | None = None
     images: list[ListingImageOut]
     tags: list[TagOut]

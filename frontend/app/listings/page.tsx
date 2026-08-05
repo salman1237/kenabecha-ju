@@ -21,10 +21,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
 import { browseListings } from "@/lib/api/listings";
+import { getCategories } from "@/lib/api/categories";
 import { trendingTags } from "@/lib/api/tags";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-import type { Listing, Tag } from "@/types/api";
+import type { Category, Listing, Tag } from "@/types/api";
 
 const PAGE_SIZE = 24;
 type ViewMode = "grid" | "list";
@@ -60,9 +61,11 @@ function BrowseListingsContent() {
   const [filters, setFilters] = useState<FilterState>(() => ({
     ...DEFAULT_FILTERS,
     tags: searchParams.getAll("tags").map((t) => t.toLowerCase()),
+    category: searchParams.get("category") ?? "",
   }));
   const [view, setView] = useState<ViewMode>("grid");
 
+  const [categories, setCategories] = useState<Category[]>([]);
   const [trending, setTrending] = useState<Tag[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [total, setTotal] = useState(0);
@@ -74,7 +77,12 @@ function BrowseListingsContent() {
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    trendingTags().then(setTrending).catch(() => {});
+    Promise.all([trendingTags(), getCategories()])
+      .then(([tags, cats]) => {
+        setTrending(tags);
+        setCategories(cats);
+      })
+      .catch(() => {});
   }, []);
 
   const buildQuery = useCallback(
@@ -86,6 +94,7 @@ function BrowseListingsContent() {
       // reads as "and above" instead of hiding anything more expensive.
       max_price: filters.price[1] < PRICE_MAX ? filters.price[1] : undefined,
       condition: (filters.condition || undefined) as never,
+      category: filters.category || undefined,
       sort: filters.sort,
       limit: PAGE_SIZE,
       offset,
@@ -145,7 +154,12 @@ function BrowseListingsContent() {
   }, [isIntersecting, loadMore]);
 
   const filterPanel = (
-    <ListingFilters filters={filters} onChange={setFilters} trending={trending} />
+    <ListingFilters
+      filters={filters}
+      onChange={setFilters}
+      categories={categories}
+      trending={trending}
+    />
   );
 
   const resultCount = loading ? null : `${total} ${total === 1 ? "listing" : "listings"}`;

@@ -11,6 +11,7 @@ from app.websocket.manager import manager
 from app.routers import (
     admin,
     auth,
+    categories,
     chat,
     dashboard,
     listings,
@@ -59,6 +60,7 @@ app.mount("/media", StaticFiles(directory=settings.MEDIA_ROOT), name="media")
 app.include_router(auth.router)
 app.include_router(public.router)
 app.include_router(reference.router)
+app.include_router(categories.router)
 app.include_router(shops.router)
 app.include_router(tags.router)
 app.include_router(listings.router)

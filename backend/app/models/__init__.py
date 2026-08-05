@@ -1,3 +1,4 @@
+from app.models.category import Category
 from app.models.conversation import Conversation, Message
 from app.models.follow import ShopFollow
 from app.models.listing import Listing, ListingImage, Tag, listing_tags
@@ -21,6 +22,7 @@ __all__ = [
     "ListingImage",
     "Tag",
     "listing_tags",
+    "Category",
     "Conversation",
     "Message",
     "Rating",

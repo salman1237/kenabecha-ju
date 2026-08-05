@@ -18,7 +18,7 @@ from app.models.listing import (
 from app.core.search import LIKE_ESCAPE, like_contains
 from app.models.user import User
 from app.schemas.listing import ListingCreate, ListingUpdate
-from app.services import shop_service, tag_service
+from app.services import category_service, shop_service, tag_service
 
 MAX_IMAGES_PER_LISTING = 8
 
@@ -54,6 +54,7 @@ async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate)
     listing = Listing(
         seller_id=seller.id,
         shop_id=payload.shop_id,
+        category_id=payload.category_id,
         title=payload.title,
         description=payload.description,
         price=payload.price,
@@ -104,6 +105,8 @@ class BrowseFilters:
         seller_id: uuid.UUID | None = None,
         personal_only: bool = False,
         is_top: bool | None = None,
+        category_id: uuid.UUID | None = None,
+        category_slug: str | None = None,
         sort: str = "newest",
         limit: int = 20,
         offset: int = 0,
@@ -117,6 +120,8 @@ class BrowseFilters:
         self.seller_id = seller_id
         self.personal_only = personal_only
         self.is_top = is_top
+        self.category_id = category_id
+        self.category_slug = category_slug
         self.sort = sort
         self.limit = min(limit, 100)
         self.offset = offset
@@ -155,6 +160,14 @@ async def browse_listings(db: AsyncSession, filters: BrowseFilters) -> tuple[lis
         query = query.where(Listing.seller_id == filters.seller_id)
     if filters.personal_only:
         query = query.where(Listing.shop_id.is_(None))
+
+    # Category filter: resolve slug to IDs if needed, then filter
+    if filters.category_slug:
+        cat = await category_service.get_by_slug(db, filters.category_slug)
+        cat_ids = await category_service.descendant_ids(db, cat)
+        query = query.where(Listing.category_id.in_(cat_ids))
+    elif filters.category_id:
+        query = query.where(Listing.category_id == filters.category_id)
 
     count_query = select(func.count()).select_from(query.with_only_columns(Listing.id).subquery())
     total = (await db.execute(count_query)).scalar_one()
