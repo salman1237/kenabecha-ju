@@ -35,11 +35,13 @@ async def create_shop(
 
 
 @router.get("", response_model=list[ShopOut])
-async def list_shops(limit: int = 6, db: AsyncSession = Depends(get_db)) -> list[ShopOut]:
-    shops = await shop_service.list_shops(db, limit)
+async def list_shops(skip: int = 0, limit: int = 50, db: AsyncSession = Depends(get_db)) -> list[ShopOut]:
+    shops = await shop_service.list_shops(db, skip, limit)
     result = []
+    shop_ids = [shop.id for shop, _ in shops]
+    ratings = await rating_service.get_shops_rating_summaries(db, shop_ids)
     for shop, count in shops:
-        avg, rcount = await rating_service.get_shop_rating_summary(db, shop.id)
+        avg, rcount = ratings.get(shop.id, (None, 0))
         result.append(_to_out(shop, count, avg, rcount))
     return result
 
@@ -50,8 +52,10 @@ async def list_my_shops(
 ) -> list[ShopOut]:
     shops = await shop_service.list_my_shops(db, user.id)
     result = []
+    shop_ids = [shop.id for shop, _ in shops]
+    ratings = await rating_service.get_shops_rating_summaries(db, shop_ids)
     for shop, count in shops:
-        avg, rcount = await rating_service.get_shop_rating_summary(db, shop.id)
+        avg, rcount = ratings.get(shop.id, (None, 0))
         result.append(_to_out(shop, count, avg, rcount))
     return result
 

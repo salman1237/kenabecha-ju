@@ -24,8 +24,11 @@ async def get_user_profile(user_id: uuid.UUID, db: AsyncSession = Depends(get_db
     shops = await shop_service.list_my_shops(db, user.id)
 
     shop_outs = []
+    shop_ids = [shop.id for shop, _ in shops]
+    shop_ratings = await rating_service.get_shops_rating_summaries(db, shop_ids)
+    
     for shop, listing_count in shops:
-        shop_avg, shop_rating_count = await rating_service.get_shop_rating_summary(db, shop.id)
+        shop_avg, shop_rating_count = shop_ratings.get(shop.id, (None, 0))
         shop_outs.append(
             ShopOut.model_validate(shop, from_attributes=True).model_copy(
                 update={

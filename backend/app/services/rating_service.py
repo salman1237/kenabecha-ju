@@ -77,6 +77,20 @@ async def get_shop_rating_summary(db: AsyncSession, shop_id: uuid.UUID) -> tuple
     return (float(avg) if avg is not None else None), count
 
 
+async def get_shops_rating_summaries(db: AsyncSession, shop_ids: list[uuid.UUID]) -> dict[uuid.UUID, tuple[float | None, int]]:
+    if not shop_ids:
+        return {}
+    result = await db.execute(
+        select(Rating.target_shop_id, func.avg(Rating.stars), func.count(Rating.id))
+        .where(Rating.target_shop_id.in_(shop_ids))
+        .group_by(Rating.target_shop_id)
+    )
+    return {
+        row[0]: (float(row[1]) if row[1] is not None else None, row[2]) 
+        for row in result.all()
+    }
+
+
 async def get_user_rating_summary(db: AsyncSession, user_id: uuid.UUID) -> tuple[float | None, int]:
     result = await db.execute(
         select(func.avg(Rating.stars), func.count(Rating.id)).where(Rating.target_user_id == user_id)

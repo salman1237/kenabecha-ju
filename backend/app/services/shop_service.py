@@ -57,9 +57,9 @@ async def _listing_counts(db: AsyncSession, shop_ids: list[uuid.UUID]) -> dict[u
     return dict(result.all())
 
 
-async def list_shops(db: AsyncSession, limit: int = 6) -> list[tuple[Shop, int]]:
+async def list_shops(db: AsyncSession, skip: int = 0, limit: int = 50) -> list[tuple[Shop, int]]:
     result = await db.execute(
-        select(Shop).where(Shop.is_active.is_(True)).order_by(Shop.created_at.desc()).limit(limit)
+        select(Shop).where(Shop.is_active.is_(True)).order_by(Shop.created_at.desc()).offset(skip).limit(limit)
     )
     shops = list(result.scalars().all())
     counts = await _listing_counts(db, [s.id for s in shops])

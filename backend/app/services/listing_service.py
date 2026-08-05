@@ -27,13 +27,20 @@ async def _attach_tags(db: AsyncSession, listing: Listing, tag_names: list[str],
     """Writes directly to the listing_tags association table rather than through the
     ORM `listing.tags` collection, since assigning that collection on an already-flushed
     listing forces a synchronous lazy-load to diff it, which fails under async SQLAlchemy."""
+    if replace:
+        old_tags_result = await db.execute(
+            select(Tag).join(listing_tags, Tag.id == listing_tags.c.tag_id).where(listing_tags.c.listing_id == listing.id)
+        )
+        old_tags = old_tags_result.scalars().all()
+        for old_tag in old_tags:
+            old_tag.usage_count = max(0, old_tag.usage_count - 1)
+
+        await db.execute(delete(listing_tags).where(listing_tags.c.listing_id == listing.id))
+
     tags = await tag_service.get_or_create_tags(db, tag_names)
     for tag in tags:
         tag.usage_count += 1
     await db.flush()  # ensure new tags have ids
-
-    if replace:
-        await db.execute(delete(listing_tags).where(listing_tags.c.listing_id == listing.id))
 
     if tags:
         await db.execute(
@@ -128,7 +135,17 @@ class BrowseFilters:
 
 
 async def browse_listings(db: AsyncSession, filters: BrowseFilters) -> tuple[list[Listing], int]:
-    query = select(Listing).where(Listing.status == ListingStatus.active, Listing.deleted_at.is_(None))
+    query = (
+        select(Listing)
+        .join(User, Listing.seller_id == User.id)
+        .where(
+            Listing.status == ListingStatus.active,
+            Listing.deleted_at.is_(None),
+            Listing.is_active.is_(True),
+            User.is_active.is_(True),
+            User.deleted_at.is_(None),
+        )
+    )
 
     if filters.is_top is not None:
         query = query.where(Listing.is_top == filters.is_top)
@@ -301,6 +318,12 @@ async def delete_image(db: AsyncSession, listing: Listing, image_id: uuid.UUID) 
     if image is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Image not found")
     await db.delete(image)
+    
+    remaining_images = [img for img in listing.images if img.id != image_id]
+    remaining_images.sort(key=lambda img: img.sort_order)
+    for i, img in enumerate(remaining_images):
+        img.sort_order = i
+
     await db.commit()
 
 

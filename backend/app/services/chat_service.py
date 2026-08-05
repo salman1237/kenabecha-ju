@@ -13,6 +13,8 @@ from app.models.user import User
 async def get_or_create_conversation(db: AsyncSession, listing: Listing, buyer: User) -> Conversation:
     if listing.seller_id == buyer.id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "You can't message yourself about your own listing")
+    if not listing.is_active or listing.deleted_at is not None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This listing is no longer available")
 
     result = await db.execute(
         select(Conversation).where(
