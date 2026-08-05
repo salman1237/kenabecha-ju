@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   AlertDialog,
@@ -50,11 +50,16 @@ export default function AdminReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<{ report: Report; action: Action } | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
     listAdminReports(statusFilter === "all" ? undefined : statusFilter)
       .then(setReports)
       .finally(() => setLoading(false));
   }, [statusFilter]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const onConfirm = async () => {
     if (!pending) return;
