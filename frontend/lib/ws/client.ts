@@ -11,7 +11,19 @@ export interface WsNotificationEvent {
   notification: Notification;
 }
 
-export type WsEvent = WsMessageEvent | WsNotificationEvent;
+export interface WsTypingEvent {
+  type: "typing";
+  conversation_id: string;
+  is_typing: boolean;
+}
+
+export interface WsReadEvent {
+  type: "read";
+  conversation_id: string;
+  message_ids: string[];
+}
+
+export type WsEvent = WsMessageEvent | WsNotificationEvent | WsTypingEvent | WsReadEvent;
 
 type Listener = (event: WsEvent) => void;
 
@@ -70,6 +82,13 @@ class WsClient {
   on(listener: Listener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /** Fire-and-forget client→server frame. No-ops unless the socket is open. */
+  send(payload: Record<string, unknown>) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(payload));
+    }
   }
 }
 

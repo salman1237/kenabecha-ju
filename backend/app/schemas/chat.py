@@ -20,6 +20,7 @@ class MessageOut(BaseModel):
     sender_id: uuid.UUID
     receiver_id: uuid.UUID
     content: str
+    image_url: str | None
     created_at: datetime
     read_at: datetime | None
 

@@ -66,6 +66,11 @@ class Message(UUIDPKMixin, CreatedAtMixin, Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    # Attachment on a message. Content stays required (the UI sends a short
+    # caption like "Sent a photo" when there's no typed text) so existing
+    # readers of `content` — previews, notification bodies, emails — keep
+    # working without needing to special-case image-only messages.
+    image_url: Mapped[str | None] = mapped_column(Text)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")

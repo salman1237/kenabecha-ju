@@ -122,13 +122,20 @@ async def list_messages(
     return list(reversed(messages))
 
 
-async def send_message(db: AsyncSession, conversation: Conversation, sender: User, content: str) -> Message:
+async def send_message(
+    db: AsyncSession,
+    conversation: Conversation,
+    sender: User,
+    content: str,
+    image_url: str | None = None,
+) -> Message:
     receiver_id = conversation.seller_id if sender.id == conversation.buyer_id else conversation.buyer_id
     message = Message(
         conversation_id=conversation.id,
         sender_id=sender.id,
         receiver_id=receiver_id,
         content=content,
+        image_url=image_url,
     )
     db.add(message)
     conversation.last_message_at = datetime.now(UTC)
@@ -137,7 +144,10 @@ async def send_message(db: AsyncSession, conversation: Conversation, sender: Use
     return message
 
 
-async def mark_read(db: AsyncSession, conversation: Conversation, user: User) -> None:
+async def mark_read(db: AsyncSession, conversation: Conversation, user: User) -> list[uuid.UUID]:
+    """Marks the caller's unread messages read and returns their ids, so the
+    router can push a read receipt to the sender. Returns empty when there
+    was nothing unread — callers use that to skip a pointless WS frame."""
     result = await db.execute(
         select(Message).where(
             Message.conversation_id == conversation.id,
@@ -146,6 +156,9 @@ async def mark_read(db: AsyncSession, conversation: Conversation, user: User) ->
         )
     )
     now = datetime.now(UTC)
+    marked: list[uuid.UUID] = []
     for message in result.scalars().all():
         message.read_at = now
+        marked.append(message.id)
     await db.commit()
+    return marked

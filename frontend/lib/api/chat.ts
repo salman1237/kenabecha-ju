@@ -32,3 +32,13 @@ export function sendMessage(id: string, content: string) {
 export function markConversationRead(id: string) {
   return apiFetch<void>(`/conversations/${id}/read`, { method: "POST" });
 }
+
+export function sendAttachment(id: string, file: File, caption = "") {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("caption", caption);
+  return apiFetch<Message>(`/conversations/${id}/attachments`, {
+    method: "POST",
+    body: formData,
+  });
+}

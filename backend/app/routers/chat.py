@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -11,7 +11,7 @@ from app.models.conversation import Conversation, Message
 from app.models.notification import NotificationType
 from app.models.user import User
 from app.schemas.chat import ConversationListingOut, ConversationOut, MessageOut, SendMessageRequest
-from app.services import chat_service, listing_service, notification_service
+from app.services import chat_service, listing_service, media_service, notification_service
 from app.websocket.manager import manager
 
 settings = get_settings()
@@ -147,4 +147,72 @@ async def mark_conversation_read(
     conversation_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ) -> None:
     conversation = await chat_service.get_conversation_for_user(db, conversation_id, user)
-    await chat_service.mark_read(db, conversation, user)
+    marked = await chat_service.mark_read(db, conversation, user)
+
+    # Tell the sender their messages were read so their ticks update live.
+    # Skipped when nothing changed — this endpoint is called on every thread
+    # open, and most of those have nothing unread.
+    if marked:
+        sender_id = (
+            conversation.seller_id if user.id == conversation.buyer_id else conversation.buyer_id
+        )
+        await manager.send_to_user(
+            sender_id,
+            {
+                "type": "read",
+                "conversation_id": str(conversation.id),
+                "message_ids": [str(m) for m in marked],
+            },
+        )
+
+
+@router.post(
+    "/conversations/{conversation_id}/attachments",
+    response_model=MessageOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def send_attachment(
+    conversation_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    file: UploadFile,
+    caption: str = Form(default=""),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Message:
+    conversation = await chat_service.get_conversation_for_user(db, conversation_id, user)
+    image_url = await media_service.save_image(file, "chat")
+
+    # content stays non-empty so previews/notifications/emails that read it
+    # don't have to special-case image-only messages.
+    message = await chat_service.send_message(
+        db, conversation, user, caption.strip() or "📷 Photo", image_url
+    )
+
+    await manager.send_to_user(
+        message.receiver_id,
+        {
+            "type": "message",
+            "conversation_id": str(conversation.id),
+            "message": MessageOut.model_validate(message).model_dump(mode="json"),
+        },
+    )
+
+    sender_name = _sender_display_name(conversation, user.id)
+    await notification_service.notify(
+        db,
+        background_tasks,
+        message.receiver_id,
+        NotificationType.new_message,
+        title=f"New photo from {sender_name}",
+        body=message.content[:200],
+        link_url=f"/inbox/{conversation.id}",
+        email_subject=f"New message from {sender_name} on KenaBecha JU",
+        email_body=(
+            f'{sender_name} sent you a photo about "{conversation.listing.title}".\n\n'
+            f"View it at: {settings.FRONTEND_URL}/inbox/{conversation.id}"
+        ),
+        email_if_offline_only=True,
+        related_conversation_id=conversation.id,
+    )
+
+    return message
