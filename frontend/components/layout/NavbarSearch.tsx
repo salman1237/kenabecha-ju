@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/context/LanguageContext";
 import { getSearchSuggestions } from "@/lib/api/listings";
-import { useDebounce } from "@/lib/hooks";
+import { useDebounce } from "@/hooks/useDebounce";
 import { cn } from "@/lib/utils";
 
 export function NavbarSearch() {

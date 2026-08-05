@@ -5,7 +5,7 @@ import React from "react";
 
 import { cn } from "@/lib/utils";
 
-interface GradientCardProps extends React.HTMLAttributes<HTMLDivElement> {
+interface GradientCardProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "onDrag"> {
   children: React.ReactNode;
   className?: string;
   glow?: boolean;

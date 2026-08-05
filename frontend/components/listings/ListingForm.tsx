@@ -89,7 +89,7 @@ export function ListingForm({
       price_type: values.price_type,
       price: values.price_type === "free" ? null : values.price ? Number(values.price) : null,
       unit: values.price_type === "free" ? null : values.unit || null,
-      condition: isShopListing ? undefined : values.condition,
+      condition: isShopListing || !values.condition ? undefined : (values.condition as Condition),
       shop_id: mode === "create" ? values.shop_id || null : undefined,
       category_id: values.category_id || null,
       tags,

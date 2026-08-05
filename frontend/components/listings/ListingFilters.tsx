@@ -38,6 +38,7 @@ export function ListingFilters({
   filters,
   onChange,
   trending,
+  categories,
   className,
 }: {
   filters: FilterState;

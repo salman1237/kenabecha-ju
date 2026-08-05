@@ -3,9 +3,9 @@
 import { motion } from "motion/react";
 import React from "react";
 
-import { Button, type ButtonProps } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 
-export const AnimatedButton = React.forwardRef<HTMLButtonElement, ButtonProps>(
+export const AnimatedButton = React.forwardRef<HTMLButtonElement, React.ComponentProps<typeof Button>>(
   ({ className, children, ...props }, ref) => {
     return (
       <motion.div
