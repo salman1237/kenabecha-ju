@@ -18,6 +18,18 @@ class ShopUpdate(BaseModel):
     cover_url: str | None = None
 
 
+class ShopStatsOut(BaseModel):
+    active_listings: int
+    sold_count: int
+    followers: int
+    review_count: int
+    average_rating: float | None
+    # `is_following` is null for anonymous viewers — distinct from `false`
+    # (logged in, not following), so the UI can show a login prompt instead
+    # of an unfollow-looking button.
+    is_following: bool | None = None
+
+
 class ShopOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

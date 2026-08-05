@@ -51,6 +51,16 @@ export interface Shop {
   rating_count: number;
 }
 
+export interface ShopStats {
+  active_listings: number;
+  sold_count: number;
+  followers: number;
+  review_count: number;
+  average_rating: number | null;
+  /** null when the viewer is anonymous — distinct from false (not following). */
+  is_following: boolean | null;
+}
+
 export interface Tag {
   id: string;
   name: string;

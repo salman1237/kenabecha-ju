@@ -31,6 +31,24 @@ async def get_current_user(
     return user
 
 
+async def get_optional_user(
+    access_token: str | None = Cookie(default=None, alias=ACCESS_TOKEN_COOKIE),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    """For public endpoints that personalise when a viewer happens to be
+    logged in (e.g. "are you following this shop?") but must still serve
+    anonymous callers. Never raises — an invalid token is just `None`."""
+    if access_token is None:
+        return None
+
+    user_id = decode_access_token(access_token)
+    if user_id is None:
+        return None
+
+    user = await db.get(User, uuid.UUID(user_id))
+    return user if user is not None and user.is_active else None
+
+
 async def get_seller(user: User = Depends(get_current_user)) -> User:
     """Gate for actions that require the full JU-verification profile — opening a
     shop or listing an item. Google-lite buyers hit this until they complete it."""

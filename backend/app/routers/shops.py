@@ -1,12 +1,14 @@
 import uuid
 
-from fastapi import APIRouter, Depends, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user, get_seller
+from app.core.dependencies import get_current_user, get_optional_user, get_seller
 from app.db.session import get_db
+from app.models.shop import Shop
 from app.models.user import User
-from app.schemas.shop import ShopCreate, ShopOut, ShopUpdate
+from app.schemas.rating import RatingOut
+from app.schemas.shop import ShopCreate, ShopOut, ShopStatsOut, ShopUpdate
 from app.services import media_service, rating_service, shop_service
 
 router = APIRouter(prefix="/shops", tags=["shops"])
@@ -59,6 +61,45 @@ async def get_shop(slug: str, db: AsyncSession = Depends(get_db)) -> ShopOut:
     shop, count = await shop_service.get_shop_by_slug(db, slug)
     avg, rcount = await rating_service.get_shop_rating_summary(db, shop.id)
     return _to_out(shop, count, avg, rcount)
+
+
+@router.get("/{slug}/stats", response_model=ShopStatsOut)
+async def get_shop_stats(
+    slug: str,
+    user: User | None = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
+) -> ShopStatsOut:
+    shop, _ = await shop_service.get_shop_by_slug(db, slug)
+    stats = await shop_service.get_shop_stats(db, shop)
+    avg, _count = await rating_service.get_shop_rating_summary(db, shop.id)
+
+    return ShopStatsOut(
+        **stats,
+        average_rating=avg,
+        # None (not False) when anonymous, so the UI can prompt a login
+        # rather than render a misleading "Following" state.
+        is_following=(await shop_service.is_following(db, user.id, shop.id)) if user else None,
+    )
+
+
+@router.post("/{shop_id}/follow", response_model=dict)
+async def toggle_follow(
+    shop_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    shop = await db.get(Shop, shop_id)
+    if shop is None or not shop.is_active:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Shop not found")
+    following = await shop_service.toggle_follow(db, user, shop)
+    return {"following": following}
+
+
+@router.get("/{slug}/reviews", response_model=list[RatingOut])
+async def get_shop_reviews(slug: str, db: AsyncSession = Depends(get_db)) -> list[RatingOut]:
+    shop, _ = await shop_service.get_shop_by_slug(db, slug)
+    reviews = await rating_service.list_shop_ratings(db, shop.id)
+    return [RatingOut.model_validate(r) for r in reviews]
 
 
 @router.patch("/{shop_id}", response_model=ShopOut)

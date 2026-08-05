@@ -1,4 +1,5 @@
 from app.models.conversation import Conversation, Message
+from app.models.follow import ShopFollow
 from app.models.listing import Listing, ListingImage, Tag, listing_tags
 from app.models.newsletter import NewsletterSubscriber
 from app.models.notification import Notification
@@ -26,6 +27,7 @@ __all__ = [
     "Notification",
     "NewsletterSubscriber",
     "SavedListing",
+    "ShopFollow",
     "RefreshToken",
     "AuthToken",
 ]

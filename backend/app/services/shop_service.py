@@ -6,7 +6,9 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.follow import ShopFollow
 from app.models.listing import Listing, ListingStatus
+from app.models.rating import Rating
 from app.models.shop import Shop
 from app.models.user import User
 from app.schemas.shop import ShopCreate, ShopUpdate
@@ -79,6 +81,80 @@ async def get_shop_by_slug(db: AsyncSession, slug: str) -> tuple[Shop, int]:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Shop not found")
     counts = await _listing_counts(db, [shop.id])
     return shop, counts.get(shop.id, 0)
+
+
+async def get_shop_stats(db: AsyncSession, shop: Shop) -> dict:
+    """Public storefront figures. `sold_count` is a real trust signal
+    (this shop completes trades), which a raw active-listing count isn't."""
+    active = (
+        await db.execute(
+            select(func.count())
+            .select_from(Listing)
+            .where(
+                Listing.shop_id == shop.id,
+                Listing.status == ListingStatus.active,
+                Listing.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one()
+
+    sold = (
+        await db.execute(
+            select(func.count())
+            .select_from(Listing)
+            .where(
+                Listing.shop_id == shop.id,
+                Listing.status.in_([ListingStatus.sold, ListingStatus.out_of_stock]),
+                Listing.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one()
+
+    followers = (
+        await db.execute(
+            select(func.count()).select_from(ShopFollow).where(ShopFollow.shop_id == shop.id)
+        )
+    ).scalar_one()
+
+    reviews = (
+        await db.execute(select(func.count()).select_from(Rating).where(Rating.target_shop_id == shop.id))
+    ).scalar_one()
+
+    return {
+        "active_listings": active,
+        "sold_count": sold,
+        "followers": followers,
+        "review_count": reviews,
+    }
+
+
+async def toggle_follow(db: AsyncSession, user: User, shop: Shop) -> bool:
+    """Follows/unfollows, returning the resulting state. A shop owner
+    following their own shop is pointless, so it's rejected outright."""
+    if shop.owner_id == user.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "You can't follow your own shop")
+
+    existing = (
+        await db.execute(
+            select(ShopFollow).where(ShopFollow.user_id == user.id, ShopFollow.shop_id == shop.id)
+        )
+    ).scalar_one_or_none()
+
+    if existing is not None:
+        await db.delete(existing)
+        await db.commit()
+        return False
+
+    db.add(ShopFollow(user_id=user.id, shop_id=shop.id))
+    await db.commit()
+    return True
+
+
+async def is_following(db: AsyncSession, user_id: uuid.UUID, shop_id: uuid.UUID) -> bool:
+    row = await db.execute(
+        select(ShopFollow.id).where(ShopFollow.user_id == user_id, ShopFollow.shop_id == shop_id)
+    )
+    return row.scalar_one_or_none() is not None
 
 
 async def get_owned_shop(db: AsyncSession, shop_id: uuid.UUID, owner: User) -> Shop:

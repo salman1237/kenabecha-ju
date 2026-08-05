@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
-import type { Shop } from "@/types/api";
+import type { Rating, Shop, ShopStats } from "@/types/api";
 
 export interface ShopPayload {
   shop_name: string;
@@ -35,6 +35,18 @@ export function uploadShopLogo(shopId: string, file: File) {
   const formData = new FormData();
   formData.append("file", file);
   return apiFetch<Shop>(`/shops/${shopId}/logo`, { method: "POST", body: formData });
+}
+
+export function getShopStats(slug: string) {
+  return apiFetch<ShopStats>(`/shops/${slug}/stats`);
+}
+
+export function getShopReviews(slug: string) {
+  return apiFetch<Rating[]>(`/shops/${slug}/reviews`);
+}
+
+export function toggleFollowShop(shopId: string) {
+  return apiFetch<{ following: boolean }>(`/shops/${shopId}/follow`, { method: "POST" });
 }
 
 export function uploadShopCover(shopId: string, file: File) {
