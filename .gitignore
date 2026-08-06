@@ -32,3 +32,7 @@ Thumbs.db
 *.egg-info/
 __pycache__/
 *.pyc
+
+# Dokploy API key. Kept in a file rather than pasted into a chat or a command
+# line, so it never lands in a transcript or shell history.
+.dokploy.key
