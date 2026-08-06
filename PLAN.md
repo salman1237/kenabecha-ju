@@ -45,7 +45,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 33 — Backend test suite.** 74 tests against a real Postgres, covering auth, listing lifecycle, expiry/renewal, view counting, promotion, search escaping, categories, chat eligibility, rate limiting and upload validation — with the suite mutation-checked to confirm it actually fails on the bugs it claims to cover.
 - [x] **Phase 35 — Navigation shell & shops browse page.** Browse Listings / Browse Shops / Sell Item / Inbox / My Shops are now top-level navbar destinations with active states, the avatar renders the user's actual photo, and `/shops` exists with search and sorting.
 - [x] **Phase 36 — Shop card & homepage layout rhythm.** Shop cards now carry a cover band, logo, type, description, rating and listing/follower counts; the 6-column grid that stranded two cards is gone, section padding is uniform, and the mobile header no longer wraps to two rows.
-- [ ] **Phase 37 — Fulfillment: pickup *and* delivery.** A seller can offer both; the enum currently forces a choice.
+- [x] **Phase 37 — Fulfillment: pickup *and* delivery.** Migration `8f3b25a0c9ef` adds `both` to the enum; the address stays required whenever pickup is on offer, and the listing page shows both options rather than picking one.
 - [ ] **Phase 38 — Listing form & edit page rebuild.** Group the form into sections and make the edit page genuinely complete.
 - [ ] **Phase 39 — Shop dashboard rebuild.** Replace the narrow unstyled stack with a real management surface.
 - [ ] **Phase 34 — DevOps: production compose, CI, backups.** Not started.
@@ -473,4 +473,16 @@ Rather than drop the number, it was added properly: `get_shops_follower_counts` 
 **Rhythm.** Content sections mixed `py-10` and `py-16` with no pattern, and headings used ad-hoc `mt-1` / `mb-6`. All content sections are now `py-14 sm:py-16`, sub-headings a consistent `mt-1.5 text-sm`, and section headings a consistent `mb-8`.
 
 **Mobile header.** At 390px the wordmark broke after "KenaBecha" and doubled the header height. With `whitespace-nowrap` and a responsive size the header is a single row at every width — measured 57px at 390 and 768, 61px at 1500.
+
+### Phase 37 — Fulfillment: pickup *and* delivery
+
+`FulfillmentType` was `pickup | delivery`, mutually exclusive, so a seller who offered both had to pick one and explain the other in the description — where nothing can filter or display it.
+
+**Migration `8f3b25a0c9ef`.** Alembic does not diff enum values, so `ALTER TYPE fulfillment_type ADD VALUE` is hand-written, as it was for `expired` in Phase 30. The downgrade deliberately raises `NotImplementedError`: Postgres cannot drop a value from an enum, and reversing this means rebuilding the type *and* deciding what happens to rows already set to `both` — a data question rather than a schema one, so it is left to whoever needs it rather than guessed at.
+
+**The rule that matters: `both` includes pickup, so it still needs an address.** Encoded once as `OFFERS_PICKUP = {pickup, both}` and used by both the create validator and the update path, so the two cannot drift. The update path keeps validating the *merged* state rather than the payload, since a partial update may change the fulfilment kind without touching the address — switching a delivery-only listing to `both` is correctly rejected until an address is supplied.
+
+**Display.** The listing page previously branched: pickup *or* delivery. For `both` it now renders both lines, which is the entire point — the buyer chooses. The details tab's address row shows whenever pickup is on offer, and the card reads the label from translations rather than capitalising the raw enum value.
+
+**Coverage.** Five tests: creating with `both`, `both` without an address rejected, delivery-only clearing a supplied address, switching to `both` without an address rejected, and switching with one accepted. Suite now 79 passing. Verified in the browser that the address field appears for `both`, hides for `delivery`, and that a `both` listing renders both the pickup address and the delivery note.
 

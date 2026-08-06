@@ -68,6 +68,7 @@ export const en = {
     button: "Get Started Now",
   },
   common: {
+    both: "Pickup or Delivery",
     home: "Home",
     copied: "Copied",
     share: "Share",
@@ -125,6 +126,7 @@ export const en = {
     failed: "Could not load listings",
   },
   listing: {
+    deliveryNote: "Delivery — share your address when you contact them",
     description: "Description",
     details: "Details",
     reviews: "Reviews",
@@ -158,6 +160,7 @@ export const en = {
     top: "Top",
   },
   listingForm: {
+    fulfillmentBoth: "Both — buyer chooses pickup or delivery",
     loginToCreate: "to create a listing.",
     createTitle: "Create a listing",
     editTitle: "Edit listing",

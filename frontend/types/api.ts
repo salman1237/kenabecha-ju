@@ -92,7 +92,7 @@ export interface ListingImage {
 export type PriceType = "fixed" | "negotiable" | "free";
 export type Condition = "new" | "used_like_new" | "used_good" | "used_fair";
 export type ListingStatus = "active" | "sold" | "out_of_stock" | "removed" | "expired";
-export type FulfillmentType = "pickup" | "delivery";
+export type FulfillmentType = "pickup" | "delivery" | "both";
 
 export interface Listing {
   id: string;

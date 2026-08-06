@@ -100,7 +100,7 @@ export function ListingCard({
           </p>
           <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-[11px] text-muted-foreground">
             <span>{listing.shop ? t.conditions.new : t.conditions[listing.condition]}</span>
-            <span className="capitalize">{listing.fulfillment_type}</span>
+            <span>{t.common[listing.fulfillment_type]}</span>
             {listing.shop && <span className="truncate">🏪 {listing.shop.shop_name}</span>}
             <ViewCount count={listing.view_count} />
           </div>

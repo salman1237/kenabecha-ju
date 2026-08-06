@@ -8,6 +8,10 @@ from app.models.listing import Condition, FulfillmentType, ListingStatus, PriceT
 from app.schemas.category import CategoryRef
 from app.schemas.tag import TagOut
 
+# The fulfilment kinds that include collecting in person. `both` belongs here
+# because it offers pickup as well as delivery.
+OFFERS_PICKUP = {FulfillmentType.pickup, FulfillmentType.both}
+
 
 class ListingImageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -56,8 +60,10 @@ class ListingCreate(BaseModel):
             raise ValueError("Price is required for fixed-price listings")
         if self.shop_id is None and self.condition is None:
             raise ValueError("Condition is required for personal listings")
-        if self.fulfillment_type == FulfillmentType.pickup and not self.pickup_address:
-            raise ValueError("Pickup address is required when pickup is selected")
+        # `both` includes pickup, so it needs an address just as much as
+        # `pickup` does — the buyer still has to know where to collect from.
+        if self.fulfillment_type in OFFERS_PICKUP and not self.pickup_address:
+            raise ValueError("Pickup address is required when pickup is offered")
         if self.fulfillment_type == FulfillmentType.delivery:
             self.pickup_address = None
         return self

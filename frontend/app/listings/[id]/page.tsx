@@ -240,7 +240,7 @@ export default function ListingDetailPage() {
                   [t.listing.priceType, t.common[listing.price_type]],
                   ...(listing.unit ? [[t.listing.soldPer, listing.unit]] : []),
                   [t.listing.fulfillment, t.common[listing.fulfillment_type]],
-                  ...(listing.fulfillment_type === "pickup"
+                  ...(listing.fulfillment_type !== "delivery"
                     ? [[t.listing.pickupAddress, listing.pickup_address ?? t.listing.askSeller]]
                     : []),
                   [t.listing.listed, fmt.date(listing.created_at)],
@@ -297,19 +297,20 @@ export default function ListingDetailPage() {
                 <Package className="size-4 shrink-0" />
                 {listing.shop ? t.conditions.new : t.conditions[listing.condition]}
               </span>
-              <span className="flex items-center gap-2">
-                {listing.fulfillment_type === "pickup" ? (
-                  <>
-                    <MapPin className="size-4 shrink-0" />
-                    {listing.pickup_address ?? "Pickup — ask the seller"}
-                  </>
-                ) : (
-                  <>
-                    <Truck className="size-4 shrink-0" />
-                    Delivery — share your address when you contact them
-                  </>
-                )}
-              </span>
+              {/* `both` shows both lines rather than picking one, since the
+                  whole point is that the buyer can choose. */}
+              {listing.fulfillment_type !== "delivery" && (
+                <span className="flex items-center gap-2">
+                  <MapPin className="size-4 shrink-0" />
+                  {listing.pickup_address ?? t.listing.askSeller}
+                </span>
+              )}
+              {listing.fulfillment_type !== "pickup" && (
+                <span className="flex items-center gap-2">
+                  <Truck className="size-4 shrink-0" />
+                  {t.listing.deliveryNote}
+                </span>
+              )}
             </div>
 
             {/* Seller row */}

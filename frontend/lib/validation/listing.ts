@@ -21,7 +21,7 @@ export const listingSchema = z
     // every sidebar count at zero, so the form insists on one.
     category_id: z.string().min(1, "Pick a category"),
     tagsInput: z.string().optional(),
-    fulfillment_type: z.enum(["pickup", "delivery"]),
+    fulfillment_type: z.enum(["pickup", "delivery", "both"]),
     pickup_address: z.string().max(500).optional(),
   })
   .refine((data) => data.price_type !== "fixed" || !!data.price, {
@@ -32,8 +32,8 @@ export const listingSchema = z
     message: "Condition is required for personal listings",
     path: ["condition"],
   })
-  .refine((data) => data.fulfillment_type !== "pickup" || !!data.pickup_address, {
-    message: "Pickup address is required when pickup is selected",
+  .refine((data) => data.fulfillment_type === "delivery" || !!data.pickup_address, {
+    message: "Pickup address is required when pickup is offered",
     path: ["pickup_address"],
   });
 

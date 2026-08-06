@@ -96,7 +96,7 @@ export function ListingForm({
       category_id: values.category_id || null,
       tags,
       fulfillment_type: values.fulfillment_type,
-      pickup_address: values.fulfillment_type === "pickup" ? values.pickup_address : null,
+      pickup_address: values.fulfillment_type === "delivery" ? null : values.pickup_address,
     };
 
     try {
@@ -281,11 +281,12 @@ export function ListingForm({
         <select id="fulfillment_type" className={selectClass} {...register("fulfillment_type")}>
           <option value="pickup">{t.listingForm.fulfillmentPickup}</option>
           <option value="delivery">{t.listingForm.fulfillmentDelivery}</option>
+          <option value="both">{t.listingForm.fulfillmentBoth}</option>
         </select>
         <p className="text-xs text-muted-foreground">{t.listingForm.fulfillmentHint}</p>
       </div>
 
-      {fulfillmentType === "pickup" && (
+      {fulfillmentType !== "delivery" && (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="pickup_address">{t.listingForm.pickupAddress}</Label>
           <Input id="pickup_address" {...register("pickup_address")} />

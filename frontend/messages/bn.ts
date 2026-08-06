@@ -70,6 +70,7 @@ export const bn: Translations = {
     button: "এখনই শুরু করুন",
   },
   common: {
+    both: "পিকআপ বা ডেলিভারি",
     home: "হোম",
     copied: "কপি হয়েছে",
     share: "শেয়ার",
@@ -127,6 +128,7 @@ export const bn: Translations = {
     failed: "পণ্য লোড করা যায়নি",
   },
   listing: {
+    deliveryNote: "ডেলিভারি — যোগাযোগের সময় আপনার ঠিকানা জানান",
     description: "বিবরণ",
     details: "বিস্তারিত",
     reviews: "রিভিউ",
@@ -160,6 +162,7 @@ export const bn: Translations = {
     top: "টপ",
   },
   listingForm: {
+    fulfillmentBoth: "উভয়ই — ক্রেতা পিকআপ বা ডেলিভারি বেছে নেবেন",
     loginToCreate: "করে পণ্য পোস্ট করুন।",
     createTitle: "নতুন পণ্য পোস্ট করুন",
     editTitle: "পণ্য সম্পাদনা",

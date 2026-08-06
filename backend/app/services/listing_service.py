@@ -22,7 +22,7 @@ from app.core.config import get_settings
 from app.core.errors import AppError, ErrorCode
 from app.core.search import LIKE_ESCAPE, like_contains
 from app.models.user import User
-from app.schemas.listing import ListingCreate, ListingUpdate
+from app.schemas.listing import OFFERS_PICKUP, ListingCreate, ListingUpdate
 from app.services import category_service, shop_service, tag_service
 
 MAX_IMAGES_PER_LISTING = 8
@@ -289,11 +289,13 @@ async def update_listing(db: AsyncSession, listing: Listing, payload: ListingUpd
     for field, value in data.items():
         setattr(listing, field, value)
 
+    # Validated against the merged state rather than the payload: a partial
+    # update may change only one of the two fields.
     if listing.fulfillment_type == FulfillmentType.delivery:
         listing.pickup_address = None
-    elif listing.fulfillment_type == FulfillmentType.pickup and not listing.pickup_address:
+    elif listing.fulfillment_type in OFFERS_PICKUP and not listing.pickup_address:
         raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, "Pickup address is required when pickup is selected"
+            status.HTTP_400_BAD_REQUEST, "Pickup address is required when pickup is offered"
         )
 
     if listing.shop_id is not None:

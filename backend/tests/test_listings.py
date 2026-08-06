@@ -365,3 +365,73 @@ async def test_cannot_mark_an_already_sold_listing_sold(client, db):
     await login(client, owner)
 
     assert (await client.post(f"/listings/{listing.id}/mark-sold")).status_code == 400
+
+
+# --- fulfillment: pickup, delivery, or both (Phase 37) ----------------------
+
+
+async def test_can_offer_both_pickup_and_delivery(client, db):
+    user = await make_user(db)
+    await login(client, user)
+    res = await client.post(
+        "/listings", json=_payload(await _category_id(db), fulfillment_type="both")
+    )
+    assert res.status_code == 201, res.text
+    assert res.json()["fulfillment_type"] == "both"
+
+
+async def test_both_still_requires_a_pickup_address(client, db):
+    """`both` includes pickup, so the buyer still needs somewhere to collect."""
+    user = await make_user(db)
+    await login(client, user)
+    res = await client.post(
+        "/listings",
+        json=_payload(await _category_id(db), fulfillment_type="both", pickup_address=None),
+    )
+    assert res.status_code == 422
+
+
+async def test_delivery_only_clears_the_pickup_address(client, db):
+    user = await make_user(db)
+    await login(client, user)
+    res = await client.post(
+        "/listings",
+        json=_payload(
+            await _category_id(db),
+            fulfillment_type="delivery",
+            pickup_address="Somewhere that no longer applies",
+        ),
+    )
+    assert res.status_code == 201
+    assert res.json()["pickup_address"] is None
+
+
+async def test_switching_to_both_without_an_address_is_rejected(client, db):
+    """The update path validates the merged state: a listing that was
+    delivery-only has no address, so switching it to `both` must fail."""
+    user = await make_user(db)
+    await login(client, user)
+    created = await client.post(
+        "/listings",
+        json=_payload(await _category_id(db), fulfillment_type="delivery", pickup_address=None),
+    )
+    listing_id = created.json()["id"]
+
+    res = await client.patch(f"/listings/{listing_id}", json={"fulfillment_type": "both"})
+    assert res.status_code == 400
+
+
+async def test_switching_to_both_with_an_address_succeeds(client, db):
+    user = await make_user(db)
+    await login(client, user)
+    created = await client.post(
+        "/listings",
+        json=_payload(await _category_id(db), fulfillment_type="delivery", pickup_address=None),
+    )
+    res = await client.patch(
+        f"/listings/{created.json()['id']}",
+        json={"fulfillment_type": "both", "pickup_address": "Room 204, Al Beruni Hall"},
+    )
+    assert res.status_code == 200
+    assert res.json()["fulfillment_type"] == "both"
+    assert res.json()["pickup_address"] == "Room 204, Al Beruni Hall"

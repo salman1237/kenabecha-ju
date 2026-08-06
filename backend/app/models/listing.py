@@ -56,6 +56,9 @@ class ListingStatus(str, enum.Enum):
 class FulfillmentType(str, enum.Enum):
     pickup = "pickup"
     delivery = "delivery"
+    # Sellers commonly offer either, and forcing a choice pushed the second
+    # option into the free-text description where nothing can filter on it.
+    both = "both"
 
 
 listing_tags = Table(
