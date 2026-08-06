@@ -47,6 +47,7 @@ export interface Shop {
   created_at: string;
   is_active: boolean;
   listing_count: number;
+  follower_count: number;
   average_rating: number | null;
   rating_count: number;
 }

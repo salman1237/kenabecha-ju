@@ -155,7 +155,7 @@ export default function Home() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
           transition={{ duration: 0.4 }}
-          className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6"
+          className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16"
         >
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -163,7 +163,7 @@ export default function Home() {
                 <Star className="size-5 fill-amber-400 text-amber-500" />
                 <h2 className="text-2xl font-bold tracking-tight">{t.sections.topProducts}</h2>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">{t.sections.topProductsSub}</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">{t.sections.topProductsSub}</p>
             </div>
             <Link href="/listings?is_top=true" className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
               {t.sections.viewAll}
@@ -184,12 +184,12 @@ export default function Home() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
           transition={{ duration: 0.4 }}
-          className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6"
+          className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16"
         >
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold tracking-tight">{t.sections.latestPicks}</h2>
-              <p className="text-xs text-muted-foreground mt-1">{t.sections.latestPicksSub}</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">{t.sections.latestPicksSub}</p>
             </div>
             <Link href="/listings" className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
               {t.sections.viewAll}
@@ -210,15 +210,15 @@ export default function Home() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
           transition={{ duration: 0.4 }}
-          className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6"
+          className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16"
         >
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold tracking-tight">{t.sections.featuredShops}</h2>
-              <p className="text-xs text-muted-foreground mt-1">{t.sections.featuredShopsSub}</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">{t.sections.featuredShopsSub}</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-6">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {shops.map((shop) => (
               <ShopCard key={shop.id} shop={shop} />
             ))}
@@ -232,9 +232,9 @@ export default function Home() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-60px" }}
         transition={{ duration: 0.4 }}
-        className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6"
+        className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-16"
       >
-        <h2 className="text-2xl font-bold tracking-tight mb-6">{t.sections.allProducts}</h2>
+        <h2 className="mb-8 text-2xl font-bold tracking-tight">{t.sections.allProducts}</h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
           {categories.map((cat) => (
             <Link key={cat.id} href={`/listings?category=${cat.slug}`}>
@@ -257,7 +257,7 @@ export default function Home() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-60px" }}
         transition={{ duration: 0.4 }}
-        className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6"
+        className="mx-auto w-full max-w-5xl px-4 py-14 sm:px-6 sm:py-16"
       >
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tight">{t.sections.howItWorks}</h2>
@@ -301,7 +301,7 @@ export default function Home() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-60px" }}
           transition={{ duration: 0.4 }}
-          className="mx-auto w-full max-w-4xl px-4 py-16 sm:px-6"
+          className="mx-auto w-full max-w-4xl px-4 py-14 sm:px-6 sm:py-16"
         >
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 p-8 text-center text-white shadow-2xl">
             <div className="relative z-10 flex flex-col items-center gap-4">

@@ -84,6 +84,24 @@ async def get_shop_by_slug(db: AsyncSession, slug: str) -> tuple[Shop, int]:
     return shop, counts.get(shop.id, 0)
 
 
+async def get_shops_follower_counts(
+    db: AsyncSession, shop_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    """Follower count per shop, in one grouped query.
+
+    A card that shows followers must not cost one query per card — that's the
+    N+1 pattern already removed from the per-shop rating lookups.
+    """
+    if not shop_ids:
+        return {}
+    result = await db.execute(
+        select(ShopFollow.shop_id, func.count())
+        .where(ShopFollow.shop_id.in_(shop_ids))
+        .group_by(ShopFollow.shop_id)
+    )
+    return {row[0]: row[1] for row in result.all()}
+
+
 async def get_shop_stats(db: AsyncSession, shop: Shop) -> dict:
     """Public storefront figures. `sold_count` is a real trust signal
     (this shop completes trades), which a raw active-listing count isn't."""

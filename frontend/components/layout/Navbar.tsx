@@ -72,14 +72,18 @@ export function Navbar() {
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="sticky top-0 z-40 flex items-center justify-between border-b border-emerald-500/10 bg-background/75 px-4 py-3 shadow-xs backdrop-blur-md sm:px-8"
+      className="sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-emerald-500/10 bg-background/75 px-3 py-3 shadow-xs backdrop-blur-md sm:px-6 lg:px-8"
     >
-      <div className="flex items-center gap-6">
+      <div className="flex min-w-0 items-center gap-4 lg:gap-6">
         <Link href="/" className="group flex items-center gap-2 text-lg font-bold tracking-tight">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
             K
           </div>
-          <span className="gradient-text font-extrabold text-xl">KenaBecha JU</span>
+          {/* nowrap: at 390px the wordmark otherwise breaks after "KenaBecha"
+              and doubles the header height. */}
+          <span className="gradient-text whitespace-nowrap text-lg font-extrabold sm:text-xl">
+            KenaBecha JU
+          </span>
         </Link>
 
         {/* The primary destinations, not just Browse. These used to live only

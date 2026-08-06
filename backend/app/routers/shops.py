@@ -15,13 +15,18 @@ router = APIRouter(prefix="/shops", tags=["shops"])
 
 
 def _to_out(
-    shop, listing_count: int = 0, average_rating: float | None = None, rating_count: int = 0
+    shop,
+    listing_count: int = 0,
+    average_rating: float | None = None,
+    rating_count: int = 0,
+    follower_count: int = 0,
 ) -> ShopOut:
     return ShopOut.model_validate(shop, from_attributes=True).model_copy(
         update={
             "listing_count": listing_count,
             "average_rating": average_rating,
             "rating_count": rating_count,
+            "follower_count": follower_count,
         }
     )
 
@@ -40,9 +45,10 @@ async def list_shops(skip: int = 0, limit: int = 50, db: AsyncSession = Depends(
     result = []
     shop_ids = [shop.id for shop, _ in shops]
     ratings = await rating_service.get_shops_rating_summaries(db, shop_ids)
+    followers = await shop_service.get_shops_follower_counts(db, shop_ids)
     for shop, count in shops:
         avg, rcount = ratings.get(shop.id, (None, 0))
-        result.append(_to_out(shop, count, avg, rcount))
+        result.append(_to_out(shop, count, avg, rcount, followers.get(shop.id, 0)))
     return result
 
 
@@ -54,9 +60,10 @@ async def list_my_shops(
     result = []
     shop_ids = [shop.id for shop, _ in shops]
     ratings = await rating_service.get_shops_rating_summaries(db, shop_ids)
+    followers = await shop_service.get_shops_follower_counts(db, shop_ids)
     for shop, count in shops:
         avg, rcount = ratings.get(shop.id, (None, 0))
-        result.append(_to_out(shop, count, avg, rcount))
+        result.append(_to_out(shop, count, avg, rcount, followers.get(shop.id, 0)))
     return result
 
 
@@ -64,7 +71,8 @@ async def list_my_shops(
 async def get_shop(slug: str, db: AsyncSession = Depends(get_db)) -> ShopOut:
     shop, count = await shop_service.get_shop_by_slug(db, slug)
     avg, rcount = await rating_service.get_shop_rating_summary(db, shop.id)
-    return _to_out(shop, count, avg, rcount)
+    followers = await shop_service.get_shops_follower_counts(db, [shop.id])
+    return _to_out(shop, count, avg, rcount, followers.get(shop.id, 0))
 
 
 @router.get("/{slug}/stats", response_model=ShopStatsOut)

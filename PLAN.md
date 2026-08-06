@@ -44,7 +44,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 32 — SEO, error boundaries, 404 & mobile bottom nav.** Full metadata with per-listing Open Graph and schema.org Product data, `sitemap.xml`, `robots.txt`, route-level and global error boundaries, a custom 404, a thumb-reachable mobile bottom nav, and real Terms/Privacy pages wired into the footer's previously dead links.
 - [x] **Phase 33 — Backend test suite.** 74 tests against a real Postgres, covering auth, listing lifecycle, expiry/renewal, view counting, promotion, search escaping, categories, chat eligibility, rate limiting and upload validation — with the suite mutation-checked to confirm it actually fails on the bugs it claims to cover.
 - [x] **Phase 35 — Navigation shell & shops browse page.** Browse Listings / Browse Shops / Sell Item / Inbox / My Shops are now top-level navbar destinations with active states, the avatar renders the user's actual photo, and `/shops` exists with search and sorting.
-- [ ] **Phase 36 — Shop card & homepage layout rhythm.** Redesign the shop card and fix the grid/spacing defects that leave sections looking empty.
+- [x] **Phase 36 — Shop card & homepage layout rhythm.** Shop cards now carry a cover band, logo, type, description, rating and listing/follower counts; the 6-column grid that stranded two cards is gone, section padding is uniform, and the mobile header no longer wraps to two rows.
 - [ ] **Phase 37 — Fulfillment: pickup *and* delivery.** A seller can offer both; the enum currently forces a choice.
 - [ ] **Phase 38 — Listing form & edit page rebuild.** Group the form into sections and make the edit page genuinely complete.
 - [ ] **Phase 39 — Shop dashboard rebuild.** Replace the narrow unstyled stack with a real management surface.
@@ -459,4 +459,18 @@ Active state is a prefix match with one deliberate exception: `/shops` must not 
 **`/shops`.** The route simply didn't exist — shops were reachable only from the six on the landing page. Now a full browse page with name/type search and three sort orders. Unrated shops sort *last* under "Highest rated" rather than as zero, so a brand-new shop isn't ranked below a badly-reviewed one. Filtering is client-side because the API returns the whole list and a single campus stays small; if that changes it should move to query parameters rather than growing a larger client-side sort.
 
 With the route real, `/shops` goes back into `sitemap.ts` — Phase 32 had to remove it after catching it advertising a 404 — and joins the footer's marketplace column.
+
+### Phase 36 — Shop card & homepage layout rhythm
+
+**A correction to the audit.** It claimed follower counts were already returned by the API. They were not — `ShopOut` carried only listing count and ratings, and followers came solely from the per-shop `/shops/{slug}/stats` endpoint. Showing them on a grid of cards would therefore have meant one request per card.
+
+Rather than drop the number, it was added properly: `get_shops_follower_counts` does a single `IN (…) GROUP BY`, mirroring `get_shops_rating_summaries` from Phase 29, and is wired into both list endpoints and the single-shop route. Verified from the query log that one `/shops` request issues exactly one `shop_follows` query covering every shop, not one per shop.
+
+**The card.** Was a centred stack of plain text in a bordered box. Now a cover band with the logo straddling its edge (the standard storefront cue), name, type chip, two-line description, rating, and a footer with listing and follower counts. `cover_url` already existed on the model and was rendered nowhere. A shop with no cover gets a brand gradient rather than an empty grey rectangle, so it still reads as designed rather than broken.
+
+**The grid was a bug, not a preference.** `md:grid-cols-6` meant two shops each occupied one sixth of a 1152px container — two small cards against a wall of empty space, which is what the screenshot showed. Now `1 / 2 / 3` columns, which suits cards of this weight and degrades sensibly at any shop count.
+
+**Rhythm.** Content sections mixed `py-10` and `py-16` with no pattern, and headings used ad-hoc `mt-1` / `mb-6`. All content sections are now `py-14 sm:py-16`, sub-headings a consistent `mt-1.5 text-sm`, and section headings a consistent `mb-8`.
+
+**Mobile header.** At 390px the wordmark broke after "KenaBecha" and doubled the header height. With `whitespace-nowrap` and a responsive size the header is a single row at every width — measured 57px at 390 and 768, 61px at 1500.
 

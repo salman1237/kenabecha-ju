@@ -44,5 +44,6 @@ class ShopOut(BaseModel):
     created_at: datetime
     is_active: bool = True
     listing_count: int = 0
+    follower_count: int = 0
     average_rating: float | None = None
     rating_count: int = 0
