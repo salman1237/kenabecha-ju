@@ -71,6 +71,14 @@
 }
 
 :root {
+  /* Admin chart series. Distinct hues rather than three shades of the brand
+     colour: the three lines overlap constantly, and a colourblind reader
+     cannot separate emerald from teal. Deliberately not the accent, which
+     stays reserved for interactive elements. */
+  --color-chart-signups: #0d9488;
+  --color-chart-listings: #7c3aed;
+  --color-chart-messages: #ea580c;
+
   --background: #ffffff;
   --foreground: #09090b;
   --card: #ffffff;
@@ -112,6 +120,11 @@
 }
 
 .dark {
+  /* Lifted for contrast against the dark ground; the light values go muddy. */
+  --color-chart-signups: #2dd4bf;
+  --color-chart-listings: #a78bfa;
+  --color-chart-messages: #fb923c;
+
   --background: #09090b;
   --foreground: #fafafa;
   --card: #18181b;

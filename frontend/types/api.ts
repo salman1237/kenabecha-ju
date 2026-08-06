@@ -412,4 +412,64 @@ export interface NavMenu {
 export interface Navigation {
   menus: NavMenu[];
   navbar_controls: Record<string, boolean>;
+  /** The site-wide banner, when one is live. Null is the normal case. */
+  announcement?: Announcement | null;
+}
+
+
+export interface DailyPoint {
+  date: string;
+  signups: number;
+  listings: number;
+  messages: number;
+}
+
+export interface TopListing {
+  id: string;
+  title: string;
+  view_count: number;
+}
+
+/** Each headline count paired with how many arrived inside the window. */
+export interface DashboardTotals {
+  total_users: number;
+  new_users: number;
+  total_shops: number;
+  new_shops: number;
+  total_active_listings: number;
+  new_listings: number;
+  total_messages: number;
+  new_messages: number;
+  pending_reports: number;
+}
+
+export interface AdminDashboard {
+  days: number;
+  totals: DashboardTotals;
+  series: DailyPoint[];
+  top_listings: TopListing[];
+}
+
+/** Per-item outcome: items are independent, so a partial run is reported
+ *  rather than hidden behind a single error. */
+export interface BulkResult {
+  succeeded: string[];
+  failed: { id: string; reason: string }[];
+}
+
+export type AnnouncementVariant = "info" | "warning" | "critical";
+
+export interface Announcement {
+  message: Record<string, unknown>;
+  variant: AnnouncementVariant;
+  dismissible: boolean;
+  /** Bumped when the wording changes, so a dismissal applies to one
+   *  announcement rather than silencing every future one. */
+  version: number;
+}
+
+export interface AdminAnnouncement extends Announcement {
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
 }

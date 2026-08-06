@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from typing import TypedDict
 
 from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy import func, select
@@ -292,4 +293,86 @@ async def get_stats(db: AsyncSession) -> AdminStatsOut:
         total_active_listings=total_active_listings,
         total_messages=total_messages,
         pending_reports=pending_reports,
+    )
+
+
+# --- bulk moderation ---------------------------------------------------------
+#
+# Each item is put through the same single-item function the one-at-a-time
+# path uses, rather than a bulk UPDATE. A bulk statement would be faster and
+# would also skip the audit entry, the seller's notification and the email —
+# which is to say it would quietly turn "remove 20 listings" into a different
+# operation from doing it 20 times. Moderation at speed is exactly when the
+# record matters most.
+#
+# Items are therefore independent: one failure does not roll back the rest,
+# and the caller is told precisely which ids failed and why. Reporting "12 of
+# 20 done" is more useful to a moderator than an all-or-nothing error that
+# leaves them guessing what landed.
+
+#: A ceiling per request. Each item is a real transaction with a notification
+#: and possibly an email, so an unbounded list is a slow request and a lot of
+#: mail sent from one click.
+MAX_BULK = 100
+
+
+class BulkResult(TypedDict):
+    succeeded: list[str]
+    failed: list[dict]
+
+
+def _check_size(ids: list[uuid.UUID]) -> None:
+    if not ids:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No items selected")
+    if len(ids) > MAX_BULK:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"Select at most {MAX_BULK} items at a time"
+        )
+
+
+async def _run_each(ids: list[uuid.UUID], action) -> BulkResult:
+    succeeded: list[str] = []
+    failed: list[dict] = []
+    # Deduplicated, order preserved: a repeated id would otherwise be acted on
+    # twice and counted twice in the summary.
+    for item_id in dict.fromkeys(ids):
+        try:
+            await action(item_id)
+            succeeded.append(str(item_id))
+        except HTTPException as exc:
+            failed.append({"id": str(item_id), "reason": exc.detail})
+    return {"succeeded": succeeded, "failed": failed}
+
+
+async def bulk_remove_listings(
+    db: AsyncSession,
+    ids: list[uuid.UUID],
+    background_tasks: BackgroundTasks,
+    *,
+    actor: User,
+) -> BulkResult:
+    _check_size(ids)
+    return await _run_each(
+        ids,
+        lambda listing_id: admin_remove_listing(db, listing_id, background_tasks, actor=actor),
+    )
+
+
+async def bulk_set_listing_top(
+    db: AsyncSession, ids: list[uuid.UUID], is_top: bool, *, actor: User
+) -> BulkResult:
+    _check_size(ids)
+    return await _run_each(ids, lambda listing_id: toggle_listing_top(db, listing_id, is_top, actor=actor))
+
+
+async def bulk_remove_shops(
+    db: AsyncSession,
+    ids: list[uuid.UUID],
+    background_tasks: BackgroundTasks,
+    *,
+    actor: User,
+) -> BulkResult:
+    _check_size(ids)
+    return await _run_each(
+        ids, lambda shop_id: admin_remove_shop(db, shop_id, background_tasks, actor=actor)
     )

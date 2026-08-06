@@ -7,12 +7,29 @@ from app.core.dependencies import get_current_admin, get_current_staff
 from app.db.session import get_db
 from app.models.report import ReportStatus
 from app.models.user import User
-from app.schemas.admin import AdminStatsOut, AdminUserOut, AuditLogOut, SetUserRoleIn
+from app.schemas.admin import (
+    AdminStatsOut,
+    AdminUserOut,
+    AnnouncementAdminOut,
+    AnnouncementIn,
+    AuditLogOut,
+    BulkIdsIn,
+    BulkResultOut,
+    BulkTopIn,
+    DashboardOut,
+    SetUserRoleIn,
+)
 from app.schemas.common import Page
 from app.schemas.listing import ListingOut
 from app.schemas.report import ReportOut, ResolveReportRequest
 from app.schemas.shop import ShopOut
-from app.services import admin_service, audit_service, report_service
+from app.services import (
+    admin_service,
+    announcement_service,
+    audit_service,
+    metrics_service,
+    report_service,
+)
 
 # Router-level guard is the lower bar — moderators reach the moderation
 # surface. Routes that manage users, roles or site content add
@@ -167,3 +184,85 @@ async def resolve_report(
     report = await report_service.get_report(db, report_id)
     report = await report_service.resolve_report(db, report, admin, payload, background_tasks)
     return _report_to_out(report)
+
+
+# --- dashboard ---------------------------------------------------------------
+
+
+@router.get("/dashboard", response_model=DashboardOut, dependencies=[Depends(get_current_admin)])
+async def get_dashboard(
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+) -> DashboardOut:
+    """Headline counts, daily activity and the most-viewed listings.
+
+    Admin-only rather than staff: it aggregates over the whole platform,
+    which is a different thing from the moderation queues a moderator works.
+    """
+    return DashboardOut.model_validate(await metrics_service.dashboard(db, days))
+
+
+# --- bulk moderation ---------------------------------------------------------
+
+
+@router.post("/listings/bulk-remove", response_model=BulkResultOut)
+async def bulk_remove_listings(
+    payload: BulkIdsIn,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_staff),
+) -> BulkResultOut:
+    return BulkResultOut.model_validate(
+        await admin_service.bulk_remove_listings(db, payload.ids, background_tasks, actor=actor)
+    )
+
+
+@router.post("/listings/bulk-top", response_model=BulkResultOut)
+async def bulk_set_listing_top(
+    payload: BulkTopIn,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_staff),
+) -> BulkResultOut:
+    return BulkResultOut.model_validate(
+        await admin_service.bulk_set_listing_top(db, payload.ids, payload.is_top, actor=actor)
+    )
+
+
+@router.post("/shops/bulk-remove", response_model=BulkResultOut)
+async def bulk_remove_shops(
+    payload: BulkIdsIn,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_staff),
+) -> BulkResultOut:
+    return BulkResultOut.model_validate(
+        await admin_service.bulk_remove_shops(db, payload.ids, background_tasks, actor=actor)
+    )
+
+
+# --- announcement ------------------------------------------------------------
+
+
+@router.get(
+    "/announcement", response_model=AnnouncementAdminOut, dependencies=[Depends(get_current_admin)]
+)
+async def get_announcement(db: AsyncSession = Depends(get_db)) -> AnnouncementAdminOut:
+    """The stored announcement, live or not — the admin edits the schedule, so
+    they need to see one that has not started yet."""
+    return AnnouncementAdminOut.model_validate(
+        await announcement_service.get_announcement(db)
+    )
+
+
+@router.put(
+    "/announcement", response_model=AnnouncementAdminOut, dependencies=[Depends(get_current_admin)]
+)
+async def set_announcement(
+    payload: AnnouncementIn,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_admin),
+) -> AnnouncementAdminOut:
+    updated = await announcement_service.set_announcement(
+        db, payload.model_dump(exclude_unset=True), actor=actor
+    )
+    return AnnouncementAdminOut.model_validate(updated)

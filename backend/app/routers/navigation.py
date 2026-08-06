@@ -18,7 +18,7 @@ from app.schemas.navigation import (
     NavMenuOut,
     NavMenuUpdate,
 )
-from app.services import navigation_service
+from app.services import announcement_service, navigation_service
 
 # Public: the navbar and footer render on every page for signed-out visitors
 # too, so this must not require authentication. Only active menus and links
@@ -35,6 +35,7 @@ async def get_navigation(db: AsyncSession = Depends(get_db)) -> NavigationOut:
             for m in await navigation_service.list_menus(db, active_only=True)
         ],
         navbar_controls=await navigation_service.get_navbar_controls(db),
+        announcement=await announcement_service.get_live_announcement(db),
     )
 
 

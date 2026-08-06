@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { BulkBar } from "@/components/admin/BulkBar";
 import { DataTable, type Column } from "@/components/admin/DataTable";
+import { bulkRemoveListings, bulkSetListingTop } from "@/lib/api/dashboard-admin";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +33,7 @@ export default function AdminListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
     setLoading(true);
@@ -140,6 +143,28 @@ export default function AdminListingsPage() {
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-bold tracking-tight">Listings</h1>
       <DataTable
+        selection={{
+          selected,
+          onChange: setSelected,
+          bar: (ids, clear) => (
+            <BulkBar
+              ids={ids}
+              clear={clear}
+              onDone={load}
+              actions={[
+                { label: "Mark as top", run: (i) => bulkSetListingTop(i, true) },
+                { label: "Remove from top", run: (i) => bulkSetListingTop(i, false) },
+                {
+                  label: "Remove",
+                  destructive: true,
+                  confirm:
+                    "Remove the selected listings? Each seller is notified, exactly as if you removed them one at a time.",
+                  run: bulkRemoveListings,
+                },
+              ]}
+            />
+          ),
+        }}
         rows={listings}
         columns={columns}
         loading={loading}

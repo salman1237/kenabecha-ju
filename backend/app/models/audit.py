@@ -47,6 +47,7 @@ class AuditAction:
     NAV_LINK_DELETED = "nav_link.deleted"
     NAV_LINKS_REORDERED = "nav_link.reordered"
     NAVBAR_CONTROLS_CHANGED = "navbar_controls.changed"
+    ANNOUNCEMENT_CHANGED = "announcement.changed"
 
 
 class AuditLog(UUIDPKMixin, CreatedAtMixin, Base):

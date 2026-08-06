@@ -43,6 +43,11 @@ class NavigationOut(BaseModel):
 
     menus: list[NavMenuOut]
     navbar_controls: dict[str, bool]
+    #: The site-wide banner, when one is live. Carried here rather than on its
+    #: own endpoint because both are site chrome fetched once in the root
+    #: layout, and a second round trip per page for an optional banner is not
+    #: worth it. Null is the normal case.
+    announcement: dict | None = None
 
 
 # --- admin input -------------------------------------------------------------

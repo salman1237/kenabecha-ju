@@ -47,6 +47,7 @@ export function DataTable<T extends { id: string }>({
   emptyTitle = "Nothing here yet",
   emptyDescription,
   actions,
+  selection,
 }: {
   rows: T[];
   columns: Column<T>[];
@@ -60,6 +61,14 @@ export function DataTable<T extends { id: string }>({
   emptyTitle?: string;
   emptyDescription?: string;
   actions?: (row: T) => React.ReactNode;
+  /** Opt-in multi-select. Omitted, the table has no checkboxes at all — most
+   *  tables have nothing worth doing in bulk. */
+  selection?: {
+    selected: Set<string>;
+    onChange: (selected: Set<string>) => void;
+    /** Rendered above the table while anything is selected. */
+    bar: (selected: string[], clear: () => void) => React.ReactNode;
+  };
 }) {
   const [localQuery, setLocalQuery] = useState("");
   const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
@@ -99,6 +108,30 @@ export function DataTable<T extends { id: string }>({
       prev?.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }
     );
 
+  // Header checkbox acts on what is *visible*, not on every row loaded:
+  // ticking it after a search should select the search results, which is
+  // what someone filtering to "spam" then selecting all expects.
+  const selectedHere = selection
+    ? visible.filter((row) => selection.selected.has(row.id)).length
+    : 0;
+  const allHereSelected = selection !== undefined && visible.length > 0 && selectedHere === visible.length;
+
+  const toggleAll = () => {
+    if (!selection) return;
+    const next = new Set(selection.selected);
+    if (allHereSelected) visible.forEach((row) => next.delete(row.id));
+    else visible.forEach((row) => next.add(row.id));
+    selection.onChange(next);
+  };
+
+  const toggleOne = (id: string) => {
+    if (!selection) return;
+    const next = new Set(selection.selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    selection.onChange(next);
+  };
+
   const onExport = () => {
     const csv = toCsv(visible, columns);
     // BOM so Excel opens UTF-8 (Bangla shop names) without mojibake.
@@ -134,6 +167,15 @@ export function DataTable<T extends { id: string }>({
         )}
       </div>
 
+      {selection && selection.selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-2.5">
+          <span className="text-sm font-medium tabular-nums">
+            {selection.selected.size} selected
+          </span>
+          {selection.bar([...selection.selected], () => selection.onChange(new Set()))}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex flex-col gap-2">
           {Array.from({ length: 6 }, (_, i) => (
@@ -149,6 +191,17 @@ export function DataTable<T extends { id: string }>({
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
+                  {selection && (
+                    <TableHead className="w-10">
+                      <input
+                        type="checkbox"
+                        checked={allHereSelected}
+                        onChange={toggleAll}
+                        aria-label="Select all rows"
+                        className="size-4 accent-emerald-600"
+                      />
+                    </TableHead>
+                  )}
                   {columns.map((col) => (
                     <TableHead
                       key={col.key}
@@ -182,7 +235,21 @@ export function DataTable<T extends { id: string }>({
               </TableHeader>
               <TableBody>
                 {visible.map((row) => (
-                  <TableRow key={row.id}>
+                  <TableRow
+                    key={row.id}
+                    data-state={selection?.selected.has(row.id) ? "selected" : undefined}
+                  >
+                    {selection && (
+                      <TableCell className="w-10">
+                        <input
+                          type="checkbox"
+                          checked={selection.selected.has(row.id)}
+                          onChange={() => toggleOne(row.id)}
+                          aria-label="Select row"
+                          className="size-4 accent-emerald-600"
+                        />
+                      </TableCell>
+                    )}
                     {columns.map((col) => (
                       <TableCell
                         key={col.key}
@@ -205,6 +272,17 @@ export function DataTable<T extends { id: string }>({
                 key={row.id}
                 className="flex flex-col gap-2 rounded-xl border border-border bg-card/60 p-4"
               >
+                {selection && (
+                  <label className="flex items-center gap-2 border-b border-border pb-2 text-xs font-medium">
+                    <input
+                      type="checkbox"
+                      checked={selection.selected.has(row.id)}
+                      onChange={() => toggleOne(row.id)}
+                      className="size-4 accent-emerald-600"
+                    />
+                    Select
+                  </label>
+                )}
                 {columns.map((col) => (
                   <div key={col.key} className="flex items-start justify-between gap-3 text-sm">
                     <span className="shrink-0 text-xs text-muted-foreground">{col.header}</span>

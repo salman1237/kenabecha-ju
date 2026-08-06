@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Noto_Sans_Bengali } from "next/font/google";
 import { cookies } from "next/headers";
 import "./globals.css";
+import { AnnouncementBanner } from "@/components/layout/AnnouncementBanner";
 import { Footer } from "@/components/layout/Footer";
 import { MotionProvider } from "@/components/layout/MotionProvider";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
@@ -125,6 +126,7 @@ export default async function RootLayout({
                 >
                   <SkipLinkLabel />
                 </a>
+                <AnnouncementBanner />
                 <Navbar />
                 <main id="main-content" tabIndex={-1} className="flex-1">
                   <PageTransition>{children}</PageTransition>

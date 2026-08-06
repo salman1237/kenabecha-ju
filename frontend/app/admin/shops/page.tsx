@@ -16,13 +16,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BulkBar } from "@/components/admin/BulkBar";
 import { DataTable, type Column } from "@/components/admin/DataTable";
+import { bulkRemoveShops } from "@/lib/api/dashboard-admin";
 import { listAdminShops, removeAdminShop } from "@/lib/api/admin";
 import type { Shop } from "@/types/api";
 
 export default function AdminShopsPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
     setLoading(true);
@@ -88,6 +91,25 @@ export default function AdminShopsPage() {
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-bold tracking-tight">Shops</h1>
       <DataTable
+        selection={{
+          selected,
+          onChange: setSelected,
+          bar: (ids, clear) => (
+            <BulkBar
+              ids={ids}
+              clear={clear}
+              onDone={load}
+              actions={[
+                {
+                  label: "Remove",
+                  destructive: true,
+                  confirm: "Remove the selected shops? Their listings stay but the shops go.",
+                  run: bulkRemoveShops,
+                },
+              ]}
+            />
+          ),
+        }}
         rows={shops}
         columns={columns}
         loading={loading}

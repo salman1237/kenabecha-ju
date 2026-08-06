@@ -706,7 +706,33 @@ Raised as a bug report — "where are footer items? after phase 42 i can't see i
 
 27 tests: the seed reproducing the shipped navigation including its visibility rules, hidden menus and links absent from the public API, ordering, admin-only access with moderators refused, per-locale overrides preserving the translation key, link and menu CRUD, reordering with its rejections, control defaults and unknown-name handling, and the audit trail including that a refused reorder records nothing. Suite 200. Mutation-tested: leaking hidden links, accepting a partial order, storing unknown controls, or dropping the control defaults each fails between one and seven tests. Verified live by renaming a column in both languages, adding a link, hiding and reordering navbar entries, and switching the search box off — each confirmed in the rendered HTML, then restored.
 
-### Phase 45 — Admin dashboard & moderation tooling
+### Phase 45 — Admin dashboard, bulk moderation & announcements (implemented)
+
+Three things that share a screen but not much else. What they have in common is that each is easy to get subtly, invisibly wrong.
+
+**A dashboard worth opening.** The old one was five counters and a bar chart comparing quantities that have nothing to do with each other. Now: each headline count is paired with how many arrived inside the window — a bare total says how big the site is, not whether anything is happening — over a switchable 7/30/90 days, plus a three-series daily chart and the most-viewed listings currently on sale.
+
+- **Gaps are zero-filled, not omitted.** A quiet Friday that simply vanishes from the series makes the line jump straight from Thursday to Saturday, which reads as steady activity across a day when there was none. The chart would be quietly lying, and nobody would ever notice.
+- **Days are Dhaka days, not UTC days.** Everyone using this site is on campus; bucketing in UTC files every evening's activity under the following day and makes the chart disagree with what an admin remembers happening.
+- **Most-viewed is restricted to active listings.** The question is "what should we put in front of people?", and a sold-out listing is not an answer however many views it has.
+- **The chart is hand-drawn SVG.** The requirement is three polylines and a few gridlines; the smallest charting library would add more to the bundle than the entire admin section currently weighs. Each series toggles, because messages dwarf signups on any real week and a shared axis otherwise flattens the other two into the floor — and the axis rescales to whatever is left visible.
+- **Chart colours are three distinct hues**, not three shades of the brand green: the lines overlap constantly and a colourblind reader cannot separate emerald from teal. They are separate tokens in both themes, because the light values go muddy on a dark ground.
+
+**Bulk moderation, built on the single-item path.** Each selected item goes through the same function the one-at-a-time flow uses, rather than a bulk `UPDATE`. A bulk statement would be faster and would also skip the audit entry, the seller's notification and the email — which is to say it would quietly turn "remove 20 listings" into a different operation from doing it 20 times. Moderation at speed is exactly when the record matters most; verified live, with one audit entry per listing rather than one per batch.
+
+Items are therefore independent: one bad id does not roll back the rest, and the response names which failed and why. "12 of 20 done, here is the one that failed" is more use to a moderator than an all-or-nothing error that leaves them guessing what landed. Repeated ids are de-duplicated, an empty selection is refused, and the batch is capped at 100 — each item is a real transaction with a notification and possibly an email, so an unbounded list is a lot of mail sent from one click. Selection is opt-in on the shared `DataTable`, and the header checkbox acts on what is *visible*: filtering to "spam" then ticking select-all should select the search results.
+
+**A scheduled announcement banner**, stored in the `site_settings` table Phase 44 introduced rather than a second mechanism.
+
+- **Scheduling is evaluated on the server.** A device with a wrong clock would otherwise show a maintenance notice a day early, or keep one up after it should have gone.
+- **The version bumps when the wording changes, and only then.** Dismissals are remembered per version, so dismissing one notice does not silence every future one — which, for the maintenance notice that actually mattered, would be the worst possible outcome. A schedule tweak deliberately does *not* bump it: re-nagging everyone because a date moved trains people to ignore the banner.
+- **A malformed date does not hide a live announcement.** Treating it as absent keeps the other bound working, which beats a banner that silently never appears.
+- **An empty message is never published**, even when switched on — otherwise it renders an empty bar across the top of every page.
+- The banner reads localStorage through `useSyncExternalStore` rather than an effect, so the server snapshot is explicit: it is in the SSR HTML, and therefore visible without JavaScript — the lesson from the footer bug earlier in this phase.
+
+31 tests. Suite 231. Mutation-tested: dropping the zero-fill, letting sold listings into most-viewed, ignoring the schedule, never bumping the version, or aborting a bulk run at the first failure each fail a test. Verified live: the 30-day window returning 30 points with 6 active days, the banner appearing in both languages and disappearing when expired or switched off, and a bulk run with a bad id mixed in completing the other three.
+
+### Phase 46 — Ideas, not yet planned
 
 - A dashboard worth opening: signups, listings and messages over time, pending report count, most-viewed listings.
 - Bulk actions on the moderation tables, which currently force one-at-a-time work.
