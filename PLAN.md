@@ -48,7 +48,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 37 — Fulfillment: pickup *and* delivery.** Migration `8f3b25a0c9ef` adds `both` to the enum; the address stays required whenever pickup is on offer, and the listing page shows both options rather than picking one.
 - [x] **Phase 38 — Listing form & edit page rebuild.** The form is grouped into labelled sections, and the edit page now carries everything: photo add/remove/reorder with cover selection, stock for shop listings, and status actions. Editing controls are off the public listing page.
 - [x] **Phase 39 — Shop dashboard rebuild.** The shop logo is editable from the edit view (it previously vanished when you opened it), the form is grouped into Logo & cover / Shop details, and the page's untranslated English is gone. Also fixed a live 500 on `/notifications` caused by rows left behind by the removed orders feature.
-- [ ] **Phase 34 — DevOps: production compose, CI, backups.** Not started.
+- [x] **Phase 34 — DevOps: production compose, CI/CD, backups.** Migrations now run on deploy, `/health` actually checks the database, both app containers have health checks, Traefik routes the site and the API, GitHub Actions gates deploys on the full test suite before calling Dokploy's webhook, nightly `pg_dump` with a verified restore procedure, and JSON logs with request ids in production.
 
 See "Phase 9+ — UI/UX Redesign, Tiered Auth & Cart/Orders" below (before "## Context") for the detailed breakdown of those five phases, written 2026-08-01 per user request. All five are complete. "Phases 15–24 — Frontend Gap Closure" is likewise complete. "Phases 25–34" is the current initiative.
 
@@ -164,21 +164,25 @@ Removing the cart/orders feature earlier in the project dropped `order_placed` a
 
 Migration `3690eedd48d7` deletes them. Deleting is right rather than remapping: they point at orders that can no longer be opened, so there is nothing meaningful left to show. The Postgres enum keeps the labels, since dropping a value means recreating the type for no benefit. `/notifications` now returns 200 and the console is clean.
 
-### Phase 34 — DevOps
-DEVOPS-01→05.
+### Phase 34 — DevOps: production compose, CI/CD, backups
 
----
+**DEVOPS-05 was already done.** Migration `0ad5c47e1b70` runs `CREATE EXTENSION IF NOT EXISTS pg_trgm`; the improvement.md item was stale. Recorded rather than re-solved.
 
-## Phases 15–24 — Frontend Gap Closure (planned 2026-08-05)
+**The biggest gap wasn't on the list: nothing ran migrations on deploy.** New code shipped against an un-migrated database 500s on every request touching a new column, and it looks like an application bug rather than a missed step. Four migrations landed in the preceding phases alone. `entrypoint.sh` now runs `alembic upgrade head` before uvicorn binds, with `set -e` so a failed migration stops the container starting — a half-migrated schema is worse than being briefly down — and `exec "$@"` so uvicorn becomes PID 1 and receives Docker's stop signals.
 
-Driven by `gap_analysis.md`, which scored the frontend at **~28% coverage** against a "production-grade marketplace frontend" target (Airbnb/Facebook Marketplace/Stripe Dashboard class). ~80 features missing across 10+ pages. Ordered so foundations land before the pages that consume them, and highest-impact user-visible gaps land early.
+**`/health` was a stub returning `{"status": "ok"}` unconditionally** — worse than useless as a health check, since the process answers while Postgres is unreachable, so Docker keeps the container "healthy" and Traefik keeps routing to an instance that 500s. It now queries the database and returns 503 when that fails. Both outcomes are tested, the failure path by injecting a session that raises.
 
+**A routing error caught before it shipped.** The first version of the Traefik labels published only the frontend, keeping the backend internal and routing `/media` through it. That would have broken the site completely: the browser calls the API directly for every request *and* for the chat WebSocket via `NEXT_PUBLIC_API_URL`. Meanwhile `/media` never needed a route at all — Next already proxies it over the container network (Phase 24), which is what keeps image URLs same-origin for the optimizer. Corrected to frontend on `APP_DOMAIN`, API on `API_DOMAIN`, no media route.
 
----
+**CI/CD (DEVOPS-02), gated.** GitHub Actions runs `alembic upgrade head` from empty, `alembic check` for model/migration drift, the 85-test suite against a real Postgres 16 service, then `npm ci`, `tsc --noEmit` and `next build`. Only on a green push to `main` does it POST Dokploy's deploy webhook, then poll `$API_URL/health` until the new version answers — Dokploy returns as soon as the build is queued, so without the poll a green job would say nothing about whether the site came back. `concurrency` cancels superseded runs so two deploys can't race and land the older commit last.
 
-## UI/UX audit (requested before Phase 34)
+**Backups (DEVOPS-03), with a restore that was actually tested.** A `db_backup` service dumps nightly to a named volume, writing to `.part` and renaming only on success so an interrupted run never leaves a file that looks usable. Retention is `BACKUP_KEEP_DAYS`. The restore was verified end to end rather than documented from memory: a dump of the live database restored into a scratch database reproduced 23 listings, 10 users, 4 shops and the Alembic version exactly. DEPLOYMENT.md is explicit that a dump on the same VPS is not off-host backup.
 
-A pass over the surfaces called out as unpolished, plus what the code shows around them. Findings are grouped into the phases above.
+**Structured logging (DEVOPS-04).** JSON in production only — one object per line, so a traceback is one searchable event rather than twenty unrelated lines — and the readable format kept in development, where a human is doing the reading. A `RequestIdMiddleware` tags every line from a request, honours an inbound `X-Request-ID` so a proxy's id carries through, and echoes it on the response so the value in a user's network tab matches the logs. That matters here specifically because prod runs four uvicorn workers interleaving output.
+
+**Noted, not fixed.** The expiry sweeper starts in every worker's lifespan, so production runs four copies hourly. The UPDATE is idempotent, so this is wasteful rather than harmful — not worth a leader-election mechanism for a 30-day job.
+
+**What could not be verified from here.** The GitHub Actions workflow is syntax-valid and its job graph was checked, but a workflow only proves itself on a real push. Dokploy's webhook and the Traefik labels likewise need the actual VPS. The compose file resolves correctly and every rule was inspected, but the deploy itself is unproven until it runs.
 
 ### Navigation (Phase 35)
 

@@ -1,13 +1,18 @@
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.logging import setup_logging
 from app.core.errors import AppError, app_error_handler
+from app.core.logging import setup_logging
+from app.core.request_id import RequestIdMiddleware
+from app.db.session import get_db
 from app.tasks.expiry import sweeper
 from app.websocket.manager import manager
 from app.routers import (
@@ -51,6 +56,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Outermost so the id is set before anything else logs, including CORS
+# rejections and the error handler.
+app.add_middleware(RequestIdMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -83,5 +92,20 @@ app.include_router(dashboard.router)
 
 
 @app.get("/health", tags=["meta"])
-async def health() -> dict[str, str]:
+async def health(db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+    """Readiness, not liveness.
+
+    A bare `{"status": "ok"}` is worse than useless as a container health
+    check: the process answers while Postgres is unreachable, so Docker
+    keeps the container "healthy" and a proxy keeps routing traffic to an
+    instance that 500s on every real request. Touching the database is what
+    makes the check mean something.
+    """
+    try:
+        await db.execute(text("SELECT 1"))
+    except Exception as exc:  # noqa: BLE001 - surfaced as a 503, not swallowed
+        logging.getLogger(__name__).warning("Health check failed: %s", exc)
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "Database unavailable"
+        ) from exc
     return {"status": "ok"}
