@@ -43,6 +43,11 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 31 — i18n completion (Bangla + English).** Moved the locale from localStorage to a cookie so the server renders the right language on first paint — the old approach failed hydration outright whenever Bangla was selected. Added Noto Sans Bengali, locale-aware number/currency/date/relative-time formatting with Bengali numerals, a ~280-key message catalogue with key parity enforced by the type system, and machine-readable error codes from the API so backend errors are shown in the user's language.
 - [x] **Phase 32 — SEO, error boundaries, 404 & mobile bottom nav.** Full metadata with per-listing Open Graph and schema.org Product data, `sitemap.xml`, `robots.txt`, route-level and global error boundaries, a custom 404, a thumb-reachable mobile bottom nav, and real Terms/Privacy pages wired into the footer's previously dead links.
 - [x] **Phase 33 — Backend test suite.** 74 tests against a real Postgres, covering auth, listing lifecycle, expiry/renewal, view counting, promotion, search escaping, categories, chat eligibility, rate limiting and upload validation — with the suite mutation-checked to confirm it actually fails on the bugs it claims to cover.
+- [ ] **Phase 35 — Navigation shell & shops browse page.** Promote the real destinations into the navbar, show the user's actual avatar, and build the missing `/shops` page.
+- [ ] **Phase 36 — Shop card & homepage layout rhythm.** Redesign the shop card and fix the grid/spacing defects that leave sections looking empty.
+- [ ] **Phase 37 — Fulfillment: pickup *and* delivery.** A seller can offer both; the enum currently forces a choice.
+- [ ] **Phase 38 — Listing form & edit page rebuild.** Group the form into sections and make the edit page genuinely complete.
+- [ ] **Phase 39 — Shop dashboard rebuild.** Replace the narrow unstyled stack with a real management surface.
 - [ ] **Phase 34 — DevOps: production compose, CI, backups.** Not started.
 
 See "Phase 9+ — UI/UX Redesign, Tiered Auth & Cart/Orders" below (before "## Context") for the detailed breakdown of those five phases, written 2026-08-01 per user request. All five are complete. "Phases 15–24 — Frontend Gap Closure" is likewise complete. "Phases 25–34" is the current initiative.
@@ -146,6 +151,46 @@ DEVOPS-01→05.
 ## Phases 15–24 — Frontend Gap Closure (planned 2026-08-05)
 
 Driven by `gap_analysis.md`, which scored the frontend at **~28% coverage** against a "production-grade marketplace frontend" target (Airbnb/Facebook Marketplace/Stripe Dashboard class). ~80 features missing across 10+ pages. Ordered so foundations land before the pages that consume them, and highest-impact user-visible gaps land early.
+
+
+---
+
+## UI/UX audit (requested before Phase 34)
+
+A pass over the surfaces called out as unpolished, plus what the code shows around them. Findings are grouped into the phases above.
+
+### Navigation (Phase 35)
+
+- **Only one link is actually in the navbar.** `Navbar.tsx` renders a single desktop link — Browse Listings. Inbox, Sell Item, My Shops and Dashboard exist only inside the avatar dropdown, so the app's primary actions are two clicks deep and invisible until you know to look.
+- **The avatar is never shown.** The trigger always renders `user.full_name.charAt(0)` — a gradient circle with a letter. `user.avatar_url` is fetched, stored and used elsewhere, but the navbar ignores it, so a user who uploaded a photo still sees an initial.
+- **There is no shops browse page.** `app/shops/` contains only `[slug]` and `dashboard`. Shops are reachable only from the six on the landing page. This is the same gap FE-FEAT-05 records, and it's why the Phase 32 sitemap had to drop `/shops` after it was found pointing crawlers at a 404. "Browse Shops" needs somewhere to go.
+
+### Shop card and page rhythm (Phase 36)
+
+- **The card is a bordered box.** Centered logo, name, type, rating, count — no cover image, no follower count, no hierarchy, and hover is a border-colour change. `Shop` already carries `cover_url` and the API already returns follower counts, so the data for a richer card is there and unused.
+- **A grid bug, not a taste problem.** The Featured Shops grid is `grid-cols-2 sm:grid-cols-3 md:grid-cols-6`. With two shops each card is one sixth of a 1152px container, so two small cards sit against a wall of empty space. The column count needs to respond to how many shops there actually are.
+- **Inconsistent vertical rhythm.** Landing sections mix `py-10`, `py-16`, `py-20` and `py-32` with no pattern, and headings use ad-hoc `mt-1`/`mb-6`. The result reads as uneven rather than deliberate.
+
+### Fulfillment (Phase 37)
+
+`FulfillmentType` is `pickup | delivery` — mutually exclusive. In reality a seller often offers both, and today they must pick one and explain the other in the description. Adding `both` touches the enum (migration), the create/update validators, the detail page's contact block, the card, the form, translations and tests. `pickup_address` becomes required for `pickup` **and** `both`.
+
+### Listing form and edit page (Phase 38)
+
+- **The edit page cannot edit most of the listing.** `ListingForm` gates several blocks on `mode === "create"`, so editing offers no photo management, no shop selection and no status control. Photo management instead lives on the public **detail** page as a bare "Manage photos: Remove #1" row — an editing control on a viewing surface.
+- **No status control anywhere in the form.** Marking sold or out of stock is only possible from the detail page.
+- **The form is one flat column.** Twelve fields in a single ungrouped stack inside a `max-w-lg` card, so pricing, photos, fulfillment and tags all read at the same weight.
+
+### Shop dashboard (Phase 39)
+
+- A `max-w-2xl` column of unstyled inputs with create, edit and logo/cover upload toggled inline, so the page changes shape as you use it.
+- Leftover untranslated English (`Category`, `Description`, `e.g. Food, Jewelry, Electronics`) that the Phase 31 sweep missed because they sit inside a conditionally-rendered form.
+
+### Noted, not scheduled
+
+Anonymous visitors trigger two `401`s from `/auth/me` on every page load. Harmless — it's how the client detects "signed out" — but it's the noise behind the dev overlay's issue badge, and worth silencing later by treating 401 as an expected outcome rather than an error.
+
+---
 
 ### Phase 15 — Design system & motion foundation
 Everything later phases build on. `--font-sans` currently points at Geist while `layout.tsx` loads Inter — fix so Inter actually applies. Add a soft-shadow scale and consistent `rounded-xl/2xl` tokens. Central motion primitives (`lib/motion.ts`: fade/slideUp/scaleIn/stagger variants) so animations stop being re-declared ad hoc per section. Global `prefers-reduced-motion` handling and `scroll-behavior: smooth`. Reusable hooks the gap analysis calls out as missing: `useMediaQuery`, `useDebounce`, `useIntersectionObserver`. Shared `EmptyState` / `ErrorState` components to replace bare `<p>` text. `Button` gains a real loading state. Page-transition wrapper.
