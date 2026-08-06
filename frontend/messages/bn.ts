@@ -2,6 +2,7 @@ import type { Translations } from "./en";
 
 export const bn: Translations = {
   nav: {
+    browseShops: "দোকান ব্রাউজ করুন",
     accountMenu: "অ্যাকাউন্ট মেনু",
     menu: "মেনু",
     home: "হোম",
@@ -243,6 +244,14 @@ export const bn: Translations = {
     logoutConfirm: "লগ আউট করবেন?",
   },
   shops: {
+    searchPlaceholder: "নাম বা ধরন দিয়ে দোকান খুঁজুন…",
+    sortNewest: "নতুন আগে",
+    sortRating: "সর্বোচ্চ রেটিং",
+    sortListings: "সবচেয়ে বেশি পণ্য",
+    noResults: "কোনো দোকান পাওয়া যায়নি",
+    noResultsBody: "অন্য নাম দিয়ে খুঁজুন, অথবা অনুসন্ধান মুছে দিন।",
+    subtitle: "ক্যাম্পাসজুড়ে শিক্ষার্থীদের পরিচালিত দোকান",
+    openYours: "নিজের দোকান খুলুন",
     newShop2: "নতুন দোকান",
     sold: "বিক্রিত",
     reviewsCount: "রিভিউ",

@@ -3,11 +3,13 @@
 import { Globe, LayoutDashboard, LogOut, Menu, MessageSquare, PlusCircle, Shield, ShoppingBag, Store, User as UserIcon } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { NavbarSearch } from "@/components/layout/NavbarSearch";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,9 +24,44 @@ import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 
+/** A single nav destination, with its own active state. */
+function NavLink({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "rounded-lg px-3 py-1.5 transition-colors",
+        active
+          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+          : "text-muted-foreground hover:bg-emerald-500/5 hover:text-emerald-600 dark:hover:text-emerald-400"
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
+
 export function Navbar() {
   const { user, isLoading, logout } = useAuth();
   const { locale, setLocale, t } = useLanguage();
+  const pathname = usePathname();
+
+  // Prefix match, except /shops must not light up on /shops/dashboard —
+  // they are two different destinations sitting in the same nav.
+  const isActive = (href: string) =>
+    href === "/shops"
+      ? pathname === "/shops" ||
+        (pathname.startsWith("/shops/") && pathname !== "/shops/dashboard")
+      : pathname === href || pathname.startsWith(href + "/");
 
   const toggleLanguage = () => {
     setLocale(locale === "en" ? "bn" : "en");
@@ -45,10 +82,30 @@ export function Navbar() {
           <span className="gradient-text font-extrabold text-xl">KenaBecha JU</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-5 text-sm font-medium">
-          <Link href="/listings" className="text-muted-foreground transition-colors hover:text-emerald-600 dark:hover:text-emerald-400">
+        {/* The primary destinations, not just Browse. These used to live only
+            inside the avatar dropdown, which put the app's main actions two
+            clicks deep and invisible until you knew to look. Sell, Inbox and
+            My Shops appear only when signed in, since all three need an account. */}
+        <nav className="hidden items-center gap-1 text-sm font-medium lg:flex">
+          <NavLink href="/listings" active={isActive("/listings")}>
             {t.nav.browse}
-          </Link>
+          </NavLink>
+          <NavLink href="/shops" active={isActive("/shops")}>
+            {t.nav.browseShops}
+          </NavLink>
+          {user && (
+            <>
+              <NavLink href="/listings/new" active={pathname === "/listings/new"}>
+                {t.nav.sell}
+              </NavLink>
+              <NavLink href="/inbox" active={isActive("/inbox")}>
+                {t.nav.inbox}
+              </NavLink>
+              <NavLink href="/shops/dashboard" active={pathname === "/shops/dashboard"}>
+                {t.nav.myShops}
+              </NavLink>
+            </>
+          )}
         </nav>
       </div>
 
@@ -80,11 +137,14 @@ export function Navbar() {
 
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  render={<Button variant="ghost" size="icon" className="hidden rounded-full ring-2 ring-emerald-500/20 hover:ring-emerald-500/40 sm:inline-flex" />}
+                  render={<Button variant="ghost" size="icon" className="rounded-full ring-2 ring-emerald-500/20 hover:ring-emerald-500/40" />}
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-xs font-bold text-white shadow-xs">
-                    {user.full_name.charAt(0).toUpperCase()}
-                  </span>
+                  <UserAvatar
+                    name={user.full_name}
+                    avatarUrl={user.avatar_url}
+                    className="size-8 shadow-xs"
+                    sizes="32px"
+                  />
                   <span className="sr-only">{t.nav.accountMenu}</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 rounded-xl border-emerald-500/15 p-1.5 shadow-xl">
@@ -93,7 +153,7 @@ export function Navbar() {
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator className="bg-emerald-500/10" />
                   <DropdownMenuItem render={<Link href="/dashboard" />}>
-                    <LayoutDashboard className="size-4 text-emerald-600 dark:text-emerald-400" /> Dashboard
+                    <LayoutDashboard className="size-4 text-emerald-600 dark:text-emerald-400" /> {t.nav.dashboard}
                   </DropdownMenuItem>
                   <DropdownMenuItem render={<Link href={`/profile/${user.id}`} />}>
                     <UserIcon className="size-4 text-emerald-600 dark:text-emerald-400" /> {t.nav.profile}
@@ -120,7 +180,7 @@ export function Navbar() {
               </DropdownMenu>
 
               <Sheet>
-                <SheetTrigger render={<Button variant="ghost" size="icon" className="sm:hidden" />}>
+                <SheetTrigger render={<Button variant="ghost" size="icon" className="lg:hidden" />}>
                   <Menu className="size-5" />
                   <span className="sr-only">{t.nav.menu}</span>
                 </SheetTrigger>
@@ -133,9 +193,13 @@ export function Navbar() {
                       <Store className="size-4 text-emerald-600 dark:text-emerald-400" />
                       {t.nav.browse}
                     </SheetClose>
+                    <SheetClose render={<Link href="/shops" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
+                      <ShoppingBag className="size-4 text-emerald-600 dark:text-emerald-400" />
+                      {t.nav.browseShops}
+                    </SheetClose>
                     <SheetClose render={<Link href="/dashboard" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
                       <LayoutDashboard className="size-4 text-emerald-600 dark:text-emerald-400" />
-                      Dashboard
+                      {t.nav.dashboard}
                     </SheetClose>
                     <SheetClose render={<Link href={`/profile/${user.id}`} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
                       <UserIcon className="size-4 text-emerald-600 dark:text-emerald-400" />
@@ -170,6 +234,29 @@ export function Navbar() {
             </>
           ) : (
             <div className="flex items-center gap-2">
+              <Sheet>
+                <SheetTrigger render={<Button variant="ghost" size="icon" className="lg:hidden" />}>
+                  <Menu className="size-5" />
+                  <span className="sr-only">{t.nav.menu}</span>
+                </SheetTrigger>
+                <SheetContent side="right" className="rounded-l-2xl border-l-emerald-500/20">
+                  <SheetHeader>
+                    <SheetTitle className="text-emerald-600 dark:text-emerald-400">
+                      KenaBecha JU
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="flex flex-col gap-1.5 px-4 pt-4">
+                    <SheetClose render={<Link href="/listings" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
+                      <Store className="size-4 text-emerald-600 dark:text-emerald-400" />
+                      {t.nav.browse}
+                    </SheetClose>
+                    <SheetClose render={<Link href="/shops" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
+                      <ShoppingBag className="size-4 text-emerald-600 dark:text-emerald-400" />
+                      {t.nav.browseShops}
+                    </SheetClose>
+                  </div>
+                </SheetContent>
+              </Sheet>
               <Link href="/login" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "rounded-full hover:bg-emerald-500/10")}>
                 {t.nav.login}
               </Link>

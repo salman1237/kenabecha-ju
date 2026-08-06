@@ -18,6 +18,7 @@ function linkGroups(t: Translations) {
       heading: t.footer.marketplace,
       links: [
         { label: t.footer.browseListings, href: "/listings" },
+        { label: t.shops.browseTitle, href: "/shops" },
         { label: t.footer.sellAnItem, href: "/listings/new" },
         { label: t.footer.openShop, href: "/shops/dashboard" },
         { label: t.footer.myDashboard, href: "/dashboard" },

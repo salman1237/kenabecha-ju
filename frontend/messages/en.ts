@@ -1,5 +1,6 @@
 export const en = {
   nav: {
+    browseShops: "Browse Shops",
     accountMenu: "Account menu",
     menu: "Menu",
     home: "Home",
@@ -241,6 +242,14 @@ export const en = {
     logoutConfirm: "Log out?",
   },
   shops: {
+    searchPlaceholder: "Search shops by name or type…",
+    sortNewest: "Newest first",
+    sortRating: "Highest rated",
+    sortListings: "Most listings",
+    noResults: "No shops match your search",
+    noResultsBody: "Try a different name, or clear the search.",
+    subtitle: "Student-run shops across campus",
+    openYours: "Open your own shop",
     newShop2: "New shop",
     sold: "Sold",
     reviewsCount: "reviews",

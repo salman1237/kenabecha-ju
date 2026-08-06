@@ -43,7 +43,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 31 — i18n completion (Bangla + English).** Moved the locale from localStorage to a cookie so the server renders the right language on first paint — the old approach failed hydration outright whenever Bangla was selected. Added Noto Sans Bengali, locale-aware number/currency/date/relative-time formatting with Bengali numerals, a ~280-key message catalogue with key parity enforced by the type system, and machine-readable error codes from the API so backend errors are shown in the user's language.
 - [x] **Phase 32 — SEO, error boundaries, 404 & mobile bottom nav.** Full metadata with per-listing Open Graph and schema.org Product data, `sitemap.xml`, `robots.txt`, route-level and global error boundaries, a custom 404, a thumb-reachable mobile bottom nav, and real Terms/Privacy pages wired into the footer's previously dead links.
 - [x] **Phase 33 — Backend test suite.** 74 tests against a real Postgres, covering auth, listing lifecycle, expiry/renewal, view counting, promotion, search escaping, categories, chat eligibility, rate limiting and upload validation — with the suite mutation-checked to confirm it actually fails on the bugs it claims to cover.
-- [ ] **Phase 35 — Navigation shell & shops browse page.** Promote the real destinations into the navbar, show the user's actual avatar, and build the missing `/shops` page.
+- [x] **Phase 35 — Navigation shell & shops browse page.** Browse Listings / Browse Shops / Sell Item / Inbox / My Shops are now top-level navbar destinations with active states, the avatar renders the user's actual photo, and `/shops` exists with search and sorting.
 - [ ] **Phase 36 — Shop card & homepage layout rhythm.** Redesign the shop card and fix the grid/spacing defects that leave sections looking empty.
 - [ ] **Phase 37 — Fulfillment: pickup *and* delivery.** A seller can offer both; the enum currently forces a choice.
 - [ ] **Phase 38 — Listing form & edit page rebuild.** Group the form into sections and make the edit page genuinely complete.
@@ -445,3 +445,18 @@ Per prompt.md's explicit ordering, do **not** scaffold everything at once. First
 - After auth chunk: signup/login/refresh/logout flows tested via Swagger UI and from the Next.js login page, cookies verified as httpOnly in browser devtools.
 
 All three verification passes above were carried out for real (not just described) — `docker compose up` brought up all three services cleanly, `alembic check` reported no drift after each migration, and the full signup → OTP → verify → login flow was exercised both via curl and a headless-browser (Playwright) run against the actual dev server, confirming both cookies are set `httpOnly`.
+
+### Phase 35 — Navigation shell & shops browse page
+
+**Navbar.** The desktop nav held exactly one link. Browse Listings, Browse Shops, Sell Item, Inbox and My Shops are now first-class destinations, with the account-only items (Dashboard, Profile, Admin, Log out) left in the avatar dropdown where they belong. Sell / Inbox / My Shops render only when signed in, since all three require an account.
+
+Active state is a prefix match with one deliberate exception: `/shops` must not light up on `/shops/dashboard`, because Browse Shops and My Shops are two different destinations sitting side by side in the same nav.
+
+**The avatar was a real bug, not a style choice.** The trigger always rendered `user.full_name.charAt(0)`; `avatar_url` was fetched and stored but never read, so anyone who uploaded a photo still saw a letter. Extracted into a `UserAvatar` component so the image and its initial-fallback can't drift apart again. Verified by setting an avatar on a test account and confirming a real `<img>` renders through `next/image` with `naturalWidth > 0`, then reverting the data.
+
+**Breakpoint fix.** The inline links hide below `lg`, but the drawer trigger was `sm:hidden` — between `sm` and `lg` there would have been no navigation at all. Both now switch at `lg`. Signed-out visitors also get a drawer, which they previously did not: without it Browse Shops was unreachable on a phone until you logged in.
+
+**`/shops`.** The route simply didn't exist — shops were reachable only from the six on the landing page. Now a full browse page with name/type search and three sort orders. Unrated shops sort *last* under "Highest rated" rather than as zero, so a brand-new shop isn't ranked below a badly-reviewed one. Filtering is client-side because the API returns the whole list and a single campus stays small; if that changes it should move to query parameters rather than growing a larger client-side sort.
+
+With the route real, `/shops` goes back into `sitemap.ts` — Phase 32 had to remove it after catching it advertising a 404 — and joins the footer's marketplace column.
+
