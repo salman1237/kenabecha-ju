@@ -9,7 +9,7 @@ push to main
     │
     ▼
 GitHub Actions
-    backend   alembic upgrade head · alembic check · pytest (85)
+    backend   alembic upgrade head · alembic check · pytest (231)
     frontend  npm ci · tsc --noEmit · next build
     │
     │  (only if every check passed)
