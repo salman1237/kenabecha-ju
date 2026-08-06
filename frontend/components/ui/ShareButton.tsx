@@ -4,6 +4,8 @@ import { Check, Share2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { useLanguage } from "@/context/LanguageContext";
+
 import { Button } from "@/components/ui/button";
 
 /**
@@ -13,6 +15,7 @@ import { Button } from "@/components/ui/button";
  * rather than surfaced as an error toast.
  */
 export function ShareButton({ title, text }: { title: string; text?: string }) {
+  const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
 
   const onShare = async () => {
@@ -32,7 +35,7 @@ export function ShareButton({ title, text }: { title: string; text?: string }) {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      toast.success("Link copied to clipboard");
+      toast.success(t.common.linkCopied);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Couldn't copy the link — you can copy it from the address bar.");
@@ -42,7 +45,7 @@ export function ShareButton({ title, text }: { title: string; text?: string }) {
   return (
     <Button variant="outline" size="sm" onClick={onShare}>
       {copied ? <Check /> : <Share2 />}
-      {copied ? "Copied" : "Share"}
+      {copied ? t.common.copied : t.common.share}
     </Button>
   );
 }

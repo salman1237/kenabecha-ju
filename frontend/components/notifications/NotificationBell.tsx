@@ -4,23 +4,15 @@ import { Bell } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { useLanguage } from "@/context/LanguageContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getNotifications, markAllNotificationsRead, markNotificationRead } from "@/lib/api/notifications";
 import { wsClient } from "@/lib/ws/client";
 import type { Notification } from "@/types/api";
 
-function timeAgo(iso: string) {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
 export function NotificationBell() {
+  const { t, fmt } = useLanguage();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -71,7 +63,7 @@ export function NotificationBell() {
 
   return (
     <div ref={containerRef} className="relative">
-      <Button variant="ghost" size="icon" className="relative" onClick={() => setOpen((v) => !v)} aria-label="Notifications">
+      <Button variant="ghost" size="icon" className="relative" onClick={() => setOpen((v) => !v)} aria-label={t.nav.notifications}>
         <Bell className="size-4.5" />
         {unreadCount > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-white">
@@ -104,7 +96,7 @@ export function NotificationBell() {
                       {!n.is_read && <Badge className="h-1.5 w-1.5 shrink-0 rounded-full p-0" />}
                     </div>
                     {n.body && <p className="truncate text-xs text-muted-foreground">{n.body}</p>}
-                    <span className="text-[10px] text-muted-foreground/70">{timeAgo(n.created_at)}</span>
+                    <span className="text-[10px] text-muted-foreground/70">{fmt.relativeTime(n.created_at)}</span>
                   </div>
                 );
                 return n.link_url ? (

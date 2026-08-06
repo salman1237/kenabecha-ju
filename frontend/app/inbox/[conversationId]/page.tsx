@@ -22,15 +22,10 @@ import {
 import { ApiError } from "@/lib/api/client";
 import { springSoft } from "@/lib/motion";
 import { cn, formatPrice, mediaUrl } from "@/lib/utils";
+import { useLanguage } from "@/context/LanguageContext";
+import { translateApiError } from "@/lib/i18n/errors";
 import { wsClient } from "@/lib/ws/client";
 import type { Conversation, Message } from "@/types/api";
-
-const STATUS_LABELS: Record<string, string> = {
-  active: "Active",
-  sold: "Sold",
-  out_of_stock: "Out of stock",
-  removed: "Removed",
-};
 
 function Avatar({
   url,
@@ -54,6 +49,7 @@ function Avatar({
 }
 
 function ProductCard({ conversation }: { conversation: Conversation }) {
+  const { t, fmt } = useLanguage();
   const { listing } = conversation;
   return (
     <Link
@@ -65,11 +61,11 @@ function ProductCard({ conversation }: { conversation: Conversation }) {
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className="truncate text-sm font-medium">{listing.title}</p>
-        <p className="text-sm text-muted-foreground">{formatPrice(listing.price, listing.price_type, listing.unit)}</p>
+        <p className="text-sm text-muted-foreground">{fmt.price(listing.price, listing.price_type, listing.unit)}</p>
       </div>
       {listing.status !== "active" && (
         <Badge variant="secondary" className="shrink-0">
-          {STATUS_LABELS[listing.status]}
+          {t.statuses[listing.status]}
         </Badge>
       )}
     </Link>
@@ -78,13 +74,14 @@ function ProductCard({ conversation }: { conversation: Conversation }) {
 
 /** Three bouncing dots shown while the other side is composing. */
 function TypingIndicator() {
+  const { t } = useLanguage();
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 6 }}
       className="flex items-center gap-1.5 rounded-2xl bg-muted px-3 py-2.5"
-      aria-label="Typing"
+      aria-label={t.inbox.typing}
     >
       {[0, 0.15, 0.3].map((delay) => (
         <motion.span
@@ -99,6 +96,7 @@ function TypingIndicator() {
 }
 
 export default function ChatWindowPage() {
+  const { t } = useLanguage();
   const params = useParams<{ conversationId: string }>();
   const { user } = useAuth();
   const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -117,7 +115,7 @@ export default function ChatWindowPage() {
 
   useEffect(() => {
     if (!user) return;
-    getConversation(params.conversationId).then(setConversation).catch(() => setError("Conversation not found."));
+    getConversation(params.conversationId).then(setConversation).catch(() => setError(t.inbox.notFound));
     getMessages(params.conversationId).then(setMessages);
     markConversationRead(params.conversationId).catch(() => {});
   }, [params.conversationId, user]);
@@ -197,7 +195,7 @@ export default function ChatWindowPage() {
       setMessages((prev) => [...prev, message]);
       setContent("");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not send message.");
+      setError(translateApiError(err, t));
     } finally {
       setSending(false);
     }
@@ -211,7 +209,7 @@ export default function ChatWindowPage() {
       setMessages((prev) => [...prev, message]);
       setContent("");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not send photo.");
+      setError(translateApiError(err, t));
     } finally {
       setUploading(false);
     }
@@ -302,7 +300,7 @@ export default function ChatWindowPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={mediaUrl(m.image_url)}
-                          alt={showCaption ? m.content : "Shared photo"}
+                          alt={showCaption ? m.content : t.inbox.sharedPhoto}
                           loading="lazy"
                           className="h-auto w-full object-cover"
                         />
@@ -354,7 +352,7 @@ export default function ChatWindowPage() {
           variant="outline"
           size="icon"
           className="size-10 shrink-0"
-          aria-label="Attach a photo"
+          aria-label={t.inbox.attach}
           loading={uploading}
           onClick={() => fileInputRef.current?.click()}
         >
@@ -384,7 +382,7 @@ export default function ChatWindowPage() {
               onSend();
             }
           }}
-          placeholder="Type a message…"
+          placeholder={t.inbox.messagePlaceholder}
           className="h-10 flex-1"
         />
         <Button

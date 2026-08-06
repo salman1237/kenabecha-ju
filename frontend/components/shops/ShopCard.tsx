@@ -1,10 +1,14 @@
+"use client";
+
 import Link from "next/link";
 
+import { useLanguage } from "@/context/LanguageContext";
 import { StarRating } from "@/components/ratings/StarRating";
 import { SmartImage } from "@/components/ui/SmartImage";
 import type { Shop } from "@/types/api";
 
 export function ShopCard({ shop }: { shop: Shop }) {
+  const { t, fmt } = useLanguage();
   return (
     <Link
       href={`/shops/${shop.slug}`}
@@ -24,7 +28,7 @@ export function ShopCard({ shop }: { shop: Shop }) {
       {shop.shop_type && <p className="text-xs text-muted-foreground">{shop.shop_type}</p>}
       <StarRating value={shop.average_rating} count={shop.rating_count} />
       <p className="text-xs text-muted-foreground">
-        {shop.listing_count} listing{shop.listing_count !== 1 ? "s" : ""}
+        {fmt.number(shop.listing_count)} {t.shops.listings}
       </p>
     </Link>
   );

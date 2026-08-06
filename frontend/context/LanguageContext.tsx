@@ -13,6 +13,7 @@ import {
   formatDate,
   formatDateTime,
   formatNumber,
+  formatPlainNumber,
   formatPriceLocalized,
   formatRelativeTime,
 } from "@/lib/i18n/format";
@@ -30,6 +31,7 @@ interface LanguageContextValue {
    *  English numeral on an otherwise Bangla page. */
   fmt: {
     number: (value: number) => string;
+    plainNumber: (value: number) => string;
     currency: (value: number | string) => string;
     date: (iso: string) => string;
     dateTime: (iso: string) => string;
@@ -72,6 +74,7 @@ export function LanguageProvider({
       t: MESSAGES[locale],
       fmt: {
         number: (v) => formatNumber(v, locale),
+        plainNumber: (v) => formatPlainNumber(v, locale),
         currency: (v) => formatCurrency(v, locale),
         date: (iso) => formatDate(iso, locale),
         dateTime: (iso) => formatDateTime(iso, locale),

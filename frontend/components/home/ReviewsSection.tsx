@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 
+import { useLanguage } from "@/context/LanguageContext";
 import { StarRating } from "@/components/ratings/StarRating";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { getRecentReviews } from "@/lib/api/public";
@@ -12,6 +13,7 @@ import { hoverLift, revealOnScroll, staggerContainer, staggerItem } from "@/lib/
 import type { PublicReview } from "@/types/api";
 
 export function ReviewsSection() {
+  const { t } = useLanguage();
   const [reviews, setReviews] = useState<PublicReview[]>([]);
 
   useEffect(() => {
@@ -30,9 +32,9 @@ export function ReviewsSection() {
       className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6"
     >
       <motion.div variants={staggerItem} className="mb-6">
-        <h2 className="text-2xl font-bold tracking-tight">What students are saying</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{t.sections.whatStudentsSay}</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Recent reviews left after real campus trades
+          {t.sections.recentReviews}
         </p>
       </motion.div>
 

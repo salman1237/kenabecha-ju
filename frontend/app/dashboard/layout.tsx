@@ -1,6 +1,9 @@
 "use client";
 
 import { Bookmark, LayoutDashboard, MessageSquare, Package, Settings, ShoppingBag } from "lucide-react";
+
+import { useLanguage } from "@/context/LanguageContext";
+import type { Translations } from "@/messages/en";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -8,16 +11,28 @@ import { buttonVariants } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 
+// Labels are resolved per render from the active translations rather than
+// frozen into a module constant at import time.
 const NAV = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
-  { href: "/dashboard/listings", label: "My listings", icon: Package },
-  { href: "/dashboard/saved", label: "Saved", icon: Bookmark },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
-  { href: "/shops/dashboard", label: "My shops", icon: ShoppingBag },
-  { href: "/inbox", label: "Inbox", icon: MessageSquare },
-];
+  { href: "/dashboard", key: "overview", icon: LayoutDashboard, exact: true },
+  { href: "/dashboard/listings", key: "myListings", icon: Package, exact: false },
+  { href: "/dashboard/saved", key: "saved", icon: Bookmark, exact: false },
+  { href: "/dashboard/settings", key: "settings", icon: Settings, exact: false },
+  { href: "/shops/dashboard", key: "myShops", icon: ShoppingBag, exact: false },
+  { href: "/inbox", key: "inbox", icon: MessageSquare, exact: false },
+] as const;
+
+const NAV_LABELS = {
+  overview: (t: Translations) => t.dashboard.overview,
+  myListings: (t: Translations) => t.dashboard.myListings,
+  saved: (t: Translations) => t.nav.saved,
+  settings: (t: Translations) => t.nav.settings,
+  myShops: (t: Translations) => t.nav.myShops,
+  inbox: (t: Translations) => t.nav.inbox,
+} as const;
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   const pathname = usePathname();
   const { user, isLoading } = useAuth();
 
@@ -38,7 +53,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <aside className="lg:w-52 lg:shrink-0">
           {/* Horizontal scroller on mobile, vertical rail on desktop */}
           <nav className="flex gap-1 overflow-x-auto pb-2 lg:sticky lg:top-24 lg:flex-col lg:overflow-visible lg:pb-0">
-            {NAV.map(({ href, label, icon: Icon, exact }) => {
+            {NAV.map(({ href, key, icon: Icon, exact }) => {
+              const label = NAV_LABELS[key](t);
               const active = exact ? pathname === href : pathname.startsWith(href);
               return (
                 <Link

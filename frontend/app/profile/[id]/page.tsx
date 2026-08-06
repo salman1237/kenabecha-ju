@@ -5,6 +5,9 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useLanguage } from "@/context/LanguageContext";
+import { translateApiError } from "@/lib/i18n/errors";
+
 import { ListingCard } from "@/components/listings/ListingCard";
 import { StarRating } from "@/components/ratings/StarRating";
 import { ReportButton } from "@/components/ReportButton";
@@ -24,6 +27,7 @@ import { SmartImage } from "@/components/ui/SmartImage";
 import type { Listing, UserProfile } from "@/types/api";
 
 function AvatarPicker() {
+  const { t } = useLanguage();
   const { user, setUser } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -35,7 +39,7 @@ function AvatarPicker() {
     try {
       setUser(await uploadAvatar(file));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not upload photo.");
+      toast.error(translateApiError(err, t));
     } finally {
       setUploading(false);
     }
@@ -47,7 +51,7 @@ function AvatarPicker() {
       onClick={() => inputRef.current?.click()}
       disabled={uploading}
       className="group relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-lg font-semibold text-muted-foreground"
-      title="Change photo"
+      title={t.profile.changePhoto}
     >
       <SmartImage
         src={user.avatar_url}
@@ -56,7 +60,7 @@ function AvatarPicker() {
         fallback={<span className="text-lg font-semibold">{user.full_name.charAt(0).toUpperCase()}</span>}
       />
       <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 text-[9px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-        {uploading ? "…" : "Change"}
+        {uploading ? "…" : t.shops.change}
       </span>
       <input
         ref={inputRef}
@@ -74,6 +78,7 @@ function AvatarPicker() {
 }
 
 function ProfileEditForm({ onDone }: { onDone: () => void }) {
+  const { t } = useLanguage();
   const { user, setUser } = useAuth();
   const [fullName, setFullName] = useState(user?.full_name ?? "");
   const [bio, setBio] = useState(user?.bio ?? "");
@@ -90,10 +95,10 @@ function ProfileEditForm({ onDone }: { onDone: () => void }) {
       await updateProfile({ full_name: fullName.trim(), bio: bio.trim() || null });
       const updated = await updateWhatsAppNumber(whatsapp.trim() || null);
       setUser(updated);
-      toast.success("Profile updated");
+      toast.success(t.profile.updated);
       onDone();
     } catch (err) {
-      setFieldError(err instanceof ApiError ? err.message : "Could not update profile.");
+      setFieldError(translateApiError(err, t));
     } finally {
       setSaving(false);
     }
@@ -103,18 +108,18 @@ function ProfileEditForm({ onDone }: { onDone: () => void }) {
     <div className="flex flex-col gap-4 rounded-lg border border-border p-4">
       <div className="flex items-center gap-4">
         <AvatarPicker />
-        <p className="text-xs text-muted-foreground">Click your photo to change it.</p>
+        <p className="text-xs text-muted-foreground">{t.profile.clickPhoto}</p>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="full_name">Name</Label>
+        <Label htmlFor="full_name">{t.profile.name}</Label>
         <Input id="full_name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="bio">Bio</Label>
+        <Label htmlFor="bio">{t.profile.bio}</Label>
         <Textarea id="bio" rows={3} value={bio} onChange={(e) => setBio(e.target.value)} />
       </div>
       <div className="flex flex-col gap-1.5 sm:max-w-xs">
-        <Label htmlFor="whatsapp_number">WhatsApp number</Label>
+        <Label htmlFor="whatsapp_number">{t.profile.whatsappNumber}</Label>
         <Input
           id="whatsapp_number"
           placeholder="01XXXXXXXXX"
@@ -122,16 +127,16 @@ function ProfileEditForm({ onDone }: { onDone: () => void }) {
           onChange={(e) => setWhatsapp(e.target.value)}
         />
         <p className="text-xs text-muted-foreground">
-          Buyers will also see a Call button using your verified phone ({user.phone ?? "not set"}).
+          {t.profile.callHint} ({user.phone ?? t.profile.notSet}).
         </p>
       </div>
       {fieldError && <p className="text-xs text-destructive">{fieldError}</p>}
       <div className="flex items-center gap-2">
         <Button size="sm" onClick={onSave} disabled={saving}>
-          {saving ? "Saving…" : "Save"}
+          {saving ? t.common.saving : t.common.save}
         </Button>
         <Button size="sm" variant="outline" onClick={onDone} disabled={saving}>
-          Cancel
+          {t.common.cancel}
         </Button>
       </div>
     </div>
@@ -139,19 +144,21 @@ function ProfileEditForm({ onDone }: { onDone: () => void }) {
 }
 
 function AccountDetails({ profile, isOwnProfile }: { profile: UserProfile; isOwnProfile: boolean }) {
+  const { t } = useLanguage();
+  const unset = t.profile.notSet;
   const rows: [string, string][] = [
-    ["Email", profile.email],
-    ["Phone", profile.phone ?? "Not set"],
-    ["WhatsApp", profile.whatsapp_number ?? "Not set"],
-    ["Student ID", profile.student_id ?? "Not set"],
-    ["Registration no.", profile.registration_no ?? "Not set"],
-    ["Hall", profile.hall?.name ?? "Not set"],
-    ["Session", profile.session ?? "Not set"],
+    [t.profile.email, profile.email],
+    [t.profile.phone, profile.phone ?? unset],
+    [t.profile.whatsapp, profile.whatsapp_number ?? unset],
+    [t.profile.studentId, profile.student_id ?? unset],
+    [t.profile.registrationNo, profile.registration_no ?? unset],
+    [t.profile.hall, profile.hall?.name ?? unset],
+    [t.profile.session, profile.session ?? unset],
   ];
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border p-4">
-      <p className="text-sm font-medium">Account details</p>
+      <p className="text-sm font-medium">{t.profile.accountDetails}</p>
       <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
         {rows.map(([label, value]) => (
           <div key={label} className="flex items-baseline justify-between gap-3 text-sm sm:justify-start">
@@ -162,8 +169,7 @@ function AccountDetails({ profile, isOwnProfile }: { profile: UserProfile; isOwn
       </dl>
       {!profile.profile_complete && isOwnProfile && (
         <p className="text-xs text-muted-foreground">
-          Your JU verification isn&apos;t complete yet, so some fields above are empty — you&apos;ll be
-          asked to fill them in the first time you try to sell.
+          {t.profile.verifyIncomplete}
         </p>
       )}
     </div>
@@ -171,6 +177,7 @@ function AccountDetails({ profile, isOwnProfile }: { profile: UserProfile; isOwn
 }
 
 export default function ProfilePage() {
+  const { t, fmt } = useLanguage();
   const params = useParams<{ id: string }>();
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -230,13 +237,14 @@ export default function ProfilePage() {
               <h1 className="text-2xl font-semibold tracking-tight">{profile.full_name}</h1>
               {profile.profile_complete && (
                 <Badge variant="secondary" className="text-primary">
-                  JU Verified
+                  {t.profile.juVerified}
                 </Badge>
               )}
             </div>
             {profile.department && (
               <p className="text-sm text-muted-foreground">
-                {profile.department.name} · Batch {profile.batch}
+                {profile.department.name}
+                {profile.batch !== null && ` · ${t.profile.batch} ${fmt.plainNumber(profile.batch)}`}
               </p>
             )}
           </div>
@@ -244,13 +252,13 @@ export default function ProfilePage() {
         {profile.bio && <p className="text-sm text-foreground/90">{profile.bio}</p>}
         <StarRating value={profile.average_rating} count={profile.rating_count} size="md" />
         <p className="text-xs text-muted-foreground">
-          Member since {new Date(profile.created_at).toLocaleDateString(undefined, { year: "numeric", month: "long" })}
+          {t.profile.memberSince} {fmt.date(profile.created_at)}
         </p>
         <div className="mt-1 flex items-center gap-3">
           {isOwnProfile ? (
             !editing && (
               <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-                Edit profile
+                {t.profile.editProfile}
               </Button>
             )
           ) : (
@@ -271,9 +279,9 @@ export default function ProfilePage() {
       {!(isOwnProfile && editing) && <AccountDetails profile={profile} isOwnProfile={isOwnProfile} />}
 
       <div className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Personal listings</h2>
+        <h2 className="text-lg font-medium">{t.profile.personalListings}</h2>
         {listings.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No personal listings.</p>
+          <p className="text-sm text-muted-foreground">{t.profile.noPersonalListings}</p>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
             {listings.map((listing) => (
@@ -309,7 +317,7 @@ export default function ProfilePage() {
 
       {profile.recent_ratings.length > 0 && (
         <div className="flex flex-col gap-3">
-          <h2 className="text-lg font-medium">Reviews</h2>
+          <h2 className="text-lg font-medium">{t.profile.reviews}</h2>
           <div className="flex flex-col divide-y divide-border">
             {profile.recent_ratings.map((rating) => (
               <div key={rating.id} className="flex flex-col gap-1 py-3">

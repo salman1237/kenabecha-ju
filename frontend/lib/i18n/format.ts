@@ -11,6 +11,13 @@ export function formatNumber(value: number, locale: Locale): string {
   return new Intl.NumberFormat(INTL_LOCALE[locale]).format(value);
 }
 
+/** Years, IDs and similar bare numbers: localised digits but no thousands
+ *  separator. Plain formatNumber turns 2026 into "2,026" / "২,০২৬", which
+ *  reads as a quantity rather than a year. */
+export function formatPlainNumber(value: number, locale: Locale): string {
+  return new Intl.NumberFormat(INTL_LOCALE[locale], { useGrouping: false }).format(value);
+}
+
 /** Money, with the Taka sign kept on the left in both languages — that's how
  *  prices are written on campus regardless of which language is being spoken. */
 export function formatCurrency(value: number | string, locale: Locale): string {

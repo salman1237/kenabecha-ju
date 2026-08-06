@@ -6,6 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { useLanguage } from "@/context/LanguageContext";
+import { translateApiError } from "@/lib/i18n/errors";
+
 import { CompleteProfilePrompt } from "@/components/auth/CompleteProfilePrompt";
 import {
   AlertDialog,
@@ -32,6 +35,7 @@ import { type ShopFormValues, shopSchema } from "@/lib/validation/shop";
 import type { Shop } from "@/types/api";
 
 function ShopLogoPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Shop) => void }) {
+  const { t } = useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -41,7 +45,7 @@ function ShopLogoPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Sho
       const updated = await uploadShopLogo(shop.id, file);
       onUpdated(updated);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not upload logo.");
+      toast.error(translateApiError(err, t));
     } finally {
       setUploading(false);
     }
@@ -53,7 +57,7 @@ function ShopLogoPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Sho
       onClick={() => inputRef.current?.click()}
       disabled={uploading}
       className="group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-semibold text-muted-foreground"
-      title="Change logo"
+      title={t.shops.changeLogo}
     >
       <SmartImage
         src={shop.logo_url}
@@ -62,7 +66,7 @@ function ShopLogoPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Sho
         fallback={<span className="text-sm font-semibold">{shop.shop_name.charAt(0).toUpperCase()}</span>}
       />
       <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 text-[9px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-        {uploading ? "…" : "Change"}
+        {uploading ? "…" : t.shops.change}
       </span>
       <input
         ref={inputRef}
@@ -80,6 +84,7 @@ function ShopLogoPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Sho
 }
 
 function ShopCoverPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Shop) => void }) {
+  const { t } = useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -89,7 +94,7 @@ function ShopCoverPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Sh
       const updated = await uploadShopCover(shop.id, file);
       onUpdated(updated);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not upload cover image.");
+      toast.error(translateApiError(err, t));
     } finally {
       setUploading(false);
     }
@@ -102,9 +107,9 @@ function ShopCoverPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Sh
       disabled={uploading}
       className="group relative flex h-24 w-full items-center justify-center overflow-hidden rounded-md bg-muted text-xs font-medium text-muted-foreground"
     >
-      <SmartImage src={shop.cover_url} alt="" sizes="100vw" fallback="No cover image" />
+      <SmartImage src={shop.cover_url} alt="" sizes="100vw" fallback={t.shops.noCoverImage} />
       <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-        {uploading ? "Uploading…" : "Change cover"}
+        {uploading ? t.shops.uploading : t.shops.changeCover}
       </span>
       <input
         ref={inputRef}
@@ -132,6 +137,7 @@ function ShopEditForm({
   onSaved: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useLanguage();
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -157,7 +163,7 @@ function ShopEditForm({
       onUpdated(updated);
       onSaved();
     } catch (err) {
-      setServerError(err instanceof ApiError ? err.message : "Could not update shop.");
+      setServerError(translateApiError(err, t));
     }
   };
 
@@ -167,7 +173,7 @@ function ShopEditForm({
         <ShopCoverPicker shop={shop} onUpdated={onUpdated} />
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`shop_name_${shop.id}`}>Shop name</Label>
+            <Label htmlFor={`shop_name_${shop.id}`}>{t.shops.shopName}</Label>
             <Input id={`shop_name_${shop.id}`} {...register("shop_name")} />
             {errors.shop_name && <p className="text-xs text-destructive">{errors.shop_name.message}</p>}
           </div>
@@ -196,6 +202,7 @@ function ShopEditForm({
 
 export default function MyShopsPage() {
   const { user, isLoading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -269,9 +276,9 @@ export default function MyShopsPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-12 sm:px-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">My Shops</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t.shops.myShops}</h1>
         <Button onClick={() => setShowForm((v) => !v)} variant={showForm ? "outline" : "default"}>
-          {showForm ? "Cancel" : "New shop"}
+          {showForm ? t.common.cancel : t.shops.newShop2}
         </Button>
       </div>
 
@@ -280,7 +287,7 @@ export default function MyShopsPage() {
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="shop_name">Shop name</Label>
+                <Label htmlFor="shop_name">{t.shops.shopName}</Label>
                 <Input id="shop_name" {...register("shop_name")} />
                 {errors.shop_name && <p className="text-xs text-destructive">{errors.shop_name.message}</p>}
               </div>
@@ -318,7 +325,7 @@ export default function MyShopsPage() {
           ))}
         </div>
       ) : shops.length === 0 ? (
-        <p className="text-sm text-muted-foreground">You don&apos;t have any shops yet.</p>
+        <p className="text-sm text-muted-foreground">{t.shops.noShops}</p>
       ) : (
         <div className="flex flex-col gap-3">
           {shops.map((shop) =>

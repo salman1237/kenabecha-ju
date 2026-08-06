@@ -119,7 +119,7 @@ export function ListingFilters({
           <option value="">{t.browse.allCategories}</option>
           {categories.map((cat) => (
             <optgroup key={cat.id} label={`${cat.icon || ""} ${cat.name}`.trim()}>
-              <option value={cat.slug}>{cat.name} (All)</option>
+              <option value={cat.slug}>{cat.name} ({t.browse.allInCategory})</option>
               {cat.children.map((child) => (
                 <option key={child.id} value={child.slug}>
                   {child.name}

@@ -100,6 +100,8 @@ I18N-01→04 — the `LanguageContext` and `messages/{en,bn}.ts` existed but cov
 
 **I18N-03 — formatting.** `Intl` with the `bn-BD` locale gives Bengali numerals (০১২৩৪৫৬৭৮৯), Bangla month names, and correct relative-time grammar. The formatters are exposed pre-bound to the active locale as `fmt.*` on the context, so call sites can't forget to thread the locale through — the usual cause of a stray English numeral on an otherwise Bangla page.
 
+**Coverage.** Verified by rendering every major route in Bangla and flagging *any* remaining Latin-script word rather than only checking the strings I'd changed — the narrower check passed while breadcrumbs, stat tiles, tabs and the Share button were still English. All application strings are now translated. What remains Latin is database content: category names, hall and department names, and user-written listing titles and reviews. Translating those needs bilingual columns in the reference tables, which is a data/schema change rather than a frontend one.
+
 **I18N-04 — backend error codes.** Responses now carry a stable `code` next to the English `detail`, via an `AppError` subclass and a dedicated exception handler. `translateApiError` maps code → translated string, falling back to the server's `detail` for unknown codes and to a network message for non-API failures, so an error can never render blank. Deliberately additive: plain `HTTPException` is unchanged and simply has no code, so raise sites migrate one at a time instead of in a flag day.
 
 ### Phase 32 — SEO, error boundaries, 404 & mobile bottom nav

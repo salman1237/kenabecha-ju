@@ -4,6 +4,8 @@ import { animate, motion, useInView, useReducedMotion } from "motion/react";
 import { Package, ShoppingBag, Star, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { useLanguage } from "@/context/LanguageContext";
+import type { Translations } from "@/messages/en";
 import { getPublicStats } from "@/lib/api/public";
 import { revealOnScroll, staggerContainer, staggerItem } from "@/lib/motion";
 import type { PublicStats } from "@/types/api";
@@ -40,13 +42,14 @@ function CountUp({ value }: { value: number }) {
 }
 
 const ITEMS = [
-  { key: "total_users", label: "Students", icon: Users },
-  { key: "total_active_listings", label: "Active listings", icon: Package },
-  { key: "total_shops", label: "Campus shops", icon: ShoppingBag },
-  { key: "total_ratings", label: "Ratings given", icon: Star },
+  { key: "total_users", label: (t: Translations) => t.sections.students, icon: Users },
+  { key: "total_active_listings", label: (t: Translations) => t.sections.activeListings, icon: Package },
+  { key: "total_shops", label: (t: Translations) => t.sections.campusShops, icon: ShoppingBag },
+  { key: "total_ratings", label: (t: Translations) => t.sections.ratingsGiven, icon: Star },
 ] as const;
 
 export function StatsSection() {
+  const { t } = useLanguage();
   const [stats, setStats] = useState<PublicStats | null>(null);
 
   useEffect(() => {
@@ -78,7 +81,7 @@ export function StatsSection() {
             <span className="text-2xl font-extrabold tracking-tight sm:text-3xl">
               <CountUp value={stats[key]} />
             </span>
-            <span className="text-xs font-medium text-muted-foreground">{label}</span>
+            <span className="text-xs font-medium text-muted-foreground">{label(t)}</span>
           </motion.div>
         ))}
       </div>

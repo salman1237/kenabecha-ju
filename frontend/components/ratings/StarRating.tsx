@@ -1,5 +1,8 @@
+"use client";
+
 import { Star } from "lucide-react";
 
+import { useLanguage } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 
 export function StarRating({
@@ -11,8 +14,9 @@ export function StarRating({
   count?: number;
   size?: "sm" | "md";
 }) {
+  const { t } = useLanguage();
   if (value === null) {
-    return <span className="text-xs text-muted-foreground">No ratings yet</span>;
+    return <span className="text-xs text-muted-foreground">{t.shops.noRatingsYet}</span>;
   }
   const rounded = Math.round(value);
   const starSize = size === "md" ? "size-4" : "size-3.5";

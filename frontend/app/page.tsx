@@ -130,7 +130,7 @@ export default function Home() {
           {/* Trending Tags */}
           {tags.length > 0 && (
             <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
-              <span className="text-xs text-muted-foreground font-medium">Trending:</span>
+              <span className="text-xs text-muted-foreground font-medium">{t.sections.trending}</span>
               {tags.slice(0, 8).map((tag) => (
                 <Link key={tag.id} href={`/listings?tags=${encodeURIComponent(tag.name)}`}>
                   <Badge variant="secondary" className="cursor-pointer rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 transition-colors">
@@ -259,7 +259,7 @@ export default function Home() {
       >
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tight">{t.sections.howItWorks}</h2>
-          <p className="text-sm text-muted-foreground mt-2">Simple, secure, and made for Jahangirnagar University</p>
+          <p className="text-sm text-muted-foreground mt-2">{t.cta.tagline}</p>
         </div>
 
         <div className="grid gap-8 sm:grid-cols-3">

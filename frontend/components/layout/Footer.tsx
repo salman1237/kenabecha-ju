@@ -121,7 +121,7 @@ export function Footer() {
           className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-6 sm:flex-row"
         >
           <p className="text-xs text-muted-foreground">
-            © {fmt.number(year)} KenaBecha JU. {t.footer.rights}
+            © {fmt.plainNumber(year)} KenaBecha JU. {t.footer.rights}
           </p>
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Send className="size-3" />

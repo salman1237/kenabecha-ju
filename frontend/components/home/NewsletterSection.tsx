@@ -4,6 +4,7 @@ import { CheckCircle2, Mail } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 
+import { useLanguage } from "@/context/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/ErrorState";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { subscribeNewsletter } from "@/lib/api/public";
 import { revealOnScroll, scaleIn, staggerContainer, staggerItem } from "@/lib/motion";
 
 export function NewsletterSection() {
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -30,8 +32,8 @@ export function NewsletterSection() {
       setStatus("idle");
       setError(
         err instanceof ApiError && err.status === 422
-          ? "That doesn't look like a valid email address."
-          : "Couldn't subscribe right now — please try again."
+          ? t.newsletter.invalidEmail
+          : t.newsletter.failed
       );
     }
   };
@@ -60,13 +62,13 @@ export function NewsletterSection() {
           variants={staggerItem}
           className="relative text-2xl font-bold tracking-tight text-white sm:text-3xl"
         >
-          Never miss a good deal
+          {t.newsletter.title}
         </motion.h2>
         <motion.p
           variants={staggerItem}
           className="relative mx-auto mt-2 max-w-md text-sm text-white/80"
         >
-          Get a short weekly digest of the best new listings on campus. No spam, unsubscribe anytime.
+          {t.newsletter.body}
         </motion.p>
 
         <motion.div variants={staggerItem} className="relative mt-6">
@@ -79,7 +81,7 @@ export function NewsletterSection() {
                 className="flex items-center justify-center gap-2 text-sm font-medium text-white"
               >
                 <CheckCircle2 className="size-4" />
-                You&apos;re subscribed — watch your inbox.
+                {t.newsletter.done}
               </motion.p>
             ) : (
               <motion.form
@@ -96,16 +98,16 @@ export function NewsletterSection() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@juniv.edu"
-                    aria-label="Email address"
+                    aria-label={t.newsletter.emailLabel}
                     className="h-11 flex-1 border-white/25 bg-white/15 text-white placeholder:text-white/60 focus-visible:border-white/60 focus-visible:ring-white/30"
                   />
                   <Button
                     type="submit"
                     loading={status === "loading"}
-                    loadingText="Joining…"
+                    loadingText={t.newsletter.joining}
                     className="h-11 shrink-0 bg-white px-5 text-emerald-700 hover:bg-white/90"
                   >
-                    Subscribe
+                    {t.newsletter.subscribe}
                   </Button>
                 </div>
                 <div className="text-left">

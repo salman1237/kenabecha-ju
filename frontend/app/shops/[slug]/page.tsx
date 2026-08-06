@@ -6,6 +6,8 @@ import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { useLanguage } from "@/context/LanguageContext";
+
 import { ListingCard } from "@/components/listings/ListingCard";
 import { StarRating } from "@/components/ratings/StarRating";
 import { ReportButton } from "@/components/ReportButton";
@@ -42,6 +44,7 @@ function StatTile({
 }
 
 export default function ShopStorefrontPage() {
+  const { t, fmt } = useLanguage();
   const params = useParams<{ slug: string }>();
   const router = useRouter();
   const { user } = useAuth();
@@ -86,7 +89,7 @@ export default function ShopStorefrontPage() {
           : prev
       );
     } catch {
-      toast.error("Couldn't update follow — please try again.");
+      toast.error(t.shops.followFailed);
     } finally {
       setFollowing(false);
     }
@@ -121,8 +124,8 @@ export default function ShopStorefrontPage() {
       <motion.div variants={staggerItem}>
         <Breadcrumbs
           items={[
-            { label: "Home", href: "/" },
-            { label: "Listings", href: "/listings" },
+            { label: t.common.home, href: "/" },
+            { label: t.shops.listingsTab, href: "/listings" },
             { label: shop.shop_name },
           ]}
         />
@@ -178,7 +181,7 @@ export default function ShopStorefrontPage() {
                 onClick={onToggleFollow}
               >
                 {!following && <UserPlus />}
-                {stats?.is_following ? "Following" : "Follow"}
+                {stats?.is_following ? t.shops.following : t.shops.follow}
               </Button>
             )}
           </div>
@@ -192,13 +195,13 @@ export default function ShopStorefrontPage() {
       {/* Stats row */}
       {stats && (
         <motion.div variants={staggerItem} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatTile icon={Package} value={stats.active_listings} label="Active listings" />
-          <StatTile icon={ShoppingBag} value={stats.sold_count} label="Sold" />
-          <StatTile icon={Users} value={stats.followers} label="Followers" />
+          <StatTile icon={Package} value={stats.active_listings} label={t.shops.activeListings} />
+          <StatTile icon={ShoppingBag} value={stats.sold_count} label={t.shops.sold} />
+          <StatTile icon={Users} value={stats.followers} label={t.shops.followers} />
           <StatTile
             icon={Star}
             value={stats.average_rating ? stats.average_rating.toFixed(1) : "—"}
-            label={`${stats.review_count} reviews`}
+            label={`${fmt.number(stats.review_count)} ${t.shops.reviewsCount}`}
           />
         </motion.div>
       )}
@@ -206,15 +209,15 @@ export default function ShopStorefrontPage() {
       <motion.div variants={staggerItem}>
         <Tabs defaultValue="listings">
           <TabsList>
-            <TabsTrigger value="listings">Listings ({listings.length})</TabsTrigger>
-            <TabsTrigger value="reviews">Reviews ({reviews.length})</TabsTrigger>
+            <TabsTrigger value="listings">{t.shops.listingsTab} ({fmt.number(listings.length)})</TabsTrigger>
+            <TabsTrigger value="reviews">{t.shops.reviewsTab} ({fmt.number(reviews.length)})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="listings" className="pt-5">
             {listings.length === 0 ? (
               <EmptyState
                 icon={Package}
-                title="No active listings"
+                title={t.shops.noActiveListings}
                 description={`${shop.shop_name} hasn't listed anything right now — follow to hear about new stock.`}
               />
             ) : (
@@ -230,8 +233,8 @@ export default function ShopStorefrontPage() {
             {reviews.length === 0 ? (
               <EmptyState
                 icon={Star}
-                title="No reviews yet"
-                description="Buyers can review this shop after a completed trade."
+                title={t.shops.noReviews}
+                description={t.shops.noReviewsBody}
               />
             ) : (
               <div className="flex flex-col divide-y divide-border">

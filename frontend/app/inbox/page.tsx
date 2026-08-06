@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/context/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
 import { getConversations } from "@/lib/api/chat";
@@ -11,18 +12,8 @@ import { SmartImage } from "@/components/ui/SmartImage";
 import { wsClient } from "@/lib/ws/client";
 import type { Conversation } from "@/types/api";
 
-function timeAgo(iso: string | null) {
-  if (!iso) return "";
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
 export default function InboxPage() {
+  const { t, fmt } = useLanguage();
   const { user, isLoading: authLoading } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,12 +60,17 @@ export default function InboxPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-12 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{t.inbox.title}</h1>
 
       {shopTabs.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {["all", "personal", ...shopTabs.map(([id]) => id)].map((key) => {
-            const label = key === "all" ? "All" : key === "personal" ? "Personal" : shopTabs.find(([id]) => id === key)?.[1];
+            const label =
+              key === "all"
+                ? t.inbox.all
+                : key === "personal"
+                  ? t.inbox.personal
+                  : shopTabs.find(([id]) => id === key)?.[1];
             return (
               <button type="button" key={key} onClick={() => setFilter(key)}>
                 <Badge variant={filter === key ? "default" : "outline"} className="cursor-pointer">
@@ -93,7 +89,7 @@ export default function InboxPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No conversations yet.</p>
+        <p className="text-sm text-muted-foreground">{t.inbox.noConversations}</p>
       ) : (
         <div className="flex flex-col divide-y divide-border">
           {filtered.map((c) => {
@@ -111,7 +107,7 @@ export default function InboxPage() {
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{displayName}</span>
                     <Badge variant="secondary" className="text-[10px]">
-                      {c.shop ? c.shop.shop_name : "Personal"}
+                      {c.shop ? c.shop.shop_name : t.inbox.personal}
                     </Badge>
                   </div>
                   <p className="truncate text-xs text-muted-foreground">{c.listing.title}</p>
@@ -120,7 +116,7 @@ export default function InboxPage() {
                   )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-xs text-muted-foreground/70">{timeAgo(c.last_message_at)}</span>
+                  <span className="text-xs text-muted-foreground/70">{c.last_message_at ? fmt.relativeTime(c.last_message_at) : ""}</span>
                   {c.unread_count > 0 && (
                     <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-medium text-primary-foreground">
                       {c.unread_count}

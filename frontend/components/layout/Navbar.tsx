@@ -85,7 +85,7 @@ export function Navbar() {
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-xs font-bold text-white shadow-xs">
                     {user.full_name.charAt(0).toUpperCase()}
                   </span>
-                  <span className="sr-only">Account menu</span>
+                  <span className="sr-only">{t.nav.accountMenu}</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 rounded-xl border-emerald-500/15 p-1.5 shadow-xl">
                   <DropdownMenuGroup>
@@ -122,7 +122,7 @@ export function Navbar() {
               <Sheet>
                 <SheetTrigger render={<Button variant="ghost" size="icon" className="sm:hidden" />}>
                   <Menu className="size-5" />
-                  <span className="sr-only">Menu</span>
+                  <span className="sr-only">{t.nav.menu}</span>
                 </SheetTrigger>
                 <SheetContent side="right" className="rounded-l-2xl border-l-emerald-500/20">
                   <SheetHeader>

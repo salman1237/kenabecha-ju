@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/AuthContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { SkipLinkLabel } from "@/components/layout/SkipLinkLabel";
 import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE } from "@/lib/i18n/config";
 
 const inter = Inter({
@@ -61,7 +62,7 @@ export default async function RootLayout({
                   href="#main-content"
                   className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-xl focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-[var(--shadow-soft-lg)]"
                 >
-                  Skip to content
+                  <SkipLinkLabel />
                 </a>
                 <Navbar />
                 <main id="main-content" tabIndex={-1} className="flex-1">
