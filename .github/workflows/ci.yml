@@ -46,8 +46,11 @@ jobs:
       # writable. Left unset, importing the app raises PermissionError before
       # a single test runs. The app is deliberately strict here — an
       # unwritable media directory means uploads fail — so CI supplies a
-      # writable path rather than the app being made lenient.
-      MEDIA_ROOT: ${{ runner.temp }}/media
+      # writable path rather than the app being made lenient. A literal path,
+      # not ${{ runner.temp }} — the `runner` context does not exist in a
+      # job-level env block, and referencing it makes GitHub reject the whole
+      # workflow before any job starts.
+      MEDIA_ROOT: /tmp/kenabecha-media
 
     steps:
       - uses: actions/checkout@v4
