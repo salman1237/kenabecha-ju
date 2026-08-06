@@ -1,6 +1,10 @@
 # env files
 .env
 .env.local
+# Real production values live here, never committed. `.env` above does not
+# match this — gitignore patterns are exact filenames, not prefixes — and the
+# repo is public, so the omission would have published the secrets.
+.env.prod
 !*.env.example
 !.env.prod.example
 
