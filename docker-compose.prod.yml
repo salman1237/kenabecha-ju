@@ -1,3 +1,19 @@
+# Routing note
+# -----------
+# There are deliberately no traefik.* labels here. Dokploy's Domains tab
+# generates them, using the certificate-resolver and network names its own
+# Traefik instance is configured with — hand-written labels have to guess
+# both, and a wrong guess means certificates silently never issue.
+#
+# Configure in Dokploy → service → Domains:
+#   kenabechaju.deshlet.com      → service: frontend, port 3000, HTTPS on
+#   api.kenabechaju.deshlet.com  → service: backend,  port 8000, HTTPS on
+#
+# The API needs its own domain because the browser calls it directly, for
+# every request and for the chat WebSocket (NEXT_PUBLIC_API_URL). Uploaded
+# media does NOT need one: Next proxies /media to the backend over the
+# container network (see next.config.ts), keeping image URLs same-origin.
+
 services:
   db:
     image: postgres:16-alpine
@@ -47,23 +63,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    labels:
-      # The API needs its own public hostname: the browser calls it directly
-      # for every request and for the chat WebSocket (NEXT_PUBLIC_API_URL),
-      # so keeping the backend internal-only would leave the site unable to
-      # load anything. Uploaded media does NOT need a route here — Next
-      # proxies /media to the backend over the container network
-      # (see next.config.ts), which is what keeps image URLs same-origin.
-      - "traefik.enable=true"
-      - "traefik.docker.network=dokploy-network"
-      - "traefik.http.routers.kenabecha-api.rule=Host(`${API_DOMAIN}`)"
-      - "traefik.http.routers.kenabecha-api.entrypoints=websecure"
-      - "traefik.http.routers.kenabecha-api.tls.certresolver=letsencrypt"
-      - "traefik.http.services.kenabecha-api.loadbalancer.server.port=8000"
-      - "traefik.http.routers.kenabecha-api-insecure.rule=Host(`${API_DOMAIN}`)"
-      - "traefik.http.routers.kenabecha-api-insecure.entrypoints=web"
-      - "traefik.http.routers.kenabecha-api-insecure.middlewares=kenabecha-https"
-      - "traefik.http.middlewares.kenabecha-https.redirectscheme.scheme=https"
 
   frontend:
     build:
@@ -95,21 +94,6 @@ services:
       # backend can answer produces a first paint with missing data.
       backend:
         condition: service_healthy
-    labels:
-      # Dokploy runs Traefik. The frontend serves the site itself; the API
-      # is published separately on API_DOMAIN (see the backend service),
-      # because the browser talks to it directly.
-      - "traefik.enable=true"
-      - "traefik.docker.network=dokploy-network"
-      - "traefik.http.routers.kenabecha.rule=Host(`${APP_DOMAIN}`)"
-      - "traefik.http.routers.kenabecha.entrypoints=websecure"
-      - "traefik.http.routers.kenabecha.tls.certresolver=letsencrypt"
-      - "traefik.http.services.kenabecha.loadbalancer.server.port=3000"
-      # Redirect plain HTTP to HTTPS rather than serving both.
-      - "traefik.http.routers.kenabecha-insecure.rule=Host(`${APP_DOMAIN}`)"
-      - "traefik.http.routers.kenabecha-insecure.entrypoints=web"
-      - "traefik.http.routers.kenabecha-insecure.middlewares=kenabecha-https"
-      - "traefik.http.middlewares.kenabecha-https.redirectscheme.scheme=https"
 
   # Nightly pg_dump into a named volume. Not a substitute for off-host
   # backups — a dump sitting on the same VPS is lost with the VPS — but it

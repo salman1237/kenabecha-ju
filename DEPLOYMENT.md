@@ -73,7 +73,25 @@ Paste the contents of [`.env.prod.example`](.env.prod.example) into Dokploy's
 > `NEXT_PUBLIC_*` values are **baked into the frontend image at build time**, not read at
 > runtime. Changing one requires a rebuild, not just a restart.
 
-## 3. First deploy
+## 3. Set the domains
+
+Routing is configured in Dokploy, not in the compose file — Dokploy writes the Traefik
+labels itself using the resolver and network names its own Traefik has, which
+hand-written labels can only guess at.
+
+Service → **Domains** → **Add Domain**, twice:
+
+| Host | Service | Container Port | HTTPS |
+|---|---|---|---|
+| `kenabechaju.deshlet.com` | `frontend` | `3000` | on (Let's Encrypt) |
+| `api.kenabechaju.deshlet.com` | `backend` | `8000` | on (Let's Encrypt) |
+
+The API needs its own domain because the browser calls it directly — for every request
+and for the chat WebSocket. Uploaded media does **not** need one: Next proxies `/media`
+to the backend over the container network, which is what keeps image URLs same-origin
+for the image optimizer.
+
+## 4. First deploy
 
 Click **Deploy**. On the first run Dokploy will build both images, then:
 
@@ -95,7 +113,7 @@ merely that the process is alive.
 
 ---
 
-## 4. Wire up automatic deploys
+## 5. Wire up automatic deploys
 
 ### a. Get the deploy webhook from Dokploy
 
