@@ -1,7 +1,7 @@
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -33,6 +33,16 @@ class Category(UUIDPKMixin, CreatedAtMixin, Base):
         ForeignKey("categories.id", ondelete="CASCADE"), index=True
     )
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    #: Hidden from browsing rather than deleted. Deleting a category that
+    #: holds listings would silently uncategorise them (the listing FK is
+    #: ON DELETE SET NULL), so retiring one has to have a reversible option
+    #: that touches no stock. Inactive categories still resolve by slug, so
+    #: existing listings and links keep working — they just stop appearing
+    #: in navigation.
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
 
     children: Mapped[list["Category"]] = relationship(
         back_populates="parent",

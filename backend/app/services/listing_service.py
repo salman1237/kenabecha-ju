@@ -285,7 +285,9 @@ async def list_my_listings(db: AsyncSession, seller_id: uuid.UUID, shop_id: uuid
 async def update_listing(db: AsyncSession, listing: Listing, payload: ListingUpdate) -> Listing:
     data = payload.model_dump(exclude_unset=True, exclude={"tags"})
     if "category_id" in data:
-        await category_service.ensure_exists(db, data["category_id"])
+        await category_service.ensure_exists(
+            db, data["category_id"], current_id=listing.category_id
+        )
     for field, value in data.items():
         setattr(listing, field, value)
 

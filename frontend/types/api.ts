@@ -81,10 +81,25 @@ export interface CategoryRef {
 
 export interface CategoryChild extends CategoryRef {
   listing_count: number;
+  is_active: boolean;
 }
 
 export interface Category extends CategoryChild {
   children: CategoryChild[];
+}
+
+/** The flat shape the admin screen manages. `listing_count` here covers every
+ *  listing, not only the browsable ones, because it is what decides whether a
+ *  category can safely be deleted. */
+export interface AdminCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string | null;
+  parent_id: string | null;
+  sort_order: number;
+  is_active: boolean;
+  listing_count: number;
 }
 
 export interface ListingImage {

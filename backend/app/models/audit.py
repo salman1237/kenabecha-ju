@@ -34,6 +34,10 @@ class AuditAction:
     SECTION_UPDATED = "section.updated"
     SECTION_DELETED = "section.deleted"
     SECTIONS_REORDERED = "section.reordered"
+    CATEGORY_CREATED = "category.created"
+    CATEGORY_UPDATED = "category.updated"
+    CATEGORY_DELETED = "category.deleted"
+    CATEGORIES_REORDERED = "category.reordered"
 
 
 class AuditLog(UUIDPKMixin, CreatedAtMixin, Base):

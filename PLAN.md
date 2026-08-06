@@ -656,6 +656,34 @@ The plan above deliberately excluded reordering. That exclusion was overruled: t
 
 The taxonomy is currently frozen in a migration, so adding a category means writing code. Admin CRUD, with the constraints the model already implies: two levels only, slugs unique and auto-derived, and a category holding listings cannot be deleted — it must be merged into another or emptied first, since `ondelete=SET NULL` would otherwise silently uncategorise real stock.
 
+### Phase 43 — Category management (implemented)
+
+Full admin CRUD over the taxonomy: create, rename, move, reorder, hide and delete, at both levels, all audited.
+
+**This is the first admin surface where the content points at real stock**, and that shapes everything. Two foreign keys make a careless delete quiet rather than loud:
+
+- `listings.category_id` is `ON DELETE SET NULL`, so deleting a category *succeeds* and leaves its listings uncategorised.
+- `categories.parent_id` is `ON DELETE CASCADE`, so deleting a parent takes its children — and their listings — with it.
+
+Neither fails with an error an admin would see. So:
+
+- **A category holding listings cannot be deleted without a destination.** The API answers 409 with the count; `?move_to=` reassigns them first. The count deliberately includes sold and removed listings, because "what breaks if I delete this?" is a different question from "what can a visitor browse?".
+- **A category with subcategories cannot be deleted at all.** Move or delete them first. Refusing is predictable; cascading through a subtree an admin may not have expanded is not.
+- **Listings cannot be moved into the category being deleted.** A self-referential `move_to` would have satisfied the guard and then orphaned everything anyway.
+- **One test states the property directly** rather than the mechanism: after every refused delete, no listing is left with a null category. It is the assertion that would survive a rewrite of all the others.
+
+**Hiding is the reversible option, and the one to reach for.** `categories.is_active` mirrors the page-section flag: hiding removes a category from browsing without touching a single listing. Hiding a parent hides its children too — they are only reachable through it in the navigation, so leaving them visible would strand them. But a parent's listing count still includes hidden children's listings, because browsing a parent matches every descendant; a count that skipped them would promise fewer listings than the page then shows.
+
+**Retired categories stay resolvable by slug.** Hiding takes a category out of navigation, not out of existence, so listings already filed under it remain browsable. This also surfaced a bug the flag would otherwise have introduced: `ensure_exists` now refuses a hidden category for anything new, but accepts it when it is the id the listing already had — saving any field resubmits the category, so a blanket refusal would have made every listing in a retired category permanently uneditable.
+
+**Renaming leaves the slug alone.** The slug is the URL — every inbound link, bookmark and crawler index. Silently repointing all of it because someone fixed a typo in a label is a surprising cost for a cosmetic change, so changing the address is available but has to be asked for, with the consequence spelled out in the dialog.
+
+**The two-level limit is enforced from both directions.** A category cannot be nested under a child, and a category that has children cannot itself be nested. `descendant_ids` only looks one level down, so a third level would not error — it would silently make a whole branch unbrowsable.
+
+**Also in scope:** reordering is per level (the top level, or one parent's children), and demands every sibling exactly once, for the same reason sections and images do. `icon: null` clears an icon while an absent `icon` leaves it, which JSON alone cannot express — the router derives explicit flags from `model_fields_set`.
+
+33 tests: the shipped taxonomy intact after the migration, admin-only access with moderators explicitly refused, slug derivation and collisions, both depth rules, moves and promotions, hiding and its cascade to children and to listing counts, the editable-when-retired case, per-level reordering with its rejections, all four delete refusals, and the audit trail including that a refused delete records nothing. Suite 173. Mutation-tested: removing the listing guard, the children guard, the depth guard, or the retired-category check each fails between one and seven tests.
+
 ### Phase 44 — Admin dashboard & moderation tooling
 
 - A dashboard worth opening: signups, listings and messages over time, pending report count, most-viewed listings.
