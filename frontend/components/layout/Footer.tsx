@@ -4,10 +4,8 @@
 // the generic equivalents, which is fine since each link is labelled anyway.
 import { Code2, Globe, Mail, MapPin, Send } from "lucide-react";
 import Link from "next/link";
-import { motion } from "motion/react";
 
 import { useLanguage } from "@/context/LanguageContext";
-import { revealOnScroll, staggerContainer, staggerItem } from "@/lib/motion";
 import type { Translations } from "@/messages/en";
 
 // Built from the active translations rather than a module-level constant,
@@ -60,15 +58,18 @@ export function Footer() {
   const groups = linkGroups(t);
 
   return (
-    <motion.footer
-      variants={staggerContainer(0.06)}
-      {...revealOnScroll}
-      className="mt-24 border-t border-border/60 bg-muted/25"
-    >
+    // Deliberately not scroll-revealed. The reveal helpers render their
+    // content at opacity 0 and rely on Framer hydrating and an
+    // IntersectionObserver firing to bring it back — which meant the whole
+    // footer, every link in it, shipped invisible and stayed that way if
+    // anything went wrong on the way. Site chrome at the very bottom of the
+    // page gains nothing from an entrance animation and should never depend
+    // on JavaScript to exist.
+    <footer className="mt-24 border-t border-border/60 bg-muted/25">
       <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-6">
         <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]">
           {/* Brand column */}
-          <motion.div variants={staggerItem} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4">
             <Link href="/" className="flex items-center gap-2 text-base font-bold tracking-tight">
               <span className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-black text-white shadow-[var(--shadow-soft-primary)]">
                 K
@@ -96,11 +97,11 @@ export function Footer() {
                 </a>
               ))}
             </div>
-          </motion.div>
+          </div>
 
           {/* Link columns */}
           {groups.map((group) => (
-            <motion.div key={group.heading} variants={staggerItem} className="flex flex-col gap-3">
+            <div key={group.heading} className="flex flex-col gap-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
                 {group.heading}
               </h3>
@@ -116,12 +117,11 @@ export function Footer() {
                   </li>
                 ))}
               </ul>
-            </motion.div>
+            </div>
           ))}
         </div>
 
-        <motion.div
-          variants={staggerItem}
+        <div
           className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-6 sm:flex-row"
         >
           <p className="text-xs text-muted-foreground">
@@ -131,8 +131,8 @@ export function Footer() {
             <Send className="size-3" />
             {t.footer.noPayments}
           </p>
-        </motion.div>
+        </div>
       </div>
-    </motion.footer>
+    </footer>
   );
 }
