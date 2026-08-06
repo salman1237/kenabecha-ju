@@ -47,7 +47,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 36 — Shop card & homepage layout rhythm.** Shop cards now carry a cover band, logo, type, description, rating and listing/follower counts; the 6-column grid that stranded two cards is gone, section padding is uniform, and the mobile header no longer wraps to two rows.
 - [x] **Phase 37 — Fulfillment: pickup *and* delivery.** Migration `8f3b25a0c9ef` adds `both` to the enum; the address stays required whenever pickup is on offer, and the listing page shows both options rather than picking one.
 - [x] **Phase 38 — Listing form & edit page rebuild.** The form is grouped into labelled sections, and the edit page now carries everything: photo add/remove/reorder with cover selection, stock for shop listings, and status actions. Editing controls are off the public listing page.
-- [ ] **Phase 39 — Shop dashboard rebuild.** Replace the narrow unstyled stack with a real management surface.
+- [x] **Phase 39 — Shop dashboard rebuild.** The shop logo is editable from the edit view (it previously vanished when you opened it), the form is grouped into Logo & cover / Shop details, and the page's untranslated English is gone. Also fixed a live 500 on `/notifications` caused by rows left behind by the removed orders feature.
 - [ ] **Phase 34 — DevOps: production compose, CI, backups.** Not started.
 
 See "Phase 9+ — UI/UX Redesign, Tiered Auth & Cart/Orders" below (before "## Context") for the detailed breakdown of those five phases, written 2026-08-01 per user request. All five are complete. "Phases 15–24 — Frontend Gap Closure" is likewise complete. "Phases 25–34" is the current initiative.
@@ -142,6 +142,27 @@ FEAT-16 — `backend/tests/` was empty; zero coverage.
 **Mutation-checked.** A passing suite proves nothing by itself, so three fixed defects were deliberately reintroduced — the suggestion status filter, the `category_id` validation, and the seller view-count exclusion. Each turned exactly the corresponding test red (4 failures, 70 passes) and nothing else, then the source was restored and the suite verified green again. That's the evidence the tests have teeth.
 
 **Packaging.** The dev group moved from a PEP 735 `[dependency-groups]` — which needs pip ≥ 25.1, and the image ships 25.0 — to an optional-dependency extra installed only in the Dockerfile's `dev` stage. Verified by building the prod target and confirming `pytest` and `httpx` are absent while `fastapi` is present.
+
+### Phase 39 — Shop dashboard rebuild
+
+**The logo could not be changed while editing — reported from use, and worse than "missing".** The collapsed row and the edit view were mutually exclusive branches: the row rendered `ShopLogoPicker`, the edit view rendered `ShopCoverPicker` and the text fields. Opening Edit therefore *removed* the only control that could change the logo. Both pickers now live in the edit view, under a `Logo & cover` section, which is where a seller looks for them.
+
+**Structure.** The page was a `max-w-2xl` column of unstyled inputs whose shape changed as you used it. The edit view is now two labelled sections — Logo & cover, Shop details — matching the listing form from Phase 38, and the collapsed row is a proper card showing type, active-listing count and follower count with Add listing / Edit / Delete actions.
+
+**Translation gaps closed.** `Category`, `Description`, `Saving…`, `Save`, `Cancel`, `Uncategorized`, `active listing(s)`, `Add listing`, `Edit`, `Delete` and the delete-confirmation title were all still English. The Phase 31 sweep missed them because they sit inside a conditionally-rendered form that the audit script never opened — a reminder that a static text sweep only sees what is currently on screen.
+
+### An unrelated live bug, found while verifying this phase
+
+The browser console showed `Failed to fetch` on every dashboard load. It was not caused by this work: `GET /notifications` was returning **500**.
+
+```
+LookupError: 'order_placed' is not among the defined enum values.
+Enum name: notification_type.
+```
+
+Removing the cart/orders feature earlier in the project dropped `order_placed` and `order_status_changed` from the Python `NotificationType`, but left seven rows in the table still carrying those values. SQLAlchemy raises while *loading* such a row, so a single orphan broke the notification bell for that account entirely — and it would have kept doing so silently, because the bell swallows its own errors.
+
+Migration `3690eedd48d7` deletes them. Deleting is right rather than remapping: they point at orders that can no longer be opened, so there is nothing meaningful left to show. The Postgres enum keeps the labels, since dropping a value means recreating the type for no benefit. `/notifications` now returns 200 and the console is clean.
 
 ### Phase 34 — DevOps
 DEVOPS-01→05.

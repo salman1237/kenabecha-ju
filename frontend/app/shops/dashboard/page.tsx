@@ -4,9 +4,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { Pencil, PlusCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useLanguage } from "@/context/LanguageContext";
+import { FormSection } from "@/components/ui/FormSection";
+import { cn } from "@/lib/utils";
 import { translateApiError } from "@/lib/i18n/errors";
 
 import { CompleteProfilePrompt } from "@/components/auth/CompleteProfilePrompt";
@@ -21,7 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -168,41 +171,54 @@ function ShopEditForm({
   };
 
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 rounded-2xl border border-emerald-500/25 bg-card/60 p-4 sm:p-5">
+      {/* Branding lives in the edit view, where a seller looks for it. The
+          logo picker used to appear only on the *collapsed* row, so opening
+          Edit removed the one control that could change it. */}
+      <FormSection title={t.shops.brandingTitle} description={t.shops.brandingHint}>
         <ShopCoverPicker shop={shop} onUpdated={onUpdated} />
+        <div className="flex items-center gap-3">
+          <ShopLogoPicker shop={shop} onUpdated={onUpdated} />
+          <p className="text-xs text-muted-foreground">{t.shops.logo}</p>
+        </div>
+      </FormSection>
+
+      <FormSection title={t.shops.detailsTitle} description={t.shops.detailsHint}>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`shop_name_${shop.id}`}>{t.shops.shopName}</Label>
             <Input id={`shop_name_${shop.id}`} {...register("shop_name")} />
-            {errors.shop_name && <p className="text-xs text-destructive">{errors.shop_name.message}</p>}
+            {errors.shop_name && (
+              <p className="text-xs text-destructive">{errors.shop_name.message}</p>
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`shop_type_${shop.id}`}>Category</Label>
+            <Label htmlFor={`shop_type_${shop.id}`}>{t.shops.shopType}</Label>
             <Input id={`shop_type_${shop.id}`} {...register("shop_type")} />
+            <p className="text-xs text-muted-foreground">{t.shops.shopTypeHint}</p>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor={`description_${shop.id}`}>Description</Label>
+            <Label htmlFor={`description_${shop.id}`}>{t.shops.description}</Label>
             <Textarea id={`description_${shop.id}`} rows={3} {...register("description")} />
           </div>
           {serverError && <p className="text-sm text-destructive">{serverError}</p>}
           <div className="flex items-center gap-2">
             <Button type="submit" size="sm" disabled={isSubmitting}>
-              {isSubmitting ? "Saving…" : "Save"}
+              {isSubmitting ? t.common.saving : t.common.save}
             </Button>
             <Button type="button" size="sm" variant="outline" onClick={onCancel}>
-              Cancel
+              {t.common.cancel}
             </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </FormSection>
+    </div>
   );
 }
 
 export default function MyShopsPage() {
   const { user, isLoading: authLoading } = useAuth();
-  const { t } = useLanguage();
+  const { t, fmt } = useLanguage();
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -274,9 +290,12 @@ export default function MyShopsPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-12 sm:px-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{t.shops.myShops}</h1>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6 sm:py-12">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold tracking-tight">{t.shops.myShops}</h1>
+          <p className="text-sm text-muted-foreground">{t.shops.dashboardSubtitle}</p>
+        </div>
         <Button onClick={() => setShowForm((v) => !v)} variant={showForm ? "outline" : "default"}>
           {showForm ? t.common.cancel : t.shops.newShop2}
         </Button>
@@ -325,7 +344,10 @@ export default function MyShopsPage() {
           ))}
         </div>
       ) : shops.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t.shops.noShops}</p>
+        <div className="flex flex-col items-start gap-2 rounded-2xl border border-dashed border-border p-6">
+          <p className="text-sm font-medium">{t.shops.noShops}</p>
+          <p className="text-sm text-muted-foreground">{t.shops.noShopsCta}</p>
+        </div>
       ) : (
         <div className="flex flex-col gap-3">
           {shops.map((shop) =>
@@ -340,38 +362,42 @@ export default function MyShopsPage() {
                 onCancel={() => setEditingShopId(null)}
               />
             ) : (
-              <Card key={shop.id}>
-                <CardContent className="flex items-center gap-3">
+              <Card key={shop.id} className="overflow-hidden">
+                <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
                   <ShopLogoPicker
                     shop={shop}
                     onUpdated={(updated) =>
                       setShops((prev) => prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)))
                     }
                   />
-                  <div className="flex flex-1 items-center justify-between gap-3">
-                    <div>
-                      <Link href={`/shops/${shop.slug}`} className="font-medium hover:underline">
+                  <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-0.5">
+                      <Link href={`/shops/${shop.slug}`} className="font-semibold hover:underline">
                         {shop.shop_name}
                       </Link>
                       <p className="text-sm text-muted-foreground">
-                        {shop.shop_type ?? "Uncategorized"} · {shop.listing_count} active listing
-                        {shop.listing_count === 1 ? "" : "s"}
+                        {shop.shop_type || t.shops.uncategorized} ·{" "}
+                        {fmt.number(shop.listing_count)} {t.shops.activeListings2} ·{" "}
+                        {fmt.number(shop.follower_count)} {t.shops.followers}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Link href={`/listings/new?shop_id=${shop.id}`} className="text-sm font-medium text-muted-foreground hover:text-foreground">
-                        Add listing
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/listings/new?shop_id=${shop.id}`}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      >
+                        <PlusCircle /> {t.shops.addListing}
                       </Link>
                       <Button variant="ghost" size="sm" onClick={() => setEditingShopId(shop.id)}>
-                        Edit
+                        <Pencil /> {t.common.edit}
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger render={<Button variant="ghost" size="sm" className="text-destructive" />}>
-                          Delete
+                          <Trash2 /> {t.common.delete}
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Delete &quot;{shop.shop_name}&quot;?</AlertDialogTitle>
+                            <AlertDialogTitle>{t.shops.deleteShop}</AlertDialogTitle>
                             <AlertDialogDescription>
                               Its listings will remain but lose their shop association.
                             </AlertDialogDescription>
