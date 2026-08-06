@@ -164,45 +164,6 @@ export default function ListingDetailPage() {
         <div className="flex min-w-0 flex-col gap-8">
           <ImageGallery images={listing.images} title={listing.title} />
 
-          {isOwner && (
-            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-border p-3">
-              <span className="text-xs font-medium text-muted-foreground">{t.listing.managePhotos}</span>
-              {listing.images.map((img) => (
-                <button
-                  key={img.id}
-                  onClick={async () => {
-                    await deleteListingImage(listing.id, img.id);
-                    mutate();
-                  }}
-                  className="text-xs text-destructive hover:underline"
-                >
-                  Remove #{img.sort_order + 1}
-                </button>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                loading={uploading}
-                loadingText="Uploading…"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={listing.images.length >= 8}
-              >
-                Add photo
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) onUpload(file);
-                  e.target.value = "";
-                }}
-              />
-            </div>
-          )}
 
           <Tabs defaultValue="description">
             <TabsList>

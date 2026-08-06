@@ -121,6 +121,12 @@ class ListingOut(BaseModel):
         return self.featured_until is not None and self.featured_until > datetime.now(UTC)
 
 
+class ListingImageOrderIn(BaseModel):
+    """Every image id on the listing, in the order they should appear."""
+
+    image_ids: list[uuid.UUID] = Field(min_length=1)
+
+
 class ListingFeatureIn(BaseModel):
     # None clears the promotion. Bounded so a stray value can't pin a listing
     # to the top of browse indefinitely.

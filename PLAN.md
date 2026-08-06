@@ -46,7 +46,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 35 — Navigation shell & shops browse page.** Browse Listings / Browse Shops / Sell Item / Inbox / My Shops are now top-level navbar destinations with active states, the avatar renders the user's actual photo, and `/shops` exists with search and sorting.
 - [x] **Phase 36 — Shop card & homepage layout rhythm.** Shop cards now carry a cover band, logo, type, description, rating and listing/follower counts; the 6-column grid that stranded two cards is gone, section padding is uniform, and the mobile header no longer wraps to two rows.
 - [x] **Phase 37 — Fulfillment: pickup *and* delivery.** Migration `8f3b25a0c9ef` adds `both` to the enum; the address stays required whenever pickup is on offer, and the listing page shows both options rather than picking one.
-- [ ] **Phase 38 — Listing form & edit page rebuild.** Group the form into sections and make the edit page genuinely complete.
+- [x] **Phase 38 — Listing form & edit page rebuild.** The form is grouped into labelled sections, and the edit page now carries everything: photo add/remove/reorder with cover selection, stock for shop listings, and status actions. Editing controls are off the public listing page.
 - [ ] **Phase 39 — Shop dashboard rebuild.** Replace the narrow unstyled stack with a real management surface.
 - [ ] **Phase 34 — DevOps: production compose, CI, backups.** Not started.
 
@@ -485,4 +485,20 @@ Rather than drop the number, it was added properly: `get_shops_follower_counts` 
 **Display.** The listing page previously branched: pickup *or* delivery. For `both` it now renders both lines, which is the entire point — the buyer chooses. The details tab's address row shows whenever pickup is on offer, and the card reads the label from translations rather than capitalising the raw enum value.
 
 **Coverage.** Five tests: creating with `both`, `both` without an address rejected, delivery-only clearing a supplied address, switching to `both` without an address rejected, and switching with one accepted. Suite now 79 passing. Verified in the browser that the address field appears for `both`, hides for `delivery`, and that a `both` listing renders both the pickup address and the delivery note.
+
+### Phase 38 — Listing form & edit page rebuild
+
+**The edit page could not edit most of a listing.** `ListingForm` gated blocks on `mode === "create"`, so editing offered no photos, no shop selection and no stock. Photo management lived on the *public* listing page as a "Manage photos: Remove #1" row — an editing control on a viewing surface — and marking something sold was only possible from there too.
+
+**Sections.** Twelve fields in one ungrouped column became six labelled sections (Sell as · Photos · What are you selling? · Pricing · Stock · How the buyer gets it · Tags), each with a one-line explanation. Related fields sit side by side on desktop, and the submit button is sticky so it stays reachable on a form this tall.
+
+**A new endpoint was needed.** The first image is the cover everywhere it appears, and there was no way to choose it — only append and delete existed. `POST /listings/{id}/images/reorder` takes the full ordering and **rejects a partial list**: accepting one would leave the omitted images at stale positions and produce duplicate `sort_order`s. Four tests cover reordering, partial lists, foreign image ids, and ownership.
+
+**Photo management, in the right place.** `ListingPhotoManager` handles upload, delete, move, and promote-to-cover. These apply immediately rather than on submit, because they already do server-side — a Save button that appeared to defer them would be lying, so the section says so instead. Verified in the browser: upload took a listing from 1 to 3 images, promote-to-cover returned 200, delete returned 204 and left `sort_order` contiguous from 0. The browser assertion for promote-to-cover was weak (the first tile always shows the badge), so the identity change was confirmed separately against the API — the cover id genuinely changes.
+
+**Stock.** Shop listings have a quantity that drives `out_of_stock`, and it was not editable anywhere. It now round-trips through the form, for shop listings only, since a personal listing is always a single item.
+
+**Status actions.** Mark sold, Renew and Delete live in their own section rather than being smuggled into Save, because they take effect at once and have their own endpoints. Delete sits in a bordered danger area behind a confirmation.
+
+**A stale-cache trap worth recording.** After the rewrite the edit route returned 404 while the file was plainly present and the production build had listed it. `docker compose restart frontend` did not clear it; the container had to be recreated with its anonymous `.next` volume removed (`docker compose rm -sfv frontend`). Worth reaching for whenever a route exists on disk but 404s.
 

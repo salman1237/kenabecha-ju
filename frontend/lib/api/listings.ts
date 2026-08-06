@@ -111,6 +111,15 @@ export function uploadListingImage(id: string, file: File) {
   return apiFetch<ListingImage>(`/listings/${id}/images`, { method: "POST", body: formData });
 }
 
+/** Sets the image order. `imageIds` must be every image on the listing —
+ *  the API rejects a partial list rather than silently leaving gaps. */
+export function reorderListingImages(id: string, imageIds: string[]) {
+  return apiFetch<Listing>(`/listings/${id}/images/reorder`, {
+    method: "POST",
+    body: JSON.stringify({ image_ids: imageIds }),
+  });
+}
+
 export function deleteListingImage(id: string, imageId: string) {
   return apiFetch<void>(`/listings/${id}/images/${imageId}`, { method: "DELETE" });
 }

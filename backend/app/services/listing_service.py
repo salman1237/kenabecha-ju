@@ -441,6 +441,35 @@ async def delete_image(db: AsyncSession, listing: Listing, image_id: uuid.UUID) 
     await db.commit()
 
 
+async def reorder_images(
+    db: AsyncSession, listing: Listing, image_ids: list[uuid.UUID]
+) -> Listing:
+    """Apply an explicit image order.
+
+    The first image is the listing's cover everywhere it appears, so being
+    able to choose it is the point of this endpoint — not cosmetic ordering.
+
+    The supplied ids must be exactly the listing's current images: accepting
+    a partial list would silently leave the omitted ones at stale positions
+    and produce duplicate sort_orders.
+    """
+    current = {img.id for img in listing.images}
+    if set(image_ids) != current or len(image_ids) != len(current):
+        raise AppError(
+            status.HTTP_400_BAD_REQUEST,
+            ErrorCode.NOT_FOUND,
+            "The image order must list every image on this listing exactly once",
+        )
+
+    positions = {image_id: index for index, image_id in enumerate(image_ids)}
+    for img in listing.images:
+        img.sort_order = positions[img.id]
+
+    await db.commit()
+    await db.refresh(listing)
+    return listing
+
+
 async def get_search_suggestions(db: AsyncSession, q: str, limit: int = 5) -> list[str]:
     """Returns a list of matching titles for active listings."""
     if not q or len(q) < 2:

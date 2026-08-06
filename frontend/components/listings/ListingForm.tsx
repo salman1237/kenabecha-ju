@@ -5,9 +5,11 @@ import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { ListingPhotoManager } from "@/components/listings/ListingPhotoManager";
 import { TagInput } from "@/components/listings/TagInput";
 import { Button } from "@/components/ui/button";
 import { selectClass } from "@/components/ui/FormField";
+import { FormSection } from "@/components/ui/FormSection";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,11 +29,15 @@ export function ListingForm({
   listing,
   defaultShopId,
   onSuccess,
+  onListingChange,
 }: {
   mode: "create" | "edit";
   listing?: Listing;
   defaultShopId?: string;
   onSuccess: (listing: Listing) => void;
+  /** Photo edits apply server-side immediately, so the page holding the
+   *  listing needs to hear about them without a form submit. */
+  onListingChange?: (listing: Listing) => void;
 }) {
   const [shops, setShops] = useState<Shop[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -57,6 +63,7 @@ export function ListingForm({
       condition: listing?.condition,
       shop_id: listing?.shop?.id ?? defaultShopId ?? "",
       category_id: listing?.category?.id ?? "",
+      quantity: listing?.quantity != null ? String(listing.quantity) : "1",
       fulfillment_type: listing?.fulfillment_type ?? "pickup",
       pickup_address: listing?.pickup_address ?? "",
     },
@@ -94,6 +101,8 @@ export function ListingForm({
       condition: isShopListing || !values.condition ? undefined : (values.condition as Condition),
       shop_id: mode === "create" ? values.shop_id || null : undefined,
       category_id: values.category_id || null,
+      // Only shop listings carry stock; personal ones are always a single item.
+      quantity: isShopListing && values.quantity !== "" ? Number(values.quantity) : undefined,
       tags,
       fulfillment_type: values.fulfillment_type,
       pickup_address: values.fulfillment_type === "delivery" ? null : values.pickup_address,
@@ -136,10 +145,10 @@ export function ListingForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-      {mode === "create" && (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="shop_id">{t.listingForm.sellAs}</Label>
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+      {/* --- Who is selling ------------------------------------------- */}
+      {mode === "create" ? (
+        <FormSection title={t.listingForm.sellAs} description={t.listingForm.sellAsHint}>
           <select id="shop_id" className={selectClass} {...register("shop_id")}>
             <option value="">{t.listingForm.personalListing}</option>
             {shops.map((shop) => (
@@ -148,172 +157,233 @@ export function ListingForm({
               </option>
             ))}
           </select>
-          <p className="text-xs text-muted-foreground">{t.listingForm.sellAsHint}</p>
-        </div>
-      )}
-      {mode === "edit" && (
+        </FormSection>
+      ) : (
         <p className="text-sm text-muted-foreground">
           {listing?.shop ? listing.shop.shop_name : t.listingForm.personalListing}
         </p>
       )}
 
-      {mode === "create" && (
+      {/* --- Photos ---------------------------------------------------- */}
+      <FormSection
+        title={t.listingForm.sectionPhotos}
+        description={
+          mode === "edit"
+            ? `${t.listingForm.sectionPhotosHint} ${t.listingForm.photosSavedImmediately}`
+            : t.listingForm.sectionPhotosHint
+        }
+      >
+        {mode === "edit" && listing ? (
+          // Editing had no photo control at all; the only way to remove one
+          // was a row on the public listing page.
+          <ListingPhotoManager listing={listing} onChange={onListingChange ?? (() => {})} />
+        ) : (
+          <>
+            {photoPreviews.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {photoPreviews.map((url, i) => (
+                  <div key={url} className="group relative size-20 overflow-hidden rounded-xl border border-border/70 bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                    {i === 0 && (
+                      <span className="absolute left-1 top-1 rounded bg-emerald-600 px-1 py-0.5 text-[9px] font-semibold text-white">
+                        {t.listingForm.coverPhoto}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(i)}
+                      className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+                      aria-label={t.listingForm.removePhoto}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Input
+              id="photos"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              disabled={photos.length >= MAX_PHOTOS}
+              onChange={(e) => {
+                addPhotos(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t.listingForm.photosHint} — {fmt.number(MAX_PHOTOS)}.
+            </p>
+          </>
+        )}
+      </FormSection>
+
+      {/* --- Basics ---------------------------------------------------- */}
+      <FormSection
+        title={t.listingForm.sectionBasics}
+        description={t.listingForm.sectionBasicsHint}
+      >
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="photos">{t.listingForm.photos}</Label>
-          {photoPreviews.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {photoPreviews.map((url, i) => (
-                <div key={url} className="group relative h-16 w-16 overflow-hidden rounded-md bg-muted">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removePhoto(i)}
-                    className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                    aria-label={t.listingForm.removePhoto}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </div>
+          <Label htmlFor="title">{t.listingForm.itemTitle}</Label>
+          <Input id="title" {...register("title")} />
+          {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="description">{t.listingForm.description}</Label>
+          <Textarea id="description" rows={5} {...register("description")} />
+          {errors.description && (
+            <p className="text-xs text-destructive">{errors.description.message}</p>
+          )}
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="category_id">{t.listingForm.category}</Label>
+            <select id="category_id" className={selectClass} {...register("category_id")} defaultValue="">
+              <option value="" disabled>
+                {t.listingForm.selectCategory}
+              </option>
+              {categories.map((cat) => (
+                <optgroup key={cat.id} label={`${cat.icon || ""} ${cat.name}`.trim()}>
+                  {cat.children.map((child) => (
+                    <option key={child.id} value={child.id}>
+                      {child.name}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
+            </select>
+            {errors.category_id && (
+              <p className="text-xs text-destructive">{errors.category_id.message}</p>
+            )}
+          </div>
+
+          {!isShopListing && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="condition">{t.listingForm.conditionLabel}</Label>
+              <select id="condition" className={selectClass} {...register("condition")} defaultValue="">
+                <option value="" disabled>
+                  {t.listingForm.selectCondition}
+                </option>
+                {Object.keys(CONDITION_LABELS).map((value) => (
+                  <option key={value} value={value}>
+                    {t.conditions[value as keyof typeof t.conditions]}
+                  </option>
+                ))}
+              </select>
+              {errors.condition && (
+                <p className="text-xs text-destructive">{errors.condition.message}</p>
+              )}
             </div>
           )}
-          <Input
-            id="photos"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            multiple
-            disabled={photos.length >= MAX_PHOTOS}
-            onChange={(e) => {
-              addPhotos(e.target.files);
-              e.target.value = "";
-            }}
-          />
-          <p className="text-xs text-muted-foreground">
-            {t.listingForm.photosHint} — {fmt.number(MAX_PHOTOS)}.
-          </p>
         </div>
-      )}
+      </FormSection>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="title">{t.listingForm.itemTitle}</Label>
-        <Input id="title" {...register("title")} />
-        {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
-      </div>
+      {/* --- Pricing --------------------------------------------------- */}
+      <FormSection
+        title={t.listingForm.sectionPricing}
+        description={t.listingForm.sectionPricingHint}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="price_type">{t.listingForm.priceType}</Label>
+            <select id="price_type" className={selectClass} {...register("price_type")}>
+              <option value="fixed">{t.common.fixed}</option>
+              <option value="negotiable">{t.common.negotiable}</option>
+              <option value="free">{t.common.free}</option>
+            </select>
+          </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="description">{t.listingForm.description}</Label>
-        <Textarea id="description" rows={5} {...register("description")} />
-        {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="category_id">{t.listingForm.category}</Label>
-        <select id="category_id" className={selectClass} {...register("category_id")} defaultValue="">
-          <option value="" disabled>{t.listingForm.selectCategory}</option>
-          {categories.map((cat) => (
-            <optgroup key={cat.id} label={`${cat.icon || ""} ${cat.name}`.trim()}>
-              {cat.children.map((child) => (
-                <option key={child.id} value={child.id}>
-                  {child.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-        {errors.category_id && <p className="text-xs text-destructive">{errors.category_id.message}</p>}
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="price_type">{t.listingForm.priceType}</Label>
-        <select id="price_type" className={selectClass} {...register("price_type")}>
-          <option value="fixed">{t.common.fixed}</option>
-          <option value="negotiable">{t.common.negotiable}</option>
-          <option value="free">{t.common.free}</option>
-        </select>
-      </div>
-
-      {priceType !== "free" && (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="price">{t.listingForm.price} (৳)</Label>
-          <Input
-            id="price"
-            type="number"
-            min="0"
-            step="0.01"
-            className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            {...register("price")}
-          />
-          {errors.price && <p className="text-xs text-destructive">{errors.price.message}</p>}
-        </div>
-      )}
-
-      {priceType !== "free" && (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="unit">{t.listingForm.unit} ({t.common.optional})</Label>
-          <Input id="unit" placeholder={t.listingForm.unitPlaceholder} {...register("unit")} />
-          <p className="text-xs text-muted-foreground">
-            {t.listingForm.unitHint}
-          </p>
-          {errors.unit && <p className="text-xs text-destructive">{errors.unit.message}</p>}
-        </div>
-      )}
-
-      {!isShopListing && (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="condition">{t.listingForm.conditionLabel}</Label>
-          <select id="condition" className={selectClass} {...register("condition")} defaultValue="">
-            <option value="" disabled>
-              {t.listingForm.selectCondition}
-            </option>
-            {Object.keys(CONDITION_LABELS).map((value) => (
-              <option key={value} value={value}>
-                {t.conditions[value as keyof typeof t.conditions]}
-              </option>
-            ))}
-          </select>
-          {errors.condition && <p className="text-xs text-destructive">{errors.condition.message}</p>}
-        </div>
-      )}
-
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="fulfillment_type">{t.listingForm.fulfillment}</Label>
-        <select id="fulfillment_type" className={selectClass} {...register("fulfillment_type")}>
-          <option value="pickup">{t.listingForm.fulfillmentPickup}</option>
-          <option value="delivery">{t.listingForm.fulfillmentDelivery}</option>
-          <option value="both">{t.listingForm.fulfillmentBoth}</option>
-        </select>
-        <p className="text-xs text-muted-foreground">{t.listingForm.fulfillmentHint}</p>
-      </div>
-
-      {fulfillmentType !== "delivery" && (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="pickup_address">{t.listingForm.pickupAddress}</Label>
-          <Input id="pickup_address" {...register("pickup_address")} />
-          {errors.pickup_address ? (
-            <p className="text-xs text-destructive">{errors.pickup_address.message}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">{t.listingForm.pickupAddressHint}</p>
+          {priceType !== "free" && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="price">{t.listingForm.price} (৳)</Label>
+              <Input
+                id="price"
+                type="number"
+                min="0"
+                step="0.01"
+                className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                {...register("price")}
+              />
+              {errors.price && <p className="text-xs text-destructive">{errors.price.message}</p>}
+            </div>
           )}
         </div>
+
+        {priceType !== "free" && (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="unit">
+              {t.listingForm.unit} ({t.common.optional})
+            </Label>
+            <Input id="unit" placeholder={t.listingForm.unitPlaceholder} {...register("unit")} />
+            <p className="text-xs text-muted-foreground">{t.listingForm.unitHint}</p>
+            {errors.unit && <p className="text-xs text-destructive">{errors.unit.message}</p>}
+          </div>
+        )}
+      </FormSection>
+
+      {/* --- Stock, shop listings only --------------------------------- */}
+      {isShopListing && (
+        <FormSection title={t.listingForm.sectionStock} description={t.listingForm.sectionStockHint}>
+          <div className="flex flex-col gap-1.5 sm:max-w-xs">
+            <Label htmlFor="quantity">{t.listingForm.quantity}</Label>
+            <Input id="quantity" type="number" min="0" step="1" {...register("quantity")} />
+            {errors.quantity && (
+              <p className="text-xs text-destructive">{errors.quantity.message}</p>
+            )}
+          </div>
+        </FormSection>
       )}
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="tags">{t.listingForm.tags}</Label>
+      {/* --- Fulfillment ------------------------------------------------ */}
+      <FormSection
+        title={t.listingForm.sectionFulfillment}
+        description={t.listingForm.sectionFulfillmentHint}
+      >
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="fulfillment_type">{t.listingForm.fulfillment}</Label>
+          <select id="fulfillment_type" className={selectClass} {...register("fulfillment_type")}>
+            <option value="pickup">{t.listingForm.fulfillmentPickup}</option>
+            <option value="delivery">{t.listingForm.fulfillmentDelivery}</option>
+            <option value="both">{t.listingForm.fulfillmentBoth}</option>
+          </select>
+        </div>
+
+        {fulfillmentType !== "delivery" && (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="pickup_address">{t.listingForm.pickupAddress}</Label>
+            <Input id="pickup_address" {...register("pickup_address")} />
+            {errors.pickup_address ? (
+              <p className="text-xs text-destructive">{errors.pickup_address.message}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">{t.listingForm.pickupAddressHint}</p>
+            )}
+          </div>
+        )}
+      </FormSection>
+
+      {/* --- Tags ------------------------------------------------------- */}
+      <FormSection title={t.listingForm.sectionTags} description={t.listingForm.sectionTagsHint}>
         <TagInput value={tags} onChange={setTags} />
-      </div>
+      </FormSection>
 
       {serverError && <p className="text-sm text-destructive">{serverError}</p>}
 
-      <Button type="submit" disabled={isSubmitting} className="self-start">
-        {uploadingPhotos
-          ? t.listingForm.uploadingPhotos
-          : isSubmitting
-            ? t.common.saving
-            : mode === "create"
-              ? t.listingForm.submitCreate
-              : t.listingForm.submitEdit}
-      </Button>
+      {/* Sticky so the action stays reachable on a form this tall. */}
+      <div className="sticky bottom-0 -mx-1 flex items-center gap-3 border-t border-border/60 bg-background/90 px-1 py-3 backdrop-blur-sm">
+        <Button type="submit" disabled={isSubmitting}>
+          {uploadingPhotos
+            ? t.listingForm.uploadingPhotos
+            : isSubmitting
+              ? t.common.saving
+              : mode === "create"
+                ? t.listingForm.submitCreate
+                : t.listingForm.submitEdit}
+        </Button>
+      </div>
     </form>
   );
 }

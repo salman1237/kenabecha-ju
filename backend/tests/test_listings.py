@@ -435,3 +435,73 @@ async def test_switching_to_both_with_an_address_succeeds(client, db):
     assert res.status_code == 200
     assert res.json()["fulfillment_type"] == "both"
     assert res.json()["pickup_address"] == "Room 204, Al Beruni Hall"
+
+
+# --- image ordering (Phase 38) ----------------------------------------------
+
+
+async def _with_images(db, owner, count: int = 3):
+    from app.models.listing import ListingImage
+
+    listing = await make_listing(db, owner)
+    for i in range(count):
+        db.add(ListingImage(listing_id=listing.id, image_url=f"/media/listings/{i}.png", sort_order=i))
+    await db.flush()
+    await db.refresh(listing)
+    return listing
+
+
+async def test_reorder_images_sets_the_cover(client, db):
+    """The first image is the cover everywhere, so ordering is the mechanism
+    for choosing it."""
+    owner = await make_user(db)
+    listing = await _with_images(db, owner)
+    await login(client, owner)
+    original = [str(i.id) for i in listing.images]
+
+    res = await client.post(
+        f"/listings/{listing.id}/images/reorder",
+        json={"image_ids": [original[2], original[0], original[1]]},
+    )
+    assert res.status_code == 200
+    assert [i["id"] for i in res.json()["images"]] == [original[2], original[0], original[1]]
+
+
+async def test_reorder_rejects_a_partial_list(client, db):
+    """A partial list would leave the omitted images at stale positions and
+    produce duplicate sort_orders."""
+    owner = await make_user(db)
+    listing = await _with_images(db, owner)
+    await login(client, owner)
+
+    res = await client.post(
+        f"/listings/{listing.id}/images/reorder",
+        json={"image_ids": [str(listing.images[0].id)]},
+    )
+    assert res.status_code == 400
+
+
+async def test_reorder_rejects_an_unrelated_image_id(client, db):
+    owner = await make_user(db)
+    listing = await _with_images(db, owner)
+    await login(client, owner)
+    ids = [str(i.id) for i in listing.images]
+
+    res = await client.post(
+        f"/listings/{listing.id}/images/reorder",
+        json={"image_ids": ids[:2] + ["00000000-0000-0000-0000-000000000000"]},
+    )
+    assert res.status_code == 400
+
+
+async def test_only_the_owner_can_reorder(client, db):
+    owner = await make_user(db)
+    listing = await _with_images(db, owner)
+    intruder = await make_user(db)
+    await login(client, intruder)
+
+    res = await client.post(
+        f"/listings/{listing.id}/images/reorder",
+        json={"image_ids": [str(i.id) for i in listing.images]},
+    )
+    assert res.status_code == 403

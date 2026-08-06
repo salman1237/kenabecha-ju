@@ -19,6 +19,7 @@ from app.schemas.common import Page
 from app.schemas.listing import (
     ListingCreate,
     ListingFeatureIn,
+    ListingImageOrderIn,
     ListingImageOut,
     ListingOut,
     ListingUpdate,
@@ -226,6 +227,18 @@ async def upload_listing_image(
     image_url = await media_service.save_image(file, "listings")
     image = await listing_service.add_image(db, listing, image_url)
     return ListingImageOut.model_validate(image)
+
+
+@router.post("/{listing_id}/images/reorder", response_model=ListingOut)
+async def reorder_listing_images(
+    listing_id: uuid.UUID,
+    payload: ListingImageOrderIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ListingOut:
+    listing = await listing_service.get_owned_listing(db, listing_id, user)
+    listing = await listing_service.reorder_images(db, listing, payload.image_ids)
+    return ListingOut.model_validate(listing)
 
 
 @router.delete("/{listing_id}/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
