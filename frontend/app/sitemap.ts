@@ -2,9 +2,24 @@ import type { MetadataRoute } from "next";
 
 import { SERVER_API_URL, absoluteUrl } from "@/lib/site";
 
-/** Re-fetched at most hourly; a student marketplace does not need the
- *  sitemap regenerated on every crawler hit. */
-export const revalidate = 3600;
+/**
+ * Generated per request, never at build time.
+ *
+ * This route calls the API. With the default static/ISR behaviour Next tries
+ * to prerender it during `next build`, and inside a Docker build there is no
+ * backend to reach — the fetch hangs until Next's 60s export timeout, retries
+ * three times, and fails the whole image build. That is exactly what happened
+ * on the first production deploy: the frontend image never got built, so
+ * Traefik had no container to route to and served a 404.
+ *
+ * A sitemap should reflect current listings anyway, so per-request is also
+ * the more correct behaviour.
+ */
+export const dynamic = "force-dynamic";
+
+/** Long enough for a healthy API, short enough that a sick one degrades the
+ *  sitemap instead of hanging the request. */
+const FETCH_TIMEOUT_MS = 5000;
 
 type SitemapListing = { id: string; updated_at?: string; created_at: string };
 type SitemapShop = { slug: string; updated_at?: string; created_at: string };
@@ -13,7 +28,10 @@ type SitemapShop = { slug: string; updated_at?: string; created_at: string };
  *  sitemap is far better than a 500, which crawlers treat as a site problem. */
 async function fetchJson<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${SERVER_API_URL}${path}`, { next: { revalidate } });
+    const res = await fetch(`${SERVER_API_URL}${path}`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch {

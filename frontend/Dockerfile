@@ -22,6 +22,13 @@ RUN npm run build
 
 FROM base AS prod
 ENV NODE_ENV=production
+# Docker sets HOSTNAME to the container id, and Next's standalone server binds
+# to whatever HOSTNAME says — so it listens on the container's eth0 address and
+# refuses connections on 127.0.0.1. External traffic still works, which makes
+# this easy to miss, but the container health check (and anything else talking
+# to localhost inside the container) fails permanently.
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
