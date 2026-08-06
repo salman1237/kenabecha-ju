@@ -1,9 +1,11 @@
+import hashlib
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete, func, insert, select
+from sqlalchemy import delete, func, insert, or_, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.listing import (
@@ -12,15 +14,22 @@ from app.models.listing import (
     Listing,
     ListingImage,
     ListingStatus,
+    ListingView,
     Tag,
     listing_tags,
 )
+from app.core.config import get_settings
 from app.core.search import LIKE_ESCAPE, like_contains
 from app.models.user import User
 from app.schemas.listing import ListingCreate, ListingUpdate
 from app.services import category_service, shop_service, tag_service
 
 MAX_IMAGES_PER_LISTING = 8
+
+# How long a new listing stays up before it needs renewing. Student listings
+# go stale fast — a term's worth of dead "still available?" threads is the
+# thing this is meant to prevent.
+LISTING_TTL_DAYS = 30
 
 
 async def _attach_tags(db: AsyncSession, listing: Listing, tag_names: list[str], *, replace: bool) -> None:
@@ -73,6 +82,7 @@ async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate)
         quantity=quantity,
         fulfillment_type=payload.fulfillment_type,
         pickup_address=payload.pickup_address,
+        expires_at=datetime.now(UTC) + timedelta(days=LISTING_TTL_DAYS),
     )
     db.add(listing)
     await db.flush()
@@ -146,6 +156,10 @@ async def browse_listings(db: AsyncSession, filters: BrowseFilters) -> tuple[lis
             Listing.is_active.is_(True),
             User.is_active.is_(True),
             User.deleted_at.is_(None),
+            # Belt-and-braces with the expiry sweep: this keeps browse correct
+            # in the window between a listing lapsing and the sweep running,
+            # and if the sweep task ever dies.
+            or_(Listing.expires_at.is_(None), Listing.expires_at > func.now()),
         )
     )
 
@@ -191,12 +205,21 @@ async def browse_listings(db: AsyncSession, filters: BrowseFilters) -> tuple[lis
     count_query = select(func.count()).select_from(query.with_only_columns(Listing.id).subquery())
     total = (await db.execute(count_query)).scalar_one()
 
+    # Live promotions float to the top of every ordering. Expressed as a
+    # sort key rather than a separate query so paging stays correct — a
+    # prepended list would repeat featured items on every page.
+    featured_first = (
+        Listing.featured_until.is_not(None) & (Listing.featured_until > func.now())
+    ).desc()
+
     if filters.sort == "price_asc":
-        query = query.order_by(Listing.price.asc().nulls_last())
+        query = query.order_by(featured_first, Listing.price.asc().nulls_last())
     elif filters.sort == "price_desc":
-        query = query.order_by(Listing.price.desc().nulls_last())
+        query = query.order_by(featured_first, Listing.price.desc().nulls_last())
+    elif filters.sort == "popular":
+        query = query.order_by(featured_first, Listing.view_count.desc(), Listing.created_at.desc())
     else:
-        query = query.order_by(Listing.created_at.desc())
+        query = query.order_by(featured_first, Listing.created_at.desc())
 
     query = query.limit(filters.limit).offset(filters.offset)
     items = list((await db.execute(query)).scalars().unique().all())
@@ -286,6 +309,90 @@ async def update_listing(db: AsyncSession, listing: Listing, payload: ListingUpd
     await db.commit()
     await db.refresh(listing)
     return listing
+
+
+def _viewer_key(user: User | None, ip: str | None, user_agent: str | None) -> str:
+    """Stable per-viewer identifier. Signed-in viewers key on their user id;
+    anonymous ones on a salted hash of IP + user-agent, salted so the table
+    can't be used to confirm that a given IP viewed a given listing."""
+    if user is not None:
+        return f"u:{user.id}"
+    raw = f"{ip or ''}|{user_agent or ''}|{get_settings().JWT_SECRET_KEY}"
+    return "a:" + hashlib.sha256(raw.encode()).hexdigest()[:60]
+
+
+async def record_view(
+    db: AsyncSession,
+    listing: Listing,
+    viewer: User | None,
+    ip: str | None,
+    user_agent: str | None,
+) -> None:
+    """Count one view, at most once per viewer per day.
+
+    A seller looking at their own listing is not a view — otherwise the
+    number a seller is shown is partly their own traffic.
+    """
+    if viewer is not None and viewer.id == listing.seller_id:
+        return
+
+    now = datetime.now(UTC)
+    window_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    key = _viewer_key(viewer, ip, user_agent)
+
+    # ON CONFLICT DO NOTHING makes the de-duplication atomic. A check-then-
+    # insert would double-count under the concurrent requests that a single
+    # page load can produce, and the app runs 4 uvicorn workers in prod.
+    result = await db.execute(
+        pg_insert(ListingView)
+        .values(listing_id=listing.id, viewer_key=key, window_start=window_start)
+        .on_conflict_do_nothing(constraint="uq_listing_view_window")
+    )
+    if result.rowcount:
+        # Increment in SQL rather than via the loaded object, so simultaneous
+        # views don't overwrite each other's counter with a stale value.
+        await db.execute(
+            update(Listing).where(Listing.id == listing.id).values(view_count=Listing.view_count + 1)
+        )
+    await db.commit()
+
+
+async def renew_listing(db: AsyncSession, listing: Listing) -> Listing:
+    """Push the expiry out and bring an expired listing back."""
+    if listing.status not in (ListingStatus.active, ListingStatus.expired):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Only active or expired listings can be renewed"
+        )
+    listing.expires_at = datetime.now(UTC) + timedelta(days=LISTING_TTL_DAYS)
+    listing.status = ListingStatus.active
+    await db.commit()
+    await db.refresh(listing)
+    return listing
+
+
+async def set_featured(db: AsyncSession, listing: Listing, days: int | None) -> Listing:
+    """Promote for `days`, or clear the promotion when days is None."""
+    listing.featured_until = (
+        None if days is None else datetime.now(UTC) + timedelta(days=days)
+    )
+    await db.commit()
+    await db.refresh(listing)
+    return listing
+
+
+async def expire_stale_listings(db: AsyncSession) -> int:
+    """Flip past-deadline active listings to `expired`. Returns how many."""
+    result = await db.execute(
+        update(Listing)
+        .where(
+            Listing.status == ListingStatus.active,
+            Listing.expires_at.is_not(None),
+            Listing.expires_at <= datetime.now(UTC),
+        )
+        .values(status=ListingStatus.expired)
+    )
+    await db.commit()
+    return result.rowcount or 0
 
 
 async def mark_sold(db: AsyncSession, listing: Listing) -> Listing:

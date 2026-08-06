@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from app.models.listing import Condition, FulfillmentType, ListingStatus, PriceType
 from app.schemas.category import CategoryRef
@@ -96,9 +96,26 @@ class ListingOut(BaseModel):
     fulfillment_type: FulfillmentType
     pickup_address: str | None
     is_top: bool
+    view_count: int = 0
+    featured_until: datetime | None = None
+    expires_at: datetime | None = None
     created_at: datetime
     seller: ListingSellerOut
     shop: ListingShopOut | None
     category: CategoryRef | None = None
     images: list[ListingImageOut]
     tags: list[TagOut]
+
+    @computed_field
+    @property
+    def is_featured(self) -> bool:
+        """Whether the promotion is live right now. Computed here rather than
+        left to the client, so every surface agrees on the cutoff instead of
+        each one re-implementing the comparison against its own clock."""
+        return self.featured_until is not None and self.featured_until > datetime.now(UTC)
+
+
+class ListingFeatureIn(BaseModel):
+    # None clears the promotion. Bounded so a stray value can't pin a listing
+    # to the top of browse indefinitely.
+    days: int | None = Field(default=None, ge=1, le=90)

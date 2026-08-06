@@ -90,7 +90,7 @@ export interface ListingImage {
 
 export type PriceType = "fixed" | "negotiable" | "free";
 export type Condition = "new" | "used_like_new" | "used_good" | "used_fair";
-export type ListingStatus = "active" | "sold" | "out_of_stock" | "removed";
+export type ListingStatus = "active" | "sold" | "out_of_stock" | "removed" | "expired";
 export type FulfillmentType = "pickup" | "delivery";
 
 export interface Listing {
@@ -104,6 +104,13 @@ export interface Listing {
   quantity: number;
   status: ListingStatus;
   is_top: boolean;
+  view_count: number;
+  featured_until: string | null;
+  expires_at: string | null;
+  // Server-computed: whether featured_until is still in the future. Trusting
+  // this instead of comparing dates client-side keeps every surface agreeing
+  // on the cutoff even when a device clock is wrong.
+  is_featured: boolean;
   fulfillment_type: FulfillmentType;
   pickup_address: string | null;
   created_at: string;

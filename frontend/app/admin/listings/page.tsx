@@ -16,14 +16,21 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Sparkles } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { listAdminListings, removeAdminListing } from "@/lib/api/admin";
+import { featureListing } from "@/lib/api/listings";
 import { formatPrice } from "@/lib/utils";
 import type { Listing } from "@/types/api";
+
+/** Promotion length granted from the admin panel. */
+const FEATURE_DAYS = 7;
 
 export default function AdminListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -39,6 +46,18 @@ export default function AdminListingsPage() {
   const onRemove = async (listing: Listing) => {
     await removeAdminListing(listing.id);
     load();
+  };
+
+  // Toggle rather than a duration picker: 7 days covers the case this exists
+  // for, and an admin who wants it gone can click again.
+  const onToggleFeature = async (listing: Listing) => {
+    setBusyId(listing.id);
+    try {
+      await featureListing(listing.id, listing.is_featured ? null : FEATURE_DAYS);
+      load();
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const columns: Column<Listing>[] = [
@@ -86,6 +105,27 @@ export default function AdminListingsPage() {
       sortValue: (l) => l.status,
     },
     {
+      key: "views",
+      header: "Views",
+      cell: (l) => <span className="text-muted-foreground tabular-nums">{l.view_count}</span>,
+      sortValue: (l) => l.view_count,
+      hideOnMobile: true,
+    },
+    {
+      key: "featured",
+      header: "Featured",
+      cell: (l) =>
+        l.is_featured ? (
+          <Badge className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white">
+            until {new Date(l.featured_until!).toLocaleDateString()}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+      sortValue: (l) => (l.is_featured ? 1 : 0),
+      hideOnMobile: true,
+    },
+    {
       key: "created_at",
       header: "Listed",
       cell: (l) => (
@@ -109,6 +149,16 @@ export default function AdminListingsPage() {
         emptyTitle="No listings"
         actions={(l) =>
           l.status !== "removed" ? (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={busyId === l.id}
+                onClick={() => onToggleFeature(l)}
+              >
+                <Sparkles className="size-3.5" />
+                {l.is_featured ? "Unfeature" : "Feature"}
+              </Button>
             <AlertDialog>
               <AlertDialogTrigger
                 render={<Button variant="ghost" size="sm" className="text-destructive" />}
@@ -130,6 +180,7 @@ export default function AdminListingsPage() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            </div>
           ) : null
         }
       />

@@ -52,6 +52,7 @@ const STATUS_LABELS: Record<string, string> = {
   sold: "Sold",
   out_of_stock: "Out of stock",
   removed: "Removed",
+  expired: "Expired",
 };
 
 function DetailSkeleton() {
@@ -246,6 +247,12 @@ export default function ListingDetailPage() {
                     ? [["Pickup address", listing.pickup_address ?? "Ask the seller"]]
                     : []),
                   ["Listed", new Date(listing.created_at).toLocaleDateString()],
+                  ["Views", String(listing.view_count)],
+                  // Only the seller needs the renewal deadline; to a buyer it
+                  // reads as pressure to hurry, which isn't what it means.
+                  ...(isOwner && listing.expires_at
+                    ? [["Expires", new Date(listing.expires_at).toLocaleDateString()]]
+                    : []),
                   ["Status", STATUS_LABELS[listing.status]],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-4 border-b border-border/60 pb-2">

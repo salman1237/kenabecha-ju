@@ -39,7 +39,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 28 — Search page & autocomplete.** Added `GET /listings/suggestions` to backend and `NavbarSearch` autocomplete component to frontend. Wired to redirect to the `/listings` browse page with query parameters to act as the dedicated search page without redundant code duplication.
 - [x] **Phase 29 — Data-integrity & query-performance fixes.** Completed (Fixes for `DISTINCT ON` order in chat, `is_active` validation everywhere, shop pagination & N+1 ratings, tags usage_count decrement, image sort_order reordering, and deleted media cleanup).
 - [x] **Phase 29a — Audit of Phases 27–29.** Reviewed the Phase 27–29 work and fixed six defects it introduced or left open: two TypeScript errors that broke `next build` entirely, an unhandled FK violation returning 500 on an unknown `category_id`, navbar search silently not applying when already on `/listings`, search suggestions offering sold/removed listings, `npm install` replacing `npm ci` in the frontend image, and the category field being optional so every sidebar count stayed at zero.
-- [ ] **Phase 30 — View counts, listing expiry & promotion.** Not started.
+- [x] **Phase 30 — View counts, listing expiry & promotion.** Migration `87818c74aa4c`. De-duplicated view counting via a `listing_views` table (once per viewer per day, sellers excluded from their own counts), 30-day listing expiry with an hourly sweep task and an owner-facing Renew action, and admin-granted time-boxed promotion that floats a listing to the top of every browse ordering.
 - [ ] **Phase 31 — i18n completion (Bangla + English).** Not started.
 - [ ] **Phase 32 — SEO, error boundaries, 404 & mobile bottom nav.** Not started.
 - [ ] **Phase 33 — Backend test suite.** Not started.
@@ -82,6 +82,12 @@ Senior-engineer review of the Phase 27–29 implementation. Findings, in severit
 
 ### Phase 30 — View counts, listing expiry & promotion
 FEAT-04, FEAT-05, FEAT-07.
+
+**FEAT-04 — view counts.** A raw hit counter would just measure refreshes, so views are de-duplicated in a `listing_views` table keyed on `(listing_id, viewer_key, window_start)` — one view per viewer per UTC day. `viewer_key` is the user id when signed in, otherwise a salted hash of IP + user-agent, so both kinds of viewer share one column and the de-duplication is enforced by a unique constraint rather than a read-then-write race across the four prod workers. Sellers viewing their own listing don't count. `listings.view_count` is denormalised off that table so browse and sorting never aggregate. Only the detail route records — `/related` and `/seller-reviews` also load listings, and counting those would inflate the number with traffic the seller never received.
+
+**FEAT-07 — expiry.** New listings get `expires_at = now + 30 days`, and a new `expired` status distinct from `removed` so the dashboard can offer Renew rather than reading as a takedown. An hourly sweep task on the app lifespan (same shape as the WS heartbeat, no scheduler dependency) flips lapsed listings. Correctness doesn't depend on it: `browse_listings` also filters on `expires_at`, so a lapsed listing stops appearing whether or not the sweep has run. The migration backfills existing listings with a full window measured from the migration rather than from `created_at`, which would have expired most of the catalogue on first sweep. Sellers see a warning from 7 days out and a Renew button.
+
+**FEAT-05 — promotion.** `featured_until` gives a time-boxed promotion separate from the permanent `is_top` flag. Applied as a leading sort key in every ordering rather than as a prepended list, so paging doesn't repeat featured items on each page. Admin-granted, not seller-set: there's no payment integration, and self-service promotion means everyone is promoted and the ordering stops meaning anything.
 
 ### Phase 31 — i18n completion
 I18N-01→04 — the `LanguageContext` and `messages/{en,bn}.ts` exist but cover only the landing page; extract the remaining strings, add Noto Sans Bengali, and localize dates/currency/numerals.

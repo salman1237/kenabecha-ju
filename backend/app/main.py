@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
 from app.core.logging import setup_logging
+from app.tasks.expiry import sweeper
 from app.websocket.manager import manager
 from app.routers import (
     admin,
@@ -36,8 +37,10 @@ async def lifespan(_app: FastAPI):
     # The heartbeat has to be started inside the running event loop, not at
     # import time — asyncio.create_task needs a loop to attach to.
     manager.start_heartbeat()
+    sweeper.start()
     yield
     await manager.stop_heartbeat()
+    await sweeper.stop()
 
 
 app = FastAPI(

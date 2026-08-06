@@ -1,16 +1,28 @@
 import uuid
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, Query, UploadFile, status
+from fastapi import APIRouter, Depends, Query, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user, get_seller
+from app.core.dependencies import (
+    get_current_admin,
+    get_current_user,
+    get_optional_user,
+    get_seller,
+)
+from app.core.rate_limit import client_identifier
 from app.db.session import get_db
 from app.models.listing import Condition
 from app.models.shop import Shop
 from app.models.user import User
 from app.schemas.common import Page
-from app.schemas.listing import ListingCreate, ListingImageOut, ListingOut, ListingUpdate
+from app.schemas.listing import (
+    ListingCreate,
+    ListingFeatureIn,
+    ListingImageOut,
+    ListingOut,
+    ListingUpdate,
+)
 from app.schemas.rating import RatingOut, SellerReviewsOut
 from app.services import listing_service, media_service, rating_service
 
@@ -86,8 +98,23 @@ async def list_my_listings(
 
 
 @router.get("/{listing_id}", response_model=ListingOut)
-async def get_listing(listing_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> ListingOut:
+async def get_listing(
+    listing_id: uuid.UUID,
+    request: Request,
+    viewer: User | None = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
+) -> ListingOut:
     listing = await listing_service.get_listing(db, listing_id)
+    # Only the detail route counts. /related and /seller-reviews also load a
+    # listing, and counting those would inflate the number with traffic the
+    # seller never actually received.
+    await listing_service.record_view(
+        db,
+        listing,
+        viewer,
+        client_identifier(request),
+        request.headers.get("user-agent"),
+    )
     return ListingOut.model_validate(listing)
 
 
@@ -159,6 +186,32 @@ async def mark_sold(
 ) -> ListingOut:
     listing = await listing_service.get_owned_listing(db, listing_id, user)
     listing = await listing_service.mark_sold(db, listing)
+    return ListingOut.model_validate(listing)
+
+
+@router.post("/{listing_id}/renew", response_model=ListingOut)
+async def renew_listing(
+    listing_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> ListingOut:
+    # get_owned_listing, not get_listing: an expired listing is still is_active
+    # and not soft-deleted, so its owner can reach and revive it.
+    listing = await listing_service.get_owned_listing(db, listing_id, user)
+    listing = await listing_service.renew_listing(db, listing)
+    return ListingOut.model_validate(listing)
+
+
+@router.post("/{listing_id}/feature", response_model=ListingOut)
+async def feature_listing(
+    listing_id: uuid.UUID,
+    payload: ListingFeatureIn,
+    _admin: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> ListingOut:
+    """Admin-only. Promotion is granted, not bought — there's no payment
+    integration, so letting sellers set this themselves would just mean
+    everyone is featured and the ordering means nothing."""
+    listing = await listing_service.get_listing(db, listing_id)
+    listing = await listing_service.set_featured(db, listing, payload.days)
     return ListingOut.model_validate(listing)
 
 

@@ -93,6 +93,18 @@ export function markSold(id: string) {
   return apiFetch<Listing>(`/listings/${id}/mark-sold`, { method: "POST" });
 }
 
+export function renewListing(id: string) {
+  return apiFetch<Listing>(`/listings/${id}/renew`, { method: "POST" });
+}
+
+/** Admin-only. `days: null` clears the promotion. */
+export function featureListing(id: string, days: number | null) {
+  return apiFetch<Listing>(`/listings/${id}/feature`, {
+    method: "POST",
+    body: JSON.stringify({ days }),
+  });
+}
+
 export function uploadListingImage(id: string, file: File) {
   const formData = new FormData();
   formData.append("file", file);

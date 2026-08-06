@@ -1,11 +1,13 @@
 import enum
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Column,
+    DateTime,
     Enum,
     ForeignKey,
     Index,
@@ -15,6 +17,7 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -45,6 +48,9 @@ class ListingStatus(str, enum.Enum):
     sold = "sold"
     out_of_stock = "out_of_stock"
     removed = "removed"
+    # Set by the expiry sweep, never by a seller. Distinct from `removed` so
+    # the dashboard can offer Renew rather than treating it as taken down.
+    expired = "expired"
 
 
 class FulfillmentType(str, enum.Enum):
@@ -126,6 +132,16 @@ class Listing(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
     is_top: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False, server_default="false"
     )
+    # Denormalised from listing_views so browse/sort never has to aggregate.
+    # listing_views stays the source of truth for de-duplication.
+    view_count: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default="0"
+    )
+    # Time-boxed promotion, distinct from the permanent is_top flag.
+    featured_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    # Nullable because listings created before expiry existed never expire;
+    # the sweep and the browse filter both treat NULL as "no deadline".
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
     seller: Mapped["User"] = relationship(lazy="selectin")
     shop: Mapped["Shop | None"] = relationship(lazy="selectin")
@@ -152,6 +168,33 @@ class ListingImage(UUIDPKMixin, CreatedAtMixin, Base):
     sort_order: Mapped[int] = mapped_column(SmallInteger, default=0, nullable=False)
 
     listing: Mapped["Listing"] = relationship(back_populates="images")
+
+
+class ListingView(UUIDPKMixin, CreatedAtMixin, Base):
+    """One row per distinct viewer per listing, per de-duplication window.
+
+    Without this a seller's view count is just a refresh counter, which tells
+    them nothing about how the listing is performing. `viewer_key` is the
+    user id for signed-in viewers and a salted hash of IP + user-agent for
+    anonymous ones, so the two collapse to the same column and the unique
+    constraint can do the de-duplication in the database rather than in a
+    read-then-write race between workers.
+    """
+
+    __tablename__ = "listing_views"
+    __table_args__ = (
+        UniqueConstraint("listing_id", "viewer_key", "window_start", name="uq_listing_view_window"),
+        Index("ix_listing_views_listing_id_created_at", "listing_id", "created_at"),
+    )
+
+    listing_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("listings.id", ondelete="CASCADE"), nullable=False
+    )
+    viewer_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    # Truncated to the start of the de-dup window (a UTC day). Part of the
+    # unique key, so a viewer counts once per window without needing a
+    # range query or a periodic cleanup job to keep the constraint useful.
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class Tag(UUIDPKMixin, CreatedAtMixin, Base):

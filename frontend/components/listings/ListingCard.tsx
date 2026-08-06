@@ -14,6 +14,33 @@ function TopBadge() {
   );
 }
 
+function FeaturedBadge() {
+  return (
+    <Badge className="absolute left-2 top-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-[10px] font-bold uppercase tracking-wider text-white shadow-xs">
+      ✦ Featured
+    </Badge>
+  );
+}
+
+/** Only one corner badge fits, and a live promotion is the more current
+ *  signal than the permanent `is_top` flag, so it wins when both are set. */
+function PromoBadge({ listing }: { listing: Listing }) {
+  if (listing.is_featured) return <FeaturedBadge />;
+  if (listing.is_top) return <TopBadge />;
+  return null;
+}
+
+function ViewCount({ count }: { count: number }) {
+  // Hidden at zero: "0 views" on a fresh listing reads as a failure rather
+  // than as an absence of data.
+  if (count < 1) return null;
+  return (
+    <span title={`${count} ${count === 1 ? "view" : "views"}`}>
+      👁 {count}
+    </span>
+  );
+}
+
 function StatusBadge({ status }: { status: Listing["status"] }) {
   return (
     <Badge variant="secondary" className="absolute right-2 top-2 text-[10px] capitalize">
@@ -45,7 +72,7 @@ export function ListingCard({
             alt={listing.title}
             className="transition-transform duration-500 group-hover:scale-105"
           />
-          {listing.is_top && <TopBadge />}
+          <PromoBadge listing={listing} />
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-1 py-1">
@@ -67,6 +94,7 @@ export function ListingCard({
             <span>{listing.shop ? "New" : CONDITION_LABELS[listing.condition]}</span>
             <span className="capitalize">{listing.fulfillment_type}</span>
             {listing.shop && <span className="truncate">🏪 {listing.shop.shop_name}</span>}
+            <ViewCount count={listing.view_count} />
           </div>
         </div>
       </Link>
@@ -88,7 +116,7 @@ export function ListingCard({
           alt={listing.title}
           className="transition-transform duration-500 group-hover:scale-108"
         />
-        {listing.is_top && <TopBadge />}
+        <PromoBadge listing={listing} />
         {listing.status !== "active" && <StatusBadge status={listing.status} />}
         <SaveButton
           listingId={listing.id}
@@ -103,7 +131,12 @@ export function ListingCard({
         <p className="truncate text-sm font-semibold transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
           {listing.title}
         </p>
-        <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{price}</p>
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{price}</p>
+          <span className="shrink-0 text-[11px] text-muted-foreground">
+            <ViewCount count={listing.view_count} />
+          </span>
+        </div>
         {listing.shop && (
           <p className="truncate text-[11px] text-muted-foreground">🏪 {listing.shop.shop_name}</p>
         )}
