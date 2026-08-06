@@ -60,7 +60,25 @@ async def get_seller(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+async def get_current_staff(user: User = Depends(get_current_user)) -> User:
+    """Moderation surface: reports, removing listings and shops.
+
+    Admins and moderators both pass. Separate from get_current_admin so a
+    moderator can act on a reported listing without also being able to grant
+    themselves permissions or rewrite the site.
+    """
+    if not user.role.is_staff:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Moderator access required"
+        )
+    return user
+
+
 async def get_current_admin(user: User = Depends(get_current_user)) -> User:
+    """Administration: user management, role changes, site content.
+
+    Admin only — deliberately narrower than get_current_staff.
+    """
     if user.role != UserRole.admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return user

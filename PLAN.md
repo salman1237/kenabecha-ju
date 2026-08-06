@@ -559,6 +559,22 @@ The point of the split is that moderation and administration are different jobs.
 
 `ADMIN_EMAILS` continues to promote to admin and remains one-way.
 
+### Phase 40 — Roles: moderators (implemented)
+
+`moderator` added to the `user_role` enum (migration `ac73d6d3bc52`, hand-written as Alembic does not diff enum values; the downgrade raises rather than guessing what to do with anyone holding the role).
+
+**The split.** `get_current_staff` (admin **or** moderator) is the router-level guard on `/admin`, covering reports, listings and shops. `get_current_admin` is applied individually to user listing, activation and role changes. A moderator can act on a reported listing without gaining the ability to grant permissions or edit the site.
+
+**Rail 1 — nobody changes their own role, or deactivates themselves.** Placed on the *operation*, not on who may call it: the endpoint is admin-only today, but the guard should survive that changing. Without it, anyone reaching the endpoint escalates and the split is decorative.
+
+**Rail 2 — the last active admin is protected.** Demoting or deactivating them is refused. This is the one mistake with no route back through the product: with no admin left nobody can reach the panel, and recovery means a shell on the database — the exact problem `ADMIN_EMAILS` was added to solve. Inactive admins deliberately do not count as cover, since they cannot log in.
+
+**Demotion revokes sessions**, so a removed permission applies immediately rather than lasting until the current access token expires.
+
+**A fixture bug surfaced while testing.** `make_user(role="admin")` left the attribute as a plain `str`, so `role.is_staff` raised — a row loaded from the database yields a `UserRole`. The fixture now coerces, since a helper that produces a shape the application never sees is worse than no helper.
+
+13 tests cover the split in both directions and every rail, including that an inactive admin does not satisfy the "another admin exists" check. Suite 105. Verified in the browser: role select per row, own row shows "You" rather than controls that would only 400, and a promote/revert round-trip returned 200 both ways.
+
 ### Phase 41 — Audit log
 
 **Deliberately before moderators get used in anger.** The moment removal powers belong to more than one person, "who deleted this shop?" becomes a question the system must be able to answer.

@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
-import type { AdminStats, AdminUser, Listing, Page, Report, ReportStatus, Shop } from "@/types/api";
+import type { AdminStats, AdminUser, Listing, Page, Report, ReportStatus, Shop, UserRole } from "@/types/api";
 
 export function getAdminStats() {
   return apiFetch<AdminStats>("/admin/stats");
@@ -12,6 +12,15 @@ export function listAdminUsers(q?: string) {
 
 export function setUserActive(userId: string, isActive: boolean) {
   return apiFetch<AdminUser>(`/admin/users/${userId}/active?is_active=${isActive}`, { method: "PATCH" });
+}
+
+/** Grant or revoke moderator/admin. The API refuses a change to your own role
+ *  and refuses to demote the last active admin. */
+export function setUserRole(userId: string, role: UserRole) {
+  return apiFetch<AdminUser>(`/admin/users/${userId}/role`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
 }
 
 export function listAdminListings() {

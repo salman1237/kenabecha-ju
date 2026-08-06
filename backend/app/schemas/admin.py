@@ -6,6 +6,10 @@ from pydantic import BaseModel, ConfigDict
 from app.models.user import UserRole
 
 
+class SetUserRoleIn(BaseModel):
+    role: UserRole
+
+
 class AdminUserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

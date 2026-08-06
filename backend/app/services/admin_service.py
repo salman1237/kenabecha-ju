@@ -12,7 +12,7 @@ from app.models.listing import Listing, ListingStatus
 from app.models.notification import NotificationType
 from app.models.report import Report, ReportStatus
 from app.models.shop import Shop
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.admin import AdminStatsOut
 from app.services import auth_service, notification_service
 
@@ -36,13 +36,95 @@ async def list_users(
     return users, count
 
 
-async def set_user_active(db: AsyncSession, user_id: uuid.UUID, is_active: bool) -> User:
+async def _count_other_active_admins(db: AsyncSession, excluding: uuid.UUID) -> int:
+    """Active admins other than this one."""
+    result = await db.execute(
+        select(func.count())
+        .select_from(User)
+        .where(
+            User.role == UserRole.admin,
+            User.is_active.is_(True),
+            User.deleted_at.is_(None),
+            User.id != excluding,
+        )
+    )
+    return result.scalar_one()
+
+
+async def _guard_last_admin(db: AsyncSession, target: User) -> None:
+    """Refuse a change that would leave no active admin.
+
+    Losing the last admin is unrecoverable through the product: nobody can
+    reach the panel to undo it, and the only way back is a shell on the
+    database — the exact situation ADMIN_EMAILS exists to avoid. One
+    mis-click should not cost that.
+    """
+    if target.role != UserRole.admin or not target.is_active:
+        return
+    if await _count_other_active_admins(db, target.id) == 0:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "This is the last active admin. Promote another admin first.",
+        )
+
+
+async def set_user_active(
+    db: AsyncSession, user_id: uuid.UUID, is_active: bool, *, actor: User
+) -> User:
     user = await db.get(User, user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    if user.id == actor.id and not is_active:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "You cannot deactivate your own account")
+    if not is_active:
+        await _guard_last_admin(db, user)
+
     user.is_active = is_active
     if not is_active:
         await auth_service.revoke_all_user_tokens(db, user.id)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def set_user_role(
+    db: AsyncSession, user_id: uuid.UUID, role: UserRole, *, actor: User
+) -> User:
+    """Change a user's role.
+
+    Two rails:
+
+    * **Nobody changes their own role.** Without this, anyone who reaches the
+      endpoint can escalate themselves, which would make the moderator/admin
+      split meaningless — a moderator would simply grant themselves admin.
+      The endpoint is admin-only today, but the guard belongs on the
+      operation rather than on who happens to be allowed to call it.
+    * **The last active admin cannot be demoted.** See _guard_last_admin.
+
+    Demoting someone revokes their sessions, so a removed permission takes
+    effect immediately rather than lasting until their access token expires.
+    """
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    if user.id == actor.id:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "You cannot change your own role. Ask another admin.",
+        )
+
+    if role != UserRole.admin:
+        await _guard_last_admin(db, user)
+
+    was_privileged = user.role.is_staff
+    user.role = role
+    if was_privileged and not role.is_staff:
+        # Drop existing sessions so the lost permissions apply now, not
+        # whenever the current access token happens to expire.
+        await auth_service.revoke_all_user_tokens(db, user.id)
+
     await db.commit()
     await db.refresh(user)
     return user

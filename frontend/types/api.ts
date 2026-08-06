@@ -14,6 +14,10 @@ export interface SessionOption {
   batch: number;
 }
 
+/** Moderators can act on reports and remove content; only admins can manage
+ *  users, grant roles, or edit site content. */
+export type UserRole = "user" | "moderator" | "admin";
+
 export interface User {
   id: string;
   email: string;
@@ -28,7 +32,7 @@ export interface User {
   department: Department | null;
   session: string | null;
   batch: number | null;
-  role: "user" | "admin";
+  role: UserRole;
   auth_provider: "local" | "google";
   is_verified: boolean;
   profile_complete: boolean;
@@ -284,7 +288,7 @@ export interface AdminUser {
   email: string;
   full_name: string;
   student_id: string | null;
-  role: "user" | "admin";
+  role: UserRole;
   is_active: boolean;
   is_verified: boolean;
   created_at: string;

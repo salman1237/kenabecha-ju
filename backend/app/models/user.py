@@ -14,7 +14,17 @@ if TYPE_CHECKING:
 
 class UserRole(str, enum.Enum):
     user = "user"
+    # Can act on reports and remove listings and shops, but cannot manage
+    # users, grant roles, or edit site content. Moderating and administering
+    # are different jobs, and conflating them means every volunteer helper
+    # also gets the ability to lock the owner out.
+    moderator = "moderator"
     admin = "admin"
+
+    @property
+    def is_staff(self) -> bool:
+        """Whether this role may use the moderation surface."""
+        return self in (UserRole.moderator, UserRole.admin)
 
 
 class AuthProvider(str, enum.Enum):

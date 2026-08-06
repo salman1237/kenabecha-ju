@@ -6,14 +6,23 @@ import { DataTable, type Column } from "@/components/admin/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/useDebounce";
-import { listAdminUsers, setUserActive } from "@/lib/api/admin";
-import type { AdminUser } from "@/types/api";
+import { listAdminUsers, setUserActive, setUserRole } from "@/lib/api/admin";
+import { translateApiError } from "@/lib/i18n/errors";
+import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
+import { selectClass } from "@/components/ui/FormField";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import type { AdminUser, UserRole } from "@/types/api";
 
 export default function AdminUsersPage() {
   const [q, setQ] = useState("");
   const debouncedQ = useDebounce(q, 250);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const { user: currentUser } = useAuth();
+  const { t } = useLanguage();
 
   const load = (query: string) => {
     setLoading(true);
@@ -26,9 +35,30 @@ export default function AdminUsersPage() {
     load(debouncedQ);
   }, [debouncedQ]);
 
-  const onToggleActive = async (user: AdminUser) => {
-    await setUserActive(user.id, !user.is_active);
-    load(debouncedQ);
+  // The API enforces the rules (no self-change, no demoting the last admin)
+  // and returns 400 with a readable message. Surfacing that verbatim beats
+  // duplicating the logic here, where it could drift out of step.
+  const run = async (user: AdminUser, action: () => Promise<unknown>) => {
+    setBusyId(user.id);
+    try {
+      await action();
+      load(debouncedQ);
+    } catch (err) {
+      toast.error(translateApiError(err, t));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const onToggleActive = (user: AdminUser) =>
+    run(user, () => setUserActive(user.id, !user.is_active));
+
+  const onChangeRole = (user: AdminUser, role: UserRole) => {
+    if (role === user.role) return;
+    return run(user, async () => {
+      await setUserRole(user.id, role);
+      toast.success(`${user.full_name} is now ${role}`);
+    });
   };
 
   const columns: Column<AdminUser>[] = [
@@ -54,7 +84,14 @@ export default function AdminUsersPage() {
     {
       key: "role",
       header: "Role",
-      cell: (u) => <span className="capitalize">{u.role}</span>,
+      cell: (u) => (
+        <Badge
+          variant={u.role === "admin" ? "default" : u.role === "moderator" ? "secondary" : "outline"}
+          className="capitalize"
+        >
+          {u.role}
+        </Badge>
+      ),
       sortValue: (u) => u.role,
     },
     {
@@ -93,13 +130,37 @@ export default function AdminUsersPage() {
         exportName="users"
         emptyTitle="No users found"
         emptyDescription={q ? "Try a different search term." : undefined}
-        actions={(u) =>
-          u.role !== "admin" ? (
-            <Button variant="ghost" size="sm" onClick={() => onToggleActive(u)}>
-              {u.is_active ? "Deactivate" : "Reactivate"}
-            </Button>
-          ) : null
-        }
+        actions={(u) => {
+          // Your own row offers nothing: the API refuses a self role change or
+          // self-deactivation, so showing the controls would only produce a
+          // 400. Saying why is more useful than a disabled button.
+          if (u.id === currentUser?.id) {
+            return <span className="text-xs text-muted-foreground">You</span>;
+          }
+          return (
+            <div className="flex items-center gap-2">
+              <select
+                value={u.role}
+                disabled={busyId === u.id}
+                onChange={(e) => onChangeRole(u, e.target.value as UserRole)}
+                aria-label={`Role for ${u.full_name}`}
+                className={cn(selectClass, "h-8 w-32 text-xs")}
+              >
+                <option value="user">User</option>
+                <option value="moderator">Moderator</option>
+                <option value="admin">Admin</option>
+              </select>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={busyId === u.id}
+                onClick={() => onToggleActive(u)}
+              >
+                {u.is_active ? "Deactivate" : "Reactivate"}
+              </Button>
+            </div>
+          );
+        }}
       />
     </div>
   );

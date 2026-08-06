@@ -3,18 +3,21 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_admin
+from app.core.dependencies import get_current_admin, get_current_staff
 from app.db.session import get_db
 from app.models.report import ReportStatus
 from app.models.user import User
-from app.schemas.admin import AdminStatsOut, AdminUserOut
+from app.schemas.admin import AdminStatsOut, AdminUserOut, SetUserRoleIn
 from app.schemas.common import Page
 from app.schemas.listing import ListingOut
 from app.schemas.report import ReportOut, ResolveReportRequest
 from app.schemas.shop import ShopOut
 from app.services import admin_service, report_service
 
-router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(get_current_admin)])
+# Router-level guard is the lower bar — moderators reach the moderation
+# surface. Routes that manage users, roles or site content add
+# Depends(get_current_admin) individually to require the higher one.
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(get_current_staff)])
 
 
 @router.get("/stats", response_model=AdminStatsOut)
@@ -22,7 +25,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> AdminStatsOut:
     return await admin_service.get_stats(db)
 
 
-@router.get("/users", response_model=Page[AdminUserOut])
+@router.get("/users", response_model=Page[AdminUserOut], dependencies=[Depends(get_current_admin)])
 async def list_users(
     q: str | None = None, limit: int = 50, offset: int = 0, db: AsyncSession = Depends(get_db)
 ) -> Page[AdminUserOut]:
@@ -32,9 +35,25 @@ async def list_users(
 
 @router.patch("/users/{user_id}/active", response_model=AdminUserOut)
 async def set_user_active(
-    user_id: uuid.UUID, is_active: bool, db: AsyncSession = Depends(get_db)
+    user_id: uuid.UUID,
+    is_active: bool,
+    actor: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
 ) -> AdminUserOut:
-    user = await admin_service.set_user_active(db, user_id, is_active)
+    user = await admin_service.set_user_active(db, user_id, is_active, actor=actor)
+    return AdminUserOut.model_validate(user)
+
+
+@router.patch("/users/{user_id}/role", response_model=AdminUserOut)
+async def set_user_role(
+    user_id: uuid.UUID,
+    payload: SetUserRoleIn,
+    actor: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> AdminUserOut:
+    """Grant or revoke moderator/admin. Admin only — a moderator promoting
+    people would make the split meaningless."""
+    user = await admin_service.set_user_role(db, user_id, payload.role, actor=actor)
     return AdminUserOut.model_validate(user)
 
 

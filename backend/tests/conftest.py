@@ -49,7 +49,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine  # noqa: E4
 from app.db.session import get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.listing import Listing, ListingStatus  # noqa: E402
-from app.models.user import User  # noqa: E402
+from app.models.user import User, UserRole  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 
 
@@ -151,7 +151,7 @@ async def make_user(
     email: str | None = None,
     is_verified: bool = True,
     is_active: bool = True,
-    role: str = "user",
+    role: str | UserRole = "user",
 ) -> User:
     """A verified, sellable-from account by default. Values that must be
     unique are suffixed so callers can create several without collisions.
@@ -181,7 +181,10 @@ async def make_user(
         batch=50,
         is_verified=is_verified,
         is_active=is_active,
-        role=role,
+        # Coerced, not passed through as a string: a row loaded from the
+        # database yields a UserRole, so a fixture that leaves a bare str
+        # produces an object the application code never actually sees.
+        role=UserRole(role),
     )
     db.add(user)
     await db.flush()
