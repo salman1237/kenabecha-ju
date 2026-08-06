@@ -30,6 +30,10 @@ class AuditAction:
     LISTING_FEATURED = "listing.featured"
     SHOP_REMOVED = "shop.removed"
     REPORT_RESOLVED = "report.resolved"
+    SECTION_CREATED = "section.created"
+    SECTION_UPDATED = "section.updated"
+    SECTION_DELETED = "section.deleted"
+    SECTIONS_REORDERED = "section.reordered"
 
 
 class AuditLog(UUIDPKMixin, CreatedAtMixin, Base):

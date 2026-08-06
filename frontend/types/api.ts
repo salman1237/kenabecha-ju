@@ -340,3 +340,28 @@ export interface AuditLogEntry {
   detail: Record<string, unknown> | null;
   created_at: string;
 }
+
+
+export type SectionType =
+  | "hero"
+  | "stats"
+  | "top_products"
+  | "latest_listings"
+  | "featured_shops"
+  | "categories"
+  | "how_it_works"
+  | "reviews"
+  | "cta"
+  | "newsletter";
+
+export interface PageSection {
+  id: string;
+  key: string;
+  section_type: SectionType;
+  sort_order: number;
+  is_active: boolean;
+  /** Per-locale copy overrides and per-type options. Empty means "use the
+   *  bundled defaults". */
+  settings: Record<string, unknown>;
+  updated_at: string;
+}

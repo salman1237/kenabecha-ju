@@ -38,6 +38,12 @@ os.environ.setdefault("JWT_SECRET_KEY", "test-secret-not-used-anywhere-else-0123
 # Secure cookie over http. Pinning it means the suite behaves the same
 # everywhere.
 os.environ["ENV"] = "test"
+# Forced empty so `send_email` takes its no-SMTP branch and logs instead of
+# connecting. Without this the suite inherits the container's real SMTP
+# settings and genuinely tries to send mail through a live Gmail account —
+# which fails authentication and takes four unrelated tests down with it,
+# and would send real email to fake addresses if it ever succeeded.
+os.environ["SMTP_HOST"] = ""
 
 import pytest  # noqa: E402
 from alembic import command  # noqa: E402

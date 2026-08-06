@@ -5,6 +5,7 @@ from app.models.follow import ShopFollow
 from app.models.listing import Listing, ListingImage, Tag, listing_tags
 from app.models.newsletter import NewsletterSubscriber
 from app.models.notification import Notification
+from app.models.page_section import PageSection, SectionType
 from app.models.rate_limit import RateLimitHit
 from app.models.rating import Rating
 from app.models.reference import Department, Hall
@@ -31,6 +32,8 @@ __all__ = [
     "Report",
     "Notification",
     "NewsletterSubscriber",
+    "PageSection",
+    "SectionType",
     "RateLimitHit",
     "SavedListing",
     "ShopFollow",

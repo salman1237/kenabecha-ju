@@ -48,6 +48,8 @@ const ITEMS = [
   { key: "total_ratings", label: (t: Translations) => t.sections.ratingsGiven, icon: Star },
 ] as const;
 
+/** Takes no settings: the numbers come from the database and the labels
+ *  are the four metrics themselves, so there is nothing here to retitle. */
 export function StatsSection() {
   const { t } = useLanguage();
   const [stats, setStats] = useState<PublicStats | null>(null);

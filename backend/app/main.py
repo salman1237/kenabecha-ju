@@ -19,6 +19,7 @@ from app.routers import (
     admin,
     auth,
     categories,
+    page_sections,
     chat,
     dashboard,
     listings,
@@ -78,6 +79,8 @@ app.include_router(auth.router)
 app.include_router(public.router)
 app.include_router(reference.router)
 app.include_router(categories.router)
+app.include_router(page_sections.public_router)
+app.include_router(page_sections.admin_router)
 app.include_router(shops.router)
 app.include_router(tags.router)
 app.include_router(listings.router)

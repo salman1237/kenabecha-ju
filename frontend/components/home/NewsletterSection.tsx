@@ -11,9 +11,13 @@ import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api/client";
 import { subscribeNewsletter } from "@/lib/api/public";
 import { revealOnScroll, scaleIn, staggerContainer, staggerItem } from "@/lib/motion";
+import { sectionCopy, sectionDefaults } from "@/lib/sectionCopy";
 
-export function NewsletterSection() {
-  const { t } = useLanguage();
+import type { SectionProps } from "./sections/types";
+
+export function NewsletterSection({ section }: Partial<SectionProps>) {
+  const { t, locale } = useLanguage();
+  const copy = sectionCopy(section, locale, sectionDefaults("newsletter", t));
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -62,13 +66,13 @@ export function NewsletterSection() {
           variants={staggerItem}
           className="relative text-2xl font-bold tracking-tight text-white sm:text-3xl"
         >
-          {t.newsletter.title}
+          {copy("title")}
         </motion.h2>
         <motion.p
           variants={staggerItem}
           className="relative mx-auto mt-2 max-w-md text-sm text-white/80"
         >
-          {t.newsletter.body}
+          {copy("body")}
         </motion.p>
 
         <motion.div variants={staggerItem} className="relative mt-6">
