@@ -40,6 +40,31 @@ export function GoogleSignInButton({ next, onError }: { next: string; onError?: 
     () => typeof window !== "undefined" && Boolean(window.google?.accounts?.id)
   );
 
+  // Poll for the SDK instead of trusting next/script's onReady.
+  //
+  // Reaching /login by client-side navigation (home -> "Log In") loaded
+  // gsi/client but never fired onReady, so scriptReady stayed false, the render
+  // effect never ran, and gsi/button was never even requested — the button was
+  // simply absent until a full page load. Landing on /login directly worked,
+  // which is what made it look intermittent.
+  //
+  // onReady is kept below as the fast path; this is the guarantee. Polling ends
+  // as soon as the SDK appears, and gives up after ~10s so a blocked or failed
+  // script does not leave an interval running for the life of the page.
+  useEffect(() => {
+    if (scriptReady) return;
+    const started = Date.now();
+    const id = setInterval(() => {
+      if (window.google?.accounts?.id) {
+        setScriptReady(true);
+        clearInterval(id);
+      } else if (Date.now() - started > 10_000) {
+        clearInterval(id);
+      }
+    }, 100);
+    return () => clearInterval(id);
+  }, [scriptReady]);
+
   const latest = useRef({ next, onError, setUser, router });
   useEffect(() => {
     latest.current = { next, onError, setUser, router };
