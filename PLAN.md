@@ -684,11 +684,33 @@ Neither fails with an error an admin would see. So:
 
 33 tests: the shipped taxonomy intact after the migration, admin-only access with moderators explicitly refused, slug derivation and collisions, both depth rules, moves and promotions, hiding and its cascade to children and to listing counts, the editable-when-retired case, per-level reordering with its rejections, all four delete refusals, and the audit trail including that a refused delete records nothing. Suite 173. Mutation-tested: removing the listing guard, the children guard, the depth guard, or the retired-category check each fails between one and seven tests.
 
-### Phase 44 — Admin dashboard & moderation tooling
+### Phase 44 — Navigation management (implemented)
+
+Raised as a bug report — "where are footer items? after phase 42 i can't see it, also footer & navbar is not customizable from admin". Two separate problems, both real.
+
+**The footer was shipping invisible.** Every block in it — the brand column and all three link columns — was server-rendered with inline `opacity: 0`, because the shared scroll-reveal helpers hide their content and animate it back once Framer Motion has hydrated and an `IntersectionObserver` has fired. The markup was always correct; whether anyone saw it depended on JavaScript completing successfully. Any interruption left the footer's entire link set invisible with no error anywhere to explain it. Site chrome at the very bottom of a long page gains nothing from an entrance animation, so the footer no longer has one — it is now visible without JavaScript at all. Fixed and shipped on its own, ahead of the feature below.
+
+**Then the feature.** Navbar and footer links are now data, managed at `/admin/navigation`: add, rename in both languages, reorder, hide, delete, and scope to signed-in or signed-out visitors. Footer columns themselves can be added, retitled, reordered, hidden and removed.
+
+**Labels are overrides, not content** — the same principle as the landing page. Each seeded link carries a `translation_key` (`nav.browse`, `footer.terms`) rather than any text, and the frontend resolves it against the bundled catalogues. An admin's edit is stored per locale on top. So the migration duplicates no copy, an untouched link reads exactly as it always did in both languages, and an English-only edit leaves Bangla on its shipped text rather than blank. Admin-created links have no translation key and carry their own text, which is why the editor insists on at least one language for a new link.
+
+**Sign-in rules moved from JSX into the row.** `visibility` is `always | signed_in | signed_out`, reproducing exactly what the markup did — Sell, Inbox and My Shops need an account. Putting the rule beside the link is what makes "add a link only members see" an admin action rather than a code change.
+
+**Controls are not links.** The search box, notification bell, theme toggle and language switcher are functional components, so they cannot be added or reordered — only switched off, via a generic `site_settings` row. Missing keys take their default, so an empty or absent row is a fully working navbar rather than one stripped bare. Unknown control names are dropped rather than stored: they would be dead weight the frontend never reads, and accepting them silently would let a typo look like it had worked. The screen warns that hiding the language switcher leaves Bangla unreachable.
+
+**A hard-coded fallback, and this one is load-bearing.** Navigation renders on every page. Without a fallback, one API blip would leave the entire site with no way to get anywhere — a far worse failure than slightly stale menus. `FALLBACK_NAVIGATION` mirrors the seed, and it was verified by stopping the backend outright and confirming the navbar and footer still render in full.
+
+**Fetched once, server-side, in the root layout** and passed down by context. Two components each requesting it would double the work on every page and could disagree with one another mid-update.
+
+**Other decisions:** a new footer column starts hidden (an empty column appearing site-wide before it is filled is not a state anyone should see) while a new link is visible immediately (a single link cannot leave the site looking half-built); reordering is scoped to one menu or one location and demands every sibling exactly once; deleting a menu takes its links, which is safe here precisely because nothing outside the menu points at them — unlike a category, where listings do; icons come from a fourteen-name allow-list, because importing all of lucide for a five-item menu would land the whole set in the client bundle.
+
+27 tests: the seed reproducing the shipped navigation including its visibility rules, hidden menus and links absent from the public API, ordering, admin-only access with moderators refused, per-locale overrides preserving the translation key, link and menu CRUD, reordering with its rejections, control defaults and unknown-name handling, and the audit trail including that a refused reorder records nothing. Suite 200. Mutation-tested: leaking hidden links, accepting a partial order, storing unknown controls, or dropping the control defaults each fails between one and seven tests. Verified live by renaming a column in both languages, adding a link, hiding and reordering navbar entries, and switching the search box off — each confirmed in the rendered HTML, then restored.
+
+### Phase 45 — Admin dashboard & moderation tooling
 
 - A dashboard worth opening: signups, listings and messages over time, pending report count, most-viewed listings.
 - Bulk actions on the moderation tables, which currently force one-at-a-time work.
-- A site-wide announcement banner (maintenance notices, term dates), dismissible and scheduled — reusing the Phase 42 override mechanism rather than inventing a second one.
+- A site-wide announcement banner (maintenance notices, term dates), dismissible and scheduled — reusing the Phase 44 `site_settings` table rather than inventing a second mechanism.
 
 ### Sequencing
 

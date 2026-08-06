@@ -18,6 +18,7 @@ const TABS = [
   { href: "/admin/reports", label: "Reports", adminOnly: false },
   { href: "/admin/sections", label: "Landing page", adminOnly: true },
   { href: "/admin/categories", label: "Categories", adminOnly: true },
+  { href: "/admin/navigation", label: "Navigation", adminOnly: true },
   { href: "/admin/audit", label: "Audit log", adminOnly: true },
 ];
 

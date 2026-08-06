@@ -38,6 +38,15 @@ class AuditAction:
     CATEGORY_UPDATED = "category.updated"
     CATEGORY_DELETED = "category.deleted"
     CATEGORIES_REORDERED = "category.reordered"
+    NAV_MENU_CREATED = "nav_menu.created"
+    NAV_MENU_UPDATED = "nav_menu.updated"
+    NAV_MENU_DELETED = "nav_menu.deleted"
+    NAV_MENUS_REORDERED = "nav_menu.reordered"
+    NAV_LINK_CREATED = "nav_link.created"
+    NAV_LINK_UPDATED = "nav_link.updated"
+    NAV_LINK_DELETED = "nav_link.deleted"
+    NAV_LINKS_REORDERED = "nav_link.reordered"
+    NAVBAR_CONTROLS_CHANGED = "navbar_controls.changed"
 
 
 class AuditLog(UUIDPKMixin, CreatedAtMixin, Base):

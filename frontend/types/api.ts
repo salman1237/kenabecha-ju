@@ -380,3 +380,36 @@ export interface PageSection {
   settings: Record<string, unknown>;
   updated_at: string;
 }
+
+
+export type NavLocation = "navbar" | "footer";
+export type NavVisibility = "always" | "signed_in" | "signed_out";
+
+export interface NavLink {
+  id: string;
+  /** The bundled translation to fall back to; null for admin-created links. */
+  translation_key: string | null;
+  /** Per-locale override, e.g. {"en": "...", "bn": "..."}. */
+  label: Record<string, unknown>;
+  href: string;
+  icon: string | null;
+  sort_order: number;
+  is_active: boolean;
+  visibility: NavVisibility;
+}
+
+export interface NavMenu {
+  id: string;
+  key: string;
+  location: NavLocation;
+  translation_key: string | null;
+  label: Record<string, unknown>;
+  sort_order: number;
+  is_active: boolean;
+  links: NavLink[];
+}
+
+export interface Navigation {
+  menus: NavMenu[];
+  navbar_controls: Record<string, boolean>;
+}

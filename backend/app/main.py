@@ -18,6 +18,7 @@ from app.websocket.manager import manager
 from app.routers import (
     admin,
     admin_categories,
+    navigation,
     auth,
     categories,
     page_sections,
@@ -92,6 +93,8 @@ app.include_router(users.router)
 app.include_router(reports.router)
 app.include_router(admin.router)
 app.include_router(admin_categories.router)
+app.include_router(navigation.public_router)
+app.include_router(navigation.admin_router)
 app.include_router(notifications.router)
 app.include_router(dashboard.router)
 

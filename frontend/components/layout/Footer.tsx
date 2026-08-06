@@ -5,46 +5,10 @@
 import { Code2, Globe, Mail, MapPin, Send } from "lucide-react";
 import Link from "next/link";
 
+import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-import type { Translations } from "@/messages/en";
-
-// Built from the active translations rather than a module-level constant,
-// so the labels change with the language instead of being frozen at import.
-function linkGroups(t: Translations) {
-  return [
-    {
-      heading: t.footer.marketplace,
-      links: [
-        { label: t.footer.browseListings, href: "/listings" },
-        { label: t.shops.browseTitle, href: "/shops" },
-        { label: t.footer.sellAnItem, href: "/listings/new" },
-        { label: t.footer.openShop, href: "/shops/dashboard" },
-        { label: t.footer.myDashboard, href: "/dashboard" },
-      ],
-    },
-    {
-      heading: t.footer.account,
-      links: [
-        { label: t.footer.logIn, href: "/login" },
-        { label: t.footer.signUp, href: "/signup" },
-        { label: t.nav.inbox, href: "/inbox" },
-        { label: t.footer.resetPassword, href: "/forgot-password" },
-      ],
-    },
-    {
-      heading: t.footer.campus,
-      links: [
-        { label: t.footer.university, href: "https://juniv.edu" },
-        // Safety guidance and the community rules both live in the Terms;
-        // these used to point at /listings, which was a dead end.
-        { label: t.footer.safetyTips, href: "/terms#meeting-safely" },
-        { label: t.footer.communityRules, href: "/terms" },
-        { label: t.footer.terms, href: "/terms" },
-        { label: t.footer.privacy, href: "/privacy" },
-      ],
-    },
-  ];
-}
+import { useNavigation } from "@/context/NavigationContext";
+import { menusAt, navLabel, visibleLinks } from "@/lib/navigation";
 
 const SOCIALS = [
   { label: "University website", href: "https://juniv.edu", icon: Globe },
@@ -53,9 +17,12 @@ const SOCIALS = [
 ];
 
 export function Footer() {
-  const { t, fmt } = useLanguage();
+  const { t, fmt, locale } = useLanguage();
+  const { user } = useAuth();
+  const navigation = useNavigation();
   const year = new Date().getFullYear();
-  const groups = linkGroups(t);
+
+  const columns = menusAt(navigation, "footer");
 
   return (
     // Deliberately not scroll-revealed. The reveal helpers render their
@@ -99,31 +66,48 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Link columns */}
-          {groups.map((group) => (
-            <div key={group.heading} className="flex flex-col gap-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
-                {group.heading}
-              </h3>
-              <ul className="flex flex-col gap-2.5">
-                {group.links.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-muted-foreground transition-colors hover:text-emerald-600 dark:hover:text-emerald-400"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {/* Link columns — managed from the admin panel. */}
+          {columns.map((column) => {
+            const links = visibleLinks(column, Boolean(user));
+            // A column with nothing to show for this visitor would leave a
+            // gap in the grid and a heading with no links under it.
+            if (links.length === 0) return null;
+            return (
+              <div key={column.id} className="flex flex-col gap-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
+                  {navLabel(column, locale, t)}
+                </h3>
+                <ul className="flex flex-col gap-2.5">
+                  {links.map((link) => {
+                    const external = !link.href.startsWith("/");
+                    const className =
+                      "text-sm text-muted-foreground transition-colors hover:text-emerald-600 dark:hover:text-emerald-400";
+                    return (
+                      <li key={link.id}>
+                        {external ? (
+                          <a
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={className}
+                          >
+                            {navLabel(link, locale, t)}
+                          </a>
+                        ) : (
+                          <Link href={link.href} className={className}>
+                            {navLabel(link, locale, t)}
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
         </div>
 
-        <div
-          className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-6 sm:flex-row"
-        >
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-6 sm:flex-row">
           <p className="text-xs text-muted-foreground">
             © {fmt.plainNumber(year)} KenaBecha JU. {t.footer.rights}
           </p>

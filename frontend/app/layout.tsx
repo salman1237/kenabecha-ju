@@ -11,9 +11,12 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/AuthContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { NavigationProvider } from "@/context/NavigationContext";
 import { SkipLinkLabel } from "@/components/layout/SkipLinkLabel";
 import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE } from "@/lib/i18n/config";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { FALLBACK_NAVIGATION } from "@/lib/navigation";
+import { SERVER_API_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import type { Navigation } from "@/types/api";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -74,6 +77,22 @@ export const metadata: Metadata = {
   },
 };
 
+/** Never let a navigation failure take down every page. An API blip would
+ *  otherwise leave the whole site with no way to get anywhere, which is far
+ *  worse than slightly stale menus. */
+async function loadNavigation(): Promise<Navigation> {
+  try {
+    const res = await fetch(`${SERVER_API_URL}/navigation`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return FALLBACK_NAVIGATION;
+    return (await res.json()) as Navigation;
+  } catch {
+    return FALLBACK_NAVIGATION;
+  }
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -84,6 +103,7 @@ export default async function RootLayout({
   // hydration mismatch and a flash of English.
   const cookieLocale = (await cookies()).get(LOCALE_COOKIE)?.value;
   const locale = isLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
+  const navigation = await loadNavigation();
 
   return (
     <html
@@ -95,6 +115,7 @@ export default async function RootLayout({
         <ThemeProvider>
           <MotionProvider>
             <LanguageProvider initialLocale={locale}>
+              <NavigationProvider navigation={navigation}>
               <AuthProvider>
                 {/* Visible only on keyboard focus — lets keyboard and screen
                     reader users jump past the nav on every page. */}
@@ -115,6 +136,7 @@ export default async function RootLayout({
                 <MobileBottomNav />
                 <Toaster />
               </AuthProvider>
+              </NavigationProvider>
             </LanguageProvider>
           </MotionProvider>
         </ThemeProvider>

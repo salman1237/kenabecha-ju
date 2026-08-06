@@ -1,6 +1,6 @@
 "use client";
 
-import { Globe, LayoutDashboard, LogOut, Menu, MessageSquare, PlusCircle, Shield, ShoppingBag, Store, User as UserIcon } from "lucide-react";
+import { Globe, LayoutDashboard, LogOut, Menu, MessageSquare, PlusCircle, Shield, ShoppingBag, User as UserIcon } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -22,6 +22,9 @@ import {
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useNavigation } from "@/context/NavigationContext";
+import { NavIcon } from "@/components/layout/NavIcon";
+import { menusAt, navLabel, visibleLinks } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 /** A single nav destination, with its own active state. */
@@ -53,7 +56,16 @@ function NavLink({
 export function Navbar() {
   const { user, isLoading, logout } = useAuth();
   const { locale, setLocale, t } = useLanguage();
+  const navigation = useNavigation();
   const pathname = usePathname();
+
+  // The primary destinations are data — added, renamed, reordered, hidden and
+  // scoped to signed-in or signed-out visitors from the admin panel. The
+  // search box, bell, avatar menu and the two toggles are not links but
+  // controls, so they stay in code; an admin can only switch them off.
+  const [navbarMenu] = menusAt(navigation, "navbar");
+  const primaryLinks = navbarMenu ? visibleLinks(navbarMenu, Boolean(user)) : [];
+  const controls = navigation.navbar_controls;
 
   // Prefix match, except /shops must not light up on /shops/dashboard —
   // they are two different destinations sitting in the same nav.
@@ -91,35 +103,24 @@ export function Navbar() {
             clicks deep and invisible until you knew to look. Sell, Inbox and
             My Shops appear only when signed in, since all three need an account. */}
         <nav className="hidden items-center gap-1 text-sm font-medium lg:flex">
-          <NavLink href="/listings" active={isActive("/listings")}>
-            {t.nav.browse}
-          </NavLink>
-          <NavLink href="/shops" active={isActive("/shops")}>
-            {t.nav.browseShops}
-          </NavLink>
-          {user && (
-            <>
-              <NavLink href="/listings/new" active={pathname === "/listings/new"}>
-                {t.nav.sell}
-              </NavLink>
-              <NavLink href="/inbox" active={isActive("/inbox")}>
-                {t.nav.inbox}
-              </NavLink>
-              <NavLink href="/shops/dashboard" active={pathname === "/shops/dashboard"}>
-                {t.nav.myShops}
-              </NavLink>
-            </>
-          )}
+          {primaryLinks.map((link) => (
+            <NavLink key={link.id} href={link.href} active={isActive(link.href)}>
+              {navLabel(link, locale, t)}
+            </NavLink>
+          ))}
         </nav>
       </div>
 
       {/* Search Bar */}
-      <div className="flex-1 mx-4 max-w-2xl hidden md:flex justify-center">
-        <NavbarSearch />
-      </div>
+      {controls.search !== false && (
+        <div className="flex-1 mx-4 max-w-2xl hidden md:flex justify-center">
+          <NavbarSearch />
+        </div>
+      )}
 
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Language Switcher */}
+        {controls.language !== false && (
         <Button
           variant="ghost"
           size="sm"
@@ -130,14 +131,15 @@ export function Navbar() {
           <Globe className="size-3.5" />
           <span>{locale === "en" ? "বাংলা" : "EN"}</span>
         </Button>
+        )}
 
         {/* Theme Toggle */}
-        <ThemeToggle />
+        {controls.theme !== false && <ThemeToggle />}
 
         {!isLoading &&
           (user ? (
             <>
-              <NotificationBell />
+              {controls.notifications !== false && <NotificationBell />}
 
               <DropdownMenu>
                 <DropdownMenuTrigger
@@ -193,14 +195,15 @@ export function Navbar() {
                     <SheetTitle className="truncate text-emerald-600 dark:text-emerald-400">{user.full_name}</SheetTitle>
                   </SheetHeader>
                   <div className="flex flex-col gap-1.5 px-4 pt-4">
-                    <SheetClose render={<Link href="/listings" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
-                      <Store className="size-4 text-emerald-600 dark:text-emerald-400" />
-                      {t.nav.browse}
-                    </SheetClose>
-                    <SheetClose render={<Link href="/shops" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
-                      <ShoppingBag className="size-4 text-emerald-600 dark:text-emerald-400" />
-                      {t.nav.browseShops}
-                    </SheetClose>
+                    {/* The managed menu, then the account destinations —
+                        which stay in code because they are bound to the
+                        signed-in identity rather than being site links. */}
+                    {primaryLinks.map((link) => (
+                      <SheetClose key={link.id} render={<Link href={link.href} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
+                        <NavIcon name={link.icon} className="size-4 text-emerald-600 dark:text-emerald-400" />
+                        {navLabel(link, locale, t)}
+                      </SheetClose>
+                    ))}
                     <SheetClose render={<Link href="/dashboard" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
                       <LayoutDashboard className="size-4 text-emerald-600 dark:text-emerald-400" />
                       {t.nav.dashboard}
@@ -208,18 +211,6 @@ export function Navbar() {
                     <SheetClose render={<Link href={`/profile/${user.id}`} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
                       <UserIcon className="size-4 text-emerald-600 dark:text-emerald-400" />
                       {t.nav.profile}
-                    </SheetClose>
-                    <SheetClose render={<Link href="/inbox" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
-                      <MessageSquare className="size-4 text-emerald-600 dark:text-emerald-400" />
-                      {t.nav.inbox}
-                    </SheetClose>
-                    <SheetClose render={<Link href="/shops/dashboard" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
-                      <ShoppingBag className="size-4 text-emerald-600 dark:text-emerald-400" />
-                      {t.nav.myShops}
-                    </SheetClose>
-                    <SheetClose render={<Link href="/listings/new" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
-                      <PlusCircle className="size-4 text-emerald-600 dark:text-emerald-400" />
-                      {t.nav.sell}
                     </SheetClose>
                     {user.role === "admin" && (
                       <SheetClose render={<Link href="/admin" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
@@ -250,14 +241,12 @@ export function Navbar() {
                     </SheetTitle>
                   </SheetHeader>
                   <div className="flex flex-col gap-1.5 px-4 pt-4">
-                    <SheetClose render={<Link href="/listings" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
-                      <Store className="size-4 text-emerald-600 dark:text-emerald-400" />
-                      {t.nav.browse}
-                    </SheetClose>
-                    <SheetClose render={<Link href="/shops" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
-                      <ShoppingBag className="size-4 text-emerald-600 dark:text-emerald-400" />
-                      {t.nav.browseShops}
-                    </SheetClose>
+                    {primaryLinks.map((link) => (
+                      <SheetClose key={link.id} render={<Link href={link.href} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
+                        <NavIcon name={link.icon} className="size-4 text-emerald-600 dark:text-emerald-400" />
+                        {navLabel(link, locale, t)}
+                      </SheetClose>
+                    ))}
                   </div>
                 </SheetContent>
               </Sheet>
