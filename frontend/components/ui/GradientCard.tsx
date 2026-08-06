@@ -1,11 +1,16 @@
 "use client";
 
-import { motion } from "motion/react";
+import { motion, type HTMLMotionProps } from "motion/react";
 import React from "react";
 
 import { cn } from "@/lib/utils";
 
-interface GradientCardProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "onDrag"> {
+// Extends motion's own div props rather than React.HTMLAttributes. The two
+// disagree on every drag/animation handler (onDrag, onDragEnd, onDragStart,
+// onAnimationStart, …) because motion replaces them with its own signatures,
+// so Omit-ing them one at a time is whack-a-mole — this component *is* a
+// motion.div, so it should take motion.div's props.
+interface GradientCardProps extends HTMLMotionProps<"div"> {
   children: React.ReactNode;
   className?: string;
   glow?: boolean;

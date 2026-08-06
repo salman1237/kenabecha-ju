@@ -58,6 +58,8 @@ async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate)
         condition = payload.condition
         quantity = 1
 
+    await category_service.ensure_exists(db, payload.category_id)
+
     listing = Listing(
         seller_id=seller.id,
         shop_id=payload.shop_id,
@@ -258,6 +260,8 @@ async def list_my_listings(db: AsyncSession, seller_id: uuid.UUID, shop_id: uuid
 
 async def update_listing(db: AsyncSession, listing: Listing, payload: ListingUpdate) -> Listing:
     data = payload.model_dump(exclude_unset=True, exclude={"tags"})
+    if "category_id" in data:
+        await category_service.ensure_exists(db, data["category_id"])
     for field, value in data.items():
         setattr(listing, field, value)
 
@@ -334,16 +338,25 @@ async def get_search_suggestions(db: AsyncSession, q: str, limit: int = 5) -> li
         
     stmt = (
         select(Listing.title)
+        .join(User, Listing.seller_id == User.id)
         .where(
             Listing.is_active.is_(True),
             Listing.deleted_at.is_(None),
+            # Without this, suggestions offer sold and removed listings — the
+            # user picks one, searches it, and browse (which does filter on
+            # status) returns nothing.
+            Listing.status == ListingStatus.active,
+            User.is_active.is_(True),
             Listing.title.ilike(like_contains(q), escape=LIKE_ESCAPE),
         )
         .order_by(Listing.created_at.desc())
-        .limit(limit)
+        # Over-fetch: duplicate titles are common (several sellers listing the
+        # same textbook), and de-duplicating a limit-N result would return
+        # fewer than N suggestions.
+        .limit(limit * 5)
     )
-    
+
     result = await db.execute(stmt)
-    # Return unique titles (preserving order by using a dict as an ordered set)
-    titles = result.scalars().all()
-    return list(dict.fromkeys(titles))
+    # dict preserves insertion order, so this is an ordered set.
+    titles = list(dict.fromkeys(result.scalars().all()))
+    return titles[:limit]

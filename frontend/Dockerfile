@@ -3,7 +3,10 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json package-lock.json ./
-RUN npm install
+# npm ci, not npm install: it installs exactly what the lockfile pins and fails
+# loudly on drift, so a production image can't silently resolve different
+# versions than the ones that were tested.
+RUN npm ci
 
 FROM deps AS dev
 COPY . .

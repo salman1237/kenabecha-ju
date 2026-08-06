@@ -17,7 +17,7 @@ import { createListing, updateListing, uploadListingImage, type ListingPayload }
 import { getMyShops } from "@/lib/api/shops";
 import { CONDITION_LABELS } from "@/lib/utils";
 import { type ListingFormValues, listingSchema } from "@/lib/validation/listing";
-import type { Category, Listing, Shop } from "@/types/api";
+import type { Category, Condition, Listing, Shop } from "@/types/api";
 
 const MAX_PHOTOS = 8;
 

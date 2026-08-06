@@ -38,6 +38,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 27 — Category system.** Migration `6605a57ca25d`. Built hierarchical `Category` model and seeded 2-level taxonomy. Added `category_id` to `Listing`, wired through the backend API (`BrowseFilters`, `ListingCreate`, `ListingUpdate`). Updated frontend `ListingFilters` to show a Category dropdown on the browse page, added category selector to `ListingForm`, and added category breadcrumb to the listing detail page.
 - [x] **Phase 28 — Search page & autocomplete.** Added `GET /listings/suggestions` to backend and `NavbarSearch` autocomplete component to frontend. Wired to redirect to the `/listings` browse page with query parameters to act as the dedicated search page without redundant code duplication.
 - [x] **Phase 29 — Data-integrity & query-performance fixes.** Completed (Fixes for `DISTINCT ON` order in chat, `is_active` validation everywhere, shop pagination & N+1 ratings, tags usage_count decrement, image sort_order reordering, and deleted media cleanup).
+- [x] **Phase 29a — Audit of Phases 27–29.** Reviewed the Phase 27–29 work and fixed six defects it introduced or left open: two TypeScript errors that broke `next build` entirely, an unhandled FK violation returning 500 on an unknown `category_id`, navbar search silently not applying when already on `/listings`, search suggestions offering sold/removed listings, `npm install` replacing `npm ci` in the frontend image, and the category field being optional so every sidebar count stayed at zero.
 - [ ] **Phase 30 — View counts, listing expiry & promotion.** Not started.
 - [ ] **Phase 31 — i18n completion (Bangla + English).** Not started.
 - [ ] **Phase 32 — SEO, error boundaries, 404 & mobile bottom nav.** Not started.
@@ -68,6 +69,16 @@ FE-FEAT-02 / FEAT-03 — dedicated `/search` route, navbar search wired to it, a
 
 ### Phase 29 — Data-integrity & query-performance fixes
 LOGIC-01 (hide listings from deactivated sellers), LOGIC-03 (paginate shops; `/shops` is hard-capped at 6), LOGIC-04/PERF-01 (batch the per-shop rating queries), LOGIC-06 (decrement `usage_count` when tags are replaced), LOGIC-07 (re-sequence `sort_order` after image delete), LOGIC-08 (block chat on removed listings), PERF-05 (explicit connection-pool settings).
+
+### Phase 29a — Audit of Phases 27–29
+Senior-engineer review of the Phase 27–29 implementation. Findings, in severity order:
+
+1. **`next build` failed outright** — `ListingForm.tsx` used `Condition` as a type without importing it, and `GradientCard.tsx` extended `React.HTMLAttributes` while rendering a `motion.div`, whose drag/animation handler signatures conflict. Turbopack dev doesn't typecheck, so both were invisible until a production build. `GradientCard` now extends `HTMLMotionProps<"div">` rather than `Omit`-ing conflicting handlers one at a time.
+2. **500 on an unknown `category_id`** — the id went straight to the insert and surfaced the `ForeignKeyViolationError`. Added `category_service.ensure_exists`, called from both create and update; a bad id is now a 400.
+3. **Navbar search did nothing on `/listings`** — the page read `searchParams` only in `useState` initializers, which don't re-run on a client-side navigation, so searching from the navbar while already on the browse page changed the URL and nothing else. Now synced via an effect keyed on the param values.
+4. **Suggestions offered unavailable listings** — `get_search_suggestions` filtered `is_active`/`deleted_at` but not `status`, so sold and removed titles were suggested; picking one returned no results, since browse *does* filter on status. Also excluded deactivated sellers, and moved de-duplication before the limit so it returns a full set of suggestions.
+5. **`npm ci` → `npm install` in the frontend image** — a reproducibility regression papering over an out-of-sync lockfile (missing sharp's `@emnapi/*` optional deps). Regenerated the lockfile inside the Linux container and restored `npm ci`.
+6. **Categories weren't actually adopted** — optional in the schema, the Zod validator, and the form, so listings were created uncategorised and every sidebar count stayed at zero. Now required client-side; still nullable on the API, since listings predating the taxonomy legitimately have no category.
 
 ### Phase 30 — View counts, listing expiry & promotion
 FEAT-04, FEAT-05, FEAT-07.

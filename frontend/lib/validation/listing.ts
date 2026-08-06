@@ -15,7 +15,11 @@ export const listingSchema = z
     // the same hidden block.
     condition: z.enum(["new", "used_like_new", "used_good", "used_fair"]).optional().or(z.literal("")),
     shop_id: z.string().optional(),
-    category_id: z.string().optional().or(z.literal("")),
+    // Required here, but still nullable on the API: existing listings predate
+    // the taxonomy and legitimately have no category. Uncategorised new
+    // listings would be unreachable from the category browse and would keep
+    // every sidebar count at zero, so the form insists on one.
+    category_id: z.string().min(1, "Pick a category"),
     tagsInput: z.string().optional(),
     fulfillment_type: z.enum(["pickup", "delivery"]),
     pickup_address: z.string().max(500).optional(),

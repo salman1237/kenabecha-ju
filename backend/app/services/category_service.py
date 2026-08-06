@@ -77,6 +77,19 @@ async def get_by_slug(db: AsyncSession, slug: str) -> Category:
     return category
 
 
+async def ensure_exists(db: AsyncSession, category_id: uuid.UUID | None) -> None:
+    """Reject an unknown category_id with a 400 before it reaches the FK.
+
+    Without this the insert raises ForeignKeyViolationError, which surfaces as
+    a 500 — a client sending a bad id is a client error, not a server fault.
+    """
+    if category_id is None:
+        return
+    exists = await db.execute(select(Category.id).where(Category.id == category_id))
+    if exists.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown category")
+
+
 async def descendant_ids(db: AsyncSession, category: Category) -> list[uuid.UUID]:
     """The category itself plus its children.
 

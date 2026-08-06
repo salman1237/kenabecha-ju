@@ -76,6 +76,24 @@ function BrowseListingsContent() {
   // Bumped to force a refetch on "Try again" without touching the filters.
   const [reloadKey, setReloadKey] = useState(0);
 
+  // The state initializers above only read the URL once, at mount. Searching
+  // from the navbar while already on this page is a client-side navigation —
+  // the params change but the component never remounts, so without this the
+  // URL would update and the results would not. Depends on primitives rather
+  // than the searchParams object so that typing in the on-page search box
+  // (which doesn't touch the URL) doesn't get clobbered.
+  const urlQ = searchParams.get("q") ?? "";
+  const urlCategory = searchParams.get("category") ?? "";
+  const urlTags = searchParams.getAll("tags").join(",");
+  useEffect(() => {
+    setQ(urlQ);
+    setFilters((prev) => ({
+      ...prev,
+      category: urlCategory,
+      tags: urlTags ? urlTags.split(",").map((t) => t.toLowerCase()) : [],
+    }));
+  }, [urlQ, urlCategory, urlTags]);
+
   useEffect(() => {
     Promise.all([trendingTags(), getCategories()])
       .then(([tags, cats]) => {
