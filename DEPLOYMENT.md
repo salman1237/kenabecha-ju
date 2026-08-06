@@ -34,8 +34,12 @@ CI polls $API_URL/health until it answers
 
   | Record | Points to | Serves |
   |---|---|---|
-  | `your-domain.com` | VPS IP | the site (frontend) |
-  | `api.your-domain.com` | VPS IP | the API (backend + WebSocket) |
+  | `kenabechaju.deshlet.com` | `144.79.249.226` | the site (frontend) |
+  | `api.kenabechaju.deshlet.com` | `144.79.249.226` | the API (backend + WebSocket) |
+
+  Both are in place and propagated. Note the apex `deshlet.com` points at a
+  *different* host (`103.112.62.102`, the cPanel box) and is deliberately left
+  alone — this deployment uses subdomains only.
 
   The API needs its own hostname because the browser calls it directly — for every
   request and for the chat WebSocket. It is not proxied through the frontend.
@@ -57,14 +61,14 @@ Paste the contents of [`.env.prod.example`](.env.prod.example) into Dokploy's
 
 | Variable | Notes |
 |---|---|
-| `APP_DOMAIN` | `your-domain.com` — no scheme, no trailing slash |
-| `API_DOMAIN` | `api.your-domain.com` |
+| `APP_DOMAIN` | `kenabechaju.deshlet.com` — no scheme, no trailing slash |
+| `API_DOMAIN` | `api.kenabechaju.deshlet.com` |
 | `POSTGRES_PASSWORD` | generate: `openssl rand -base64 32` |
 | `JWT_SECRET_KEY` | generate: `openssl rand -hex 32`. The app **refuses to start** in production with the placeholder value |
-| `CORS_ORIGINS` | JSON array: `["https://your-domain.com"]` |
-| `NEXT_PUBLIC_API_URL` | `https://api.your-domain.com` |
-| `NEXT_PUBLIC_SITE_URL` | `https://your-domain.com` |
-| `FRONTEND_URL` | `https://your-domain.com` — used in email links |
+| `CORS_ORIGINS` | JSON array: `["https://kenabechaju.deshlet.com"]` |
+| `NEXT_PUBLIC_API_URL` | `https://api.kenabechaju.deshlet.com` |
+| `NEXT_PUBLIC_SITE_URL` | `https://kenabechaju.deshlet.com` — must match `APP_DOMAIN` |
+| `FRONTEND_URL` | `https://kenabechaju.deshlet.com` — used in email links |
 
 > `NEXT_PUBLIC_*` values are **baked into the frontend image at build time**, not read at
 > runtime. Changing one requires a rebuild, not just a restart.
@@ -82,8 +86,8 @@ Click **Deploy**. On the first run Dokploy will build both images, then:
 Check it came up:
 
 ```bash
-curl -fsS https://api.your-domain.com/health     # {"status":"ok"}
-curl -fsSI https://your-domain.com | head -1     # HTTP/2 200
+curl -fsS https://api.kenabechaju.deshlet.com/health     # {"status":"ok"}
+curl -fsSI https://kenabechaju.deshlet.com | head -1     # HTTP/2 200
 ```
 
 `/health` queries the database, so a 200 means the backend can actually serve — not
@@ -106,7 +110,7 @@ Repository → **Settings → Secrets and variables → Actions → New reposito
 | Secret | Value |
 |---|---|
 | `DOKPLOY_DEPLOY_WEBHOOK` | the webhook URL from step (a) |
-| `API_URL` | `https://api.your-domain.com` — optional; enables the post-deploy health check |
+| `API_URL` | `https://api.kenabechaju.deshlet.com` — optional; enables the post-deploy health check |
 
 Set these in GitHub's UI only. Never commit them, and never paste them into chat or an issue.
 
@@ -176,11 +180,11 @@ Keep `kenabecha_old` until you're satisfied, then drop it.
 ## Troubleshooting
 
 **Certificates don't issue.** DNS must resolve to the VPS *before* deploying. Check with
-`dig +short your-domain.com`. Traefik retries, so fixing DNS and redeploying is enough.
+`dig +short kenabechaju.deshlet.com`. Traefik retries, so fixing DNS and redeploying is enough.
 
 **Site loads but nothing appears — empty listings, failed logins.** The browser can't
 reach the API. Check `NEXT_PUBLIC_API_URL` matches `API_DOMAIN` exactly (scheme
-included), that `https://api.your-domain.com/health` answers, and that `CORS_ORIGINS`
+included), that `https://api.kenabechaju.deshlet.com/health` answers, and that `CORS_ORIGINS`
 contains the site origin.
 
 **Backend restarts in a loop.** Check the logs for the migration step — the entrypoint
