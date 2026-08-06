@@ -107,3 +107,86 @@ async def test_logout_clears_the_session(client, db):
 
     await client.post("/auth/logout")
     assert (await client.get("/auth/me")).status_code == 401
+
+
+# --- admin bootstrap --------------------------------------------------------
+#
+# Without ADMIN_EMAILS the first admin on a fresh deployment can only be created
+# with a shell on the database, so the admin panel is unreachable until someone
+# has one.
+
+
+async def test_configured_email_is_promoted_on_login(client, db, monkeypatch):
+    from app.services import auth_service
+
+    user = await make_user(db)
+    assert user.role == "user"
+    monkeypatch.setattr(auth_service.settings, "ADMIN_EMAILS", user.email)
+
+    await client.post("/auth/login", json={"email": user.email, "password": TEST_PASSWORD})
+    await db.refresh(user)
+    assert user.role == "admin"
+
+
+async def test_promotion_is_case_and_whitespace_insensitive(client, db, monkeypatch):
+    """The value is typed into a deployment UI by hand."""
+    from app.services import auth_service
+
+    user = await make_user(db)
+    monkeypatch.setattr(
+        auth_service.settings, "ADMIN_EMAILS", f"  someone@juniv.edu , {user.email.upper()} "
+    )
+
+    await client.post("/auth/login", json={"email": user.email, "password": TEST_PASSWORD})
+    await db.refresh(user)
+    assert user.role == "admin"
+
+
+async def test_unlisted_accounts_are_not_promoted(client, db, monkeypatch):
+    from app.services import auth_service
+
+    user = await make_user(db)
+    monkeypatch.setattr(auth_service.settings, "ADMIN_EMAILS", "someone.else@juniv.edu")
+
+    await client.post("/auth/login", json={"email": user.email, "password": TEST_PASSWORD})
+    await db.refresh(user)
+    assert user.role == "user"
+
+
+async def test_empty_setting_promotes_nobody(client, db, monkeypatch):
+    """The default. An empty string must not be read as 'match everything'."""
+    from app.services import auth_service
+
+    user = await make_user(db)
+    monkeypatch.setattr(auth_service.settings, "ADMIN_EMAILS", "")
+
+    await client.post("/auth/login", json={"email": user.email, "password": TEST_PASSWORD})
+    await db.refresh(user)
+    assert user.role == "user"
+
+
+async def test_wrong_password_cannot_trigger_promotion(client, db, monkeypatch):
+    """Promotion happens only after the credential checks pass, so a listed
+    address is not a way in for someone who cannot authenticate as it."""
+    from app.services import auth_service
+
+    user = await make_user(db)
+    monkeypatch.setattr(auth_service.settings, "ADMIN_EMAILS", user.email)
+
+    res = await client.post("/auth/login", json={"email": user.email, "password": "WrongPass1!"})
+    assert res.status_code == 401
+    await db.refresh(user)
+    assert user.role == "user"
+
+
+async def test_removing_an_address_does_not_demote(client, db, monkeypatch):
+    """One-way by design: revoking admin should be deliberate and auditable,
+    not a silent side effect of editing an env var."""
+    from app.services import auth_service
+
+    user = await make_user(db, role="admin")
+    monkeypatch.setattr(auth_service.settings, "ADMIN_EMAILS", "")
+
+    await client.post("/auth/login", json={"email": user.email, "password": TEST_PASSWORD})
+    await db.refresh(user)
+    assert user.role == "admin"

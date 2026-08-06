@@ -20,7 +20,7 @@ from app.core.security import (
 )
 from app.models.reference import Department, Hall
 from app.models.token import AuthToken, AuthTokenPurpose, RefreshToken
-from app.models.user import AuthProvider, User
+from app.models.user import AuthProvider, User, UserRole
 from app.schemas.auth import CompleteProfileRequest, LoginRequest, SignupRequest
 from app.services import media_service
 from app.services.email_service import send_email, send_otp_email
@@ -50,6 +50,27 @@ async def _create_otp(db: AsyncSession, user: User, background_tasks: Background
     )
     db.add(auth_token)
     background_tasks.add_task(send_otp_email, user.email, otp)
+
+
+def _admin_emails() -> set[str]:
+    """Normalised ADMIN_EMAILS. Case-insensitive and whitespace-tolerant, because
+    this is typed into a deployment UI by hand."""
+    return {e.strip().lower() for e in settings.ADMIN_EMAILS.split(",") if e.strip()}
+
+
+def apply_admin_bootstrap(user: User) -> None:
+    """Grant admin to a configured address.
+
+    Applied on login as well as signup, so adding an address to ADMIN_EMAILS
+    promotes an account that already exists — otherwise the setting would only
+    ever work if configured before the very first signup.
+
+    Deliberately one-way: removing an address does not demote anyone. Revoking
+    admin is a deliberate act that should leave an audit trail, not something
+    that happens silently because an env var was edited.
+    """
+    if user.role != UserRole.admin and user.email.lower() in _admin_emails():
+        user.role = UserRole.admin
 
 
 async def signup(db: AsyncSession, payload: SignupRequest, background_tasks: BackgroundTasks) -> User:
@@ -87,6 +108,7 @@ async def signup(db: AsyncSession, payload: SignupRequest, background_tasks: Bac
         session=payload.session,
         batch=compute_batch(payload.session),
     )
+    apply_admin_bootstrap(user)
     db.add(user)
     await db.flush()
 
@@ -304,6 +326,11 @@ async def authenticate(db: AsyncSession, payload: LoginRequest) -> User:
             ErrorCode.EMAIL_NOT_VERIFIED,
             "Please verify your email before logging in",
         )
+
+    # After the credential and status checks, never before: promotion must not
+    # be reachable by anyone who cannot already log in as that account.
+    apply_admin_bootstrap(user)
+    await db.commit()
     return user
 
 

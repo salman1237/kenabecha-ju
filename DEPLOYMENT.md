@@ -113,7 +113,28 @@ merely that the process is alive.
 
 ---
 
-## 5. Wire up automatic deploys
+## 5. Make yourself an admin
+
+Set `ADMIN_EMAILS` in the environment to your address, then sign up (or log in, if
+you already have an account). You are promoted automatically — no database shell.
+
+```bash
+ADMIN_EMAILS=you@juniv.edu          # comma-separated for several
+```
+
+The **Admin** entry then appears in your avatar menu.
+
+Deliberate properties:
+
+- **Applied on login as well as signup**, so adding an address promotes an account that
+  already exists — otherwise this would only work if configured before the first signup.
+- **Only after the credential checks pass**, so listing an address is not a way in for
+  someone who cannot already authenticate as it.
+- **One-way.** Removing an address does not demote anyone; revoking admin should be a
+  deliberate, auditable act rather than a silent side effect of editing an env var.
+- **Empty means nobody.** The default is not read as "match everything".
+
+## 6. Wire up automatic deploys
 
 ### a. Get the deploy webhook from Dokploy
 

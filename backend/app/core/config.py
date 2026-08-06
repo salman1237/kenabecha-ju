@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     TRUST_PROXY_HEADERS: bool = False
 
     MEDIA_ROOT: str = "/app/media"
+    # Comma-separated emails promoted to admin on signup or login.
+    #
+    # Without this the first admin on a fresh deployment can only be made with
+    # a shell on the database, which means handing out database access to do
+    # something routine — and the admin panel is simply unreachable until
+    # someone does. Only whoever controls the deployment environment can set
+    # this, which is the same trust level as deploying the code itself.
+    ADMIN_EMAILS: str = ""
 
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
