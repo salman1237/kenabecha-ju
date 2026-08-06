@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
-import type { AdminStats, AdminUser, Listing, Page, Report, ReportStatus, Shop, UserRole } from "@/types/api";
+import type { AdminStats, AdminUser, AuditLogEntry, Listing, Page, Report, ReportStatus, Shop, UserRole } from "@/types/api";
 
 export function getAdminStats() {
   return apiFetch<AdminStats>("/admin/stats");
@@ -49,4 +49,18 @@ export function resolveReport(reportId: string, action: "dismiss" | "remove" | "
     method: "POST",
     body: JSON.stringify({ action, resolution_note: resolutionNote || null }),
   });
+}
+
+
+/** Read-only by design — there is no create, update or delete counterpart. */
+export function listAuditLog(params: { actorId?: string; action?: string; limit?: number } = {}) {
+  const q = new URLSearchParams();
+  if (params.actorId) q.set("actor_id", params.actorId);
+  if (params.action) q.set("action", params.action);
+  q.set("limit", String(params.limit ?? 100));
+  return apiFetch<Page<AuditLogEntry>>(`/admin/audit?${q}`);
+}
+
+export function listAuditActions() {
+  return apiFetch<string[]>("/admin/audit/actions");
 }

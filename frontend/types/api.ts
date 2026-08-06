@@ -325,3 +325,18 @@ export interface NotificationList {
   unread_count: number;
 }
 
+
+
+export interface AuditLogEntry {
+  id: string;
+  /** Snapshotted when written, so the entry still names the actor after the
+   *  account is renamed or deleted. */
+  actor_email: string;
+  actor_role: string;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  target_label: string | null;
+  detail: Record<string, unknown> | null;
+  created_at: string;
+}

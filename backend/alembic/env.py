@@ -31,7 +31,14 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        # Off by default, which meant a changed server default was invisible to
+        # both autogenerate and `alembic check` — a model and its table could
+        # disagree and CI would still pass. Caught exactly that on audit_log.
+        compare_server_default=True,
+    )
     with context.begin_transaction():
         context.run_migrations()
 

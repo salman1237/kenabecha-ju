@@ -12,6 +12,7 @@ const TABS = [
   { href: "/admin/listings", label: "Listings" },
   { href: "/admin/shops", label: "Shops" },
   { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/audit", label: "Audit log" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

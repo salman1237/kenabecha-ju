@@ -14,7 +14,8 @@ from app.models.report import Report, ReportStatus
 from app.models.shop import Shop
 from app.models.user import User, UserRole
 from app.schemas.admin import AdminStatsOut
-from app.services import auth_service, notification_service
+from app.models.audit import AuditAction
+from app.services import audit_service, auth_service, notification_service
 
 settings = get_settings()
 
@@ -83,6 +84,15 @@ async def set_user_active(
     user.is_active = is_active
     if not is_active:
         await auth_service.revoke_all_user_tokens(db, user.id)
+
+    audit_service.record(
+        db,
+        actor=actor,
+        action=AuditAction.USER_REACTIVATED if is_active else AuditAction.USER_DEACTIVATED,
+        target_type="user",
+        target_id=user.id,
+        target_label=user.email,
+    )
     await db.commit()
     await db.refresh(user)
     return user
@@ -119,12 +129,22 @@ async def set_user_role(
         await _guard_last_admin(db, user)
 
     was_privileged = user.role.is_staff
+    previous = user.role.value
     user.role = role
     if was_privileged and not role.is_staff:
         # Drop existing sessions so the lost permissions apply now, not
         # whenever the current access token happens to expire.
         await auth_service.revoke_all_user_tokens(db, user.id)
 
+    audit_service.record(
+        db,
+        actor=actor,
+        action=AuditAction.USER_ROLE_CHANGED,
+        target_type="user",
+        target_id=user.id,
+        target_label=user.email,
+        detail={"from": previous, "to": role.value},
+    )
     await db.commit()
     await db.refresh(user)
     return user
@@ -141,7 +161,7 @@ async def list_all_listings(db: AsyncSession, limit: int = 50, offset: int = 0) 
 
 
 async def admin_remove_listing(
-    db: AsyncSession, listing_id: uuid.UUID, background_tasks: BackgroundTasks
+    db: AsyncSession, listing_id: uuid.UUID, background_tasks: BackgroundTasks, *, actor: User
 ) -> Listing:
     listing = await db.get(Listing, listing_id)
     if listing is None:
@@ -170,16 +190,36 @@ async def admin_remove_listing(
             ),
             related_listing_id=listing.id,
         )
+        audit_service.record(
+            db,
+            actor=actor,
+            action=AuditAction.LISTING_REMOVED,
+            target_type="listing",
+            target_id=listing.id,
+            target_label=listing.title,
+            detail={"seller_id": str(listing.seller_id)},
+        )
         await db.commit()
         await db.refresh(listing)
     return listing
 
 
-async def toggle_listing_top(db: AsyncSession, listing_id: uuid.UUID, is_top: bool) -> Listing:
+async def toggle_listing_top(
+    db: AsyncSession, listing_id: uuid.UUID, is_top: bool, *, actor: User
+) -> Listing:
     listing = await db.get(Listing, listing_id)
     if listing is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Listing not found")
     listing.is_top = is_top
+    audit_service.record(
+        db,
+        actor=actor,
+        action=AuditAction.LISTING_TOP_CHANGED,
+        target_type="listing",
+        target_id=listing.id,
+        target_label=listing.title,
+        detail={"is_top": is_top},
+    )
     await db.commit()
     await db.refresh(listing)
     return listing
@@ -194,12 +234,23 @@ async def list_all_shops(db: AsyncSession, limit: int = 50, offset: int = 0) -> 
     return shops, count
 
 
-async def admin_remove_shop(db: AsyncSession, shop_id: uuid.UUID, background_tasks: BackgroundTasks) -> Shop:
+async def admin_remove_shop(
+    db: AsyncSession, shop_id: uuid.UUID, background_tasks: BackgroundTasks, *, actor: User
+) -> Shop:
     shop = await db.get(Shop, shop_id)
     if shop is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Shop not found")
     shop.is_active = False
     shop.deleted_at = datetime.now(UTC)
+    audit_service.record(
+        db,
+        actor=actor,
+        action=AuditAction.SHOP_REMOVED,
+        target_type="shop",
+        target_id=shop.id,
+        target_label=shop.shop_name,
+        detail={"owner_id": str(shop.owner_id)},
+    )
     await db.commit()
     await db.refresh(shop)
 

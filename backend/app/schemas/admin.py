@@ -29,3 +29,19 @@ class AdminStatsOut(BaseModel):
     total_active_listings: int
     total_messages: int
     pending_reports: int
+
+
+class AuditLogOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    # Snapshotted at write time, so the entry stays readable after the actor
+    # is renamed or removed.
+    actor_email: str
+    actor_role: str
+    action: str
+    target_type: str | None
+    target_id: uuid.UUID | None
+    target_label: str | None
+    detail: dict | None
+    created_at: datetime

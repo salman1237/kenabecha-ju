@@ -7,12 +7,12 @@ from app.core.dependencies import get_current_admin, get_current_staff
 from app.db.session import get_db
 from app.models.report import ReportStatus
 from app.models.user import User
-from app.schemas.admin import AdminStatsOut, AdminUserOut, SetUserRoleIn
+from app.schemas.admin import AdminStatsOut, AdminUserOut, AuditLogOut, SetUserRoleIn
 from app.schemas.common import Page
 from app.schemas.listing import ListingOut
 from app.schemas.report import ReportOut, ResolveReportRequest
 from app.schemas.shop import ShopOut
-from app.services import admin_service, report_service
+from app.services import admin_service, audit_service, report_service
 
 # Router-level guard is the lower bar — moderators reach the moderation
 # surface. Routes that manage users, roles or site content add
@@ -67,17 +67,19 @@ async def list_listings(
 
 @router.delete("/listings/{listing_id}", response_model=ListingOut)
 async def remove_listing(
-    listing_id: uuid.UUID, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)
+    listing_id: uuid.UUID, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_staff),
 ) -> ListingOut:
-    listing = await admin_service.admin_remove_listing(db, listing_id, background_tasks)
+    listing = await admin_service.admin_remove_listing(db, listing_id, background_tasks, actor=actor)
     return ListingOut.model_validate(listing)
 
 
 @router.patch("/listings/{listing_id}/top", response_model=ListingOut)
 async def set_listing_top(
-    listing_id: uuid.UUID, is_top: bool, db: AsyncSession = Depends(get_db)
+    listing_id: uuid.UUID, is_top: bool, db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_staff),
 ) -> ListingOut:
-    listing = await admin_service.toggle_listing_top(db, listing_id, is_top)
+    listing = await admin_service.toggle_listing_top(db, listing_id, is_top, actor=actor)
     return ListingOut.model_validate(listing)
 
 
@@ -94,9 +96,10 @@ async def list_shops(limit: int = 50, offset: int = 0, db: AsyncSession = Depend
 
 @router.delete("/shops/{shop_id}", response_model=ShopOut)
 async def remove_shop(
-    shop_id: uuid.UUID, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)
+    shop_id: uuid.UUID, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_staff),
 ) -> ShopOut:
-    shop = await admin_service.admin_remove_shop(db, shop_id, background_tasks)
+    shop = await admin_service.admin_remove_shop(db, shop_id, background_tasks, actor=actor)
     return ShopOut.model_validate(shop, from_attributes=True)
 
 
@@ -116,6 +119,32 @@ def _report_to_out(report) -> ReportOut:
         resolution_note=report.resolution_note,
         created_at=report.created_at,
     )
+
+
+@router.get("/audit", response_model=Page[AuditLogOut], dependencies=[Depends(get_current_admin)])
+async def list_audit(
+    actor_id: uuid.UUID | None = None,
+    action: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+) -> Page[AuditLogOut]:
+    """Read-only. There is no create, update or delete counterpart anywhere —
+    an audit trail an admin can edit is not a trail."""
+    entries, total = await audit_service.list_entries(
+        db, actor_id=actor_id, action=action, limit=limit, offset=offset
+    )
+    return Page(
+        items=[AuditLogOut.model_validate(e) for e in entries],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/audit/actions", response_model=list[str], dependencies=[Depends(get_current_admin)])
+async def list_audit_actions(db: AsyncSession = Depends(get_db)) -> list[str]:
+    return await audit_service.list_actions(db)
 
 
 @router.get("/reports", response_model=list[ReportOut])
