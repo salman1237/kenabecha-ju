@@ -31,7 +31,13 @@ os.environ["DATABASE_URL"] = TEST_DB_URL
 # A real (if throwaway) secret, so the tests exercise the same code path as
 # production rather than the development-only placeholder allowance.
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-not-used-anywhere-else-0123456789")
-os.environ.setdefault("ENV", "test")
+# Forced, not setdefault: with setdefault the suite inherits whatever ENV the
+# surrounding container happens to have. Locally that was "development", which
+# makes auth cookies non-Secure; CI set "test", which makes them Secure, and
+# every logged-in test then failed with 401 because httpx will not send a
+# Secure cookie over http. Pinning it means the suite behaves the same
+# everywhere.
+os.environ["ENV"] = "test"
 
 import pytest  # noqa: E402
 from alembic import command  # noqa: E402
@@ -124,7 +130,12 @@ async def client(db: AsyncSession) -> AsyncClient:
     # ASGITransport talks to the app in-process and does not run the lifespan,
     # which keeps the WebSocket heartbeat and the expiry sweeper out of tests.
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    # https, not http: outside development the app marks its auth cookies
+    # Secure, and a client on a plain-http base URL silently drops them. There
+    # is no real TLS here — ASGITransport never opens a socket — but the URL
+    # scheme is what decides whether the cookie jar sends them back, so this
+    # exercises the same cookie flags production uses.
+    async with AsyncClient(transport=transport, base_url="https://test") as ac:
         yield ac
     app.dependency_overrides.clear()
 
