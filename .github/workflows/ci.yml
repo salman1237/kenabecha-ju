@@ -41,6 +41,13 @@ jobs:
       DATABASE_URL: postgresql+asyncpg://kenabecha:kenabecha@localhost:5432/kenabecha
       JWT_SECRET_KEY: ci-only-secret-not-used-in-production
       ENV: test
+      # app.main creates MEDIA_ROOT at import time. It defaults to /app/media,
+      # which exists in the container but not on a runner, where / is not
+      # writable. Left unset, importing the app raises PermissionError before
+      # a single test runs. The app is deliberately strict here — an
+      # unwritable media directory means uploads fail — so CI supplies a
+      # writable path rather than the app being made lenient.
+      MEDIA_ROOT: ${{ runner.temp }}/media
 
     steps:
       - uses: actions/checkout@v4
@@ -131,21 +138,22 @@ jobs:
 
       - name: Wait for the new version to answer
         env:
-          APP_URL: ${{ secrets.APP_URL }}
+          # The API host, not the site host — /health is a backend route.
+          API_URL: ${{ secrets.API_URL }}
         run: |
-          if [ -z "$APP_URL" ]; then
-            echo "APP_URL not set — skipping the post-deploy check."
+          if [ -z "$API_URL" ]; then
+            echo "API_URL not set — skipping the post-deploy check."
             exit 0
           fi
           # Dokploy returns as soon as the build is queued, so a green job
           # here would otherwise say nothing about whether the site came
           # back up. Poll /health until it answers or we give up.
           for i in $(seq 1 40); do
-            if curl -fsS --max-time 10 "$APP_URL/health" >/dev/null 2>&1; then
+            if curl -fsS --max-time 10 "$API_URL/health" >/dev/null 2>&1; then
               echo "Healthy after ~$((i * 15))s."
               exit 0
             fi
             sleep 15
           done
-          echo "::error::$APP_URL/health did not recover within 10 minutes."
+          echo "::error::$API_URL/health did not recover within 10 minutes."
           exit 1
