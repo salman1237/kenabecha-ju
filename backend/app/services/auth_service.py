@@ -244,6 +244,13 @@ async def google_login(db: AsyncSession, credential: str) -> User:
     if not user.is_active:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "This account has been deactivated")
 
+    # Google is the third way into an account, alongside signup and password
+    # login, so the bootstrap has to run here too. It was missed the first
+    # time, which left ADMIN_EMAILS silently ineffective for anyone signing in
+    # with Google — the likely case, since a configured address is often a
+    # personal Gmail rather than a university one.
+    apply_admin_bootstrap(user)
+
     await db.commit()
     await db.refresh(user)
     return user

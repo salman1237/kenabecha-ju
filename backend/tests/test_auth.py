@@ -190,3 +190,25 @@ async def test_removing_an_address_does_not_demote(client, db, monkeypatch):
     await client.post("/auth/login", json={"email": user.email, "password": TEST_PASSWORD})
     await db.refresh(user)
     assert user.role == "admin"
+
+
+async def test_google_signin_also_applies_the_bootstrap(db, monkeypatch):
+    """Google is the third way into an account. It was missed initially, which
+    left ADMIN_EMAILS ineffective for exactly the addresses most likely to be
+    configured — a personal Gmail rather than a university one."""
+    from app.models.user import AuthProvider, User, UserRole
+    from app.services import auth_service
+
+    email = "owner@gmail.com"
+    monkeypatch.setattr(auth_service.settings, "ADMIN_EMAILS", email)
+    monkeypatch.setattr(auth_service.settings, "GOOGLE_CLIENT_ID", "test-client-id")
+
+    def fake_verify(*_args, **_kwargs):
+        return {"sub": "google-sub-1", "email": email, "email_verified": True, "name": "Owner"}
+
+    monkeypatch.setattr(auth_service.google_id_token, "verify_oauth2_token", fake_verify)
+
+    user = await auth_service.google_login(db, "any-credential")
+    assert user.email == email
+    assert user.role == UserRole.admin
+    assert user.auth_provider == AuthProvider.google
