@@ -42,7 +42,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 30 — View counts, listing expiry & promotion.** Migration `87818c74aa4c`. De-duplicated view counting via a `listing_views` table (once per viewer per day, sellers excluded from their own counts), 30-day listing expiry with an hourly sweep task and an owner-facing Renew action, and admin-granted time-boxed promotion that floats a listing to the top of every browse ordering.
 - [x] **Phase 31 — i18n completion (Bangla + English).** Moved the locale from localStorage to a cookie so the server renders the right language on first paint — the old approach failed hydration outright whenever Bangla was selected. Added Noto Sans Bengali, locale-aware number/currency/date/relative-time formatting with Bengali numerals, a ~280-key message catalogue with key parity enforced by the type system, and machine-readable error codes from the API so backend errors are shown in the user's language.
 - [x] **Phase 32 — SEO, error boundaries, 404 & mobile bottom nav.** Full metadata with per-listing Open Graph and schema.org Product data, `sitemap.xml`, `robots.txt`, route-level and global error boundaries, a custom 404, a thumb-reachable mobile bottom nav, and real Terms/Privacy pages wired into the footer's previously dead links.
-- [ ] **Phase 33 — Backend test suite.** Not started.
+- [x] **Phase 33 — Backend test suite.** 74 tests against a real Postgres, covering auth, listing lifecycle, expiry/renewal, view counting, promotion, search escaping, categories, chat eligibility, rate limiting and upload validation — with the suite mutation-checked to confirm it actually fails on the bugs it claims to cover.
 - [ ] **Phase 34 — DevOps: production compose, CI, backups.** Not started.
 
 See "Phase 9+ — UI/UX Redesign, Tiered Auth & Cart/Orders" below (before "## Context") for the detailed breakdown of those five phases, written 2026-08-01 per user request. All five are complete. "Phases 15–24 — Frontend Gap Closure" is likewise complete. "Phases 25–34" is the current initiative.
@@ -124,7 +124,19 @@ schema.org `Product` JSON-LD is emitted from that same server layout, **not** fr
 **Trade-off carried over from Phase 31.** Reading the locale cookie in the root layout opts every route into dynamic rendering; routes that built as `○ (Static)` are now `ƒ`. Since every page is a Client Component fetching at runtime, the static output was only ever an empty shell, and correct first-paint language plus a working `lang` attribute is worth more than caching that shell. Worth revisiting if static delivery ever matters.
 
 ### Phase 33 — Backend test suite
-FEAT-16 — `backend/tests/` is empty; zero coverage.
+FEAT-16 — `backend/tests/` was empty; zero coverage.
+
+**74 tests, all green.** Split across auth (10), listings (30), search and categories (15), and guards — chat, rate limiting, uploads (19).
+
+**Real Postgres, not SQLite.** The schema depends on native enums, `pg_trgm` indexes, `ON CONFLICT ON CONSTRAINT` and `ILIKE … ESCAPE`, so a SQLite stand-in would happily pass things production would reject. A throwaway `kenabecha_test` database is dropped, recreated and brought up with `alembic upgrade head` once per session — migrations rather than `metadata.create_all()`, so the tests exercise the schema that actually ships and inherit the seed data (halls, departments, categories) the API needs.
+
+**Isolation by savepoint, not truncation.** The service layer commits constantly, which would end a plain outer transaction and leak state between tests. Binding each test's session with `join_transaction_mode="create_savepoint"` turns those commits into savepoint releases, so one rollback undoes everything — including rate-limit counters, which would otherwise bleed across tests and cause spurious 429s.
+
+**What the harness taught us.** Three fixture bugs were worth the comments they now carry: the session must set `expire_on_commit=False` to match `app.db.session`, or every response serialisation dies with `MissingGreenlet`; `profile_complete` is a derived property, not a column, so it can't be forced; and Alembic's `env.py` calls `asyncio.run()`, which won't nest inside the fixture's loop and needs a worker thread. Fixtures that don't mirror the app's own configuration test a different application.
+
+**Mutation-checked.** A passing suite proves nothing by itself, so three fixed defects were deliberately reintroduced — the suggestion status filter, the `category_id` validation, and the seller view-count exclusion. Each turned exactly the corresponding test red (4 failures, 70 passes) and nothing else, then the source was restored and the suite verified green again. That's the evidence the tests have teeth.
+
+**Packaging.** The dev group moved from a PEP 735 `[dependency-groups]` — which needs pip ≥ 25.1, and the image ships 25.0 — to an optional-dependency extra installed only in the Dockerfile's `dev` stage. Verified by building the prod target and confirming `pytest` and `httpx` are absent while `fastapi` is present.
 
 ### Phase 34 — DevOps
 DEVOPS-01→05.

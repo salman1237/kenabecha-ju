@@ -10,6 +10,9 @@ COPY pyproject.toml ./
 RUN pip install --no-cache-dir -e .
 
 FROM base AS dev
+# Test toolchain lives only in this stage — the prod stage below installs
+# just the runtime dependencies.
+RUN pip install --no-cache-dir -e ".[dev]"
 COPY . .
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 

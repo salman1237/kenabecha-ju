@@ -19,7 +19,11 @@ dependencies = [
     "requests>=2.32",
 ]
 
-[dependency-groups]
+# An optional-dependency extra rather than a PEP 735 dependency-group:
+# `pip install --group` needs pip >= 25.1 and the image ships 25.0, whereas
+# every pip understands extras. Installed only in the dev image stage, so the
+# production image never carries the test toolchain.
+[project.optional-dependencies]
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
@@ -28,3 +32,12 @@ dev = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+testpaths = ["tests"]
+# Session-scoped async fixtures (the engine and the migrated schema) must
+# share one event loop with the tests that use them; the default per-function
+# loop would close it out from under them.
+asyncio_default_fixture_loop_scope = "session"
+# Tests share that same loop. SQLAlchemy's async engine pools asyncpg
+# connections against whichever loop first used them, so a per-test loop
+# makes every reuse fail with "attached to a different loop".
+asyncio_default_test_loop_scope = "session"
