@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { SiteJsonLd } from "@/components/seo/ListingJsonLd";
 import { NewsletterSection } from "@/components/home/NewsletterSection";
 import { ReviewsSection } from "@/components/home/ReviewsSection";
 import { StatsSection } from "@/components/home/StatsSection";
@@ -71,6 +72,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col overflow-hidden">
+      <SiteJsonLd />
       {/* 1. HERO SECTION */}
       <section className="relative flex flex-col items-center justify-center px-4 py-20 text-center sm:py-32 gradient-bg-hero">
         {/* Glow Spheres */}

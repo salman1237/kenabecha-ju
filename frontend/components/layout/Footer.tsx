@@ -36,9 +36,12 @@ function linkGroups(t: Translations) {
       heading: t.footer.campus,
       links: [
         { label: t.footer.university, href: "https://juniv.edu" },
-        { label: t.footer.safetyTips, href: "/listings" },
-        { label: t.footer.communityRules, href: "/listings" },
-        { label: t.footer.reportProblem, href: "/listings" },
+        // Safety guidance and the community rules both live in the Terms;
+        // these used to point at /listings, which was a dead end.
+        { label: t.footer.safetyTips, href: "/terms#meeting-safely" },
+        { label: t.footer.communityRules, href: "/terms" },
+        { label: t.footer.terms, href: "/terms" },
+        { label: t.footer.privacy, href: "/privacy" },
       ],
     },
   ];

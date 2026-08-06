@@ -330,6 +330,9 @@ export const en = {
     notFound: "User not found",
   },
   footer: {
+    terms: "Terms of Service",
+    privacy: "Privacy Policy",
+    legal: "Legal",
     tagline:
       "The trusted marketplace built for Jahangirnagar University students — buy, sell, and run your own campus shop.",
     marketplace: "Marketplace",
@@ -372,6 +375,16 @@ export const en = {
     done: "You're subscribed — watch your inbox.",
     invalidEmail: "That doesn't look like a valid email address.",
     failed: "Couldn't subscribe right now — please try again.",
+  },
+
+  errorPages: {
+    crashTitle: "Something went wrong",
+    crashBody: "This page hit an unexpected error. Trying again often works — if it keeps happening, the code below helps us track it down.",
+    globalTitle: "The app failed to load",
+    globalBody: "Something broke before the page could start. Reloading usually fixes it.",
+    reload: "Reload",
+    notFoundTitle: "Page not found",
+    notFoundBody: "That link is broken, or whatever was here has been removed or sold.",
   },
 
   conditions: {

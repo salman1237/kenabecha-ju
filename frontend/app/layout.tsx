@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import "./globals.css";
 import { Footer } from "@/components/layout/Footer";
 import { MotionProvider } from "@/components/layout/MotionProvider";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { Navbar } from "@/components/layout/Navbar";
 import { PageTransition } from "@/components/layout/PageTransition";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -12,6 +13,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { SkipLinkLabel } from "@/components/layout/SkipLinkLabel";
 import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE } from "@/lib/i18n/config";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,8 +32,46 @@ const notoBengali = Noto_Sans_Bengali({
 });
 
 export const metadata: Metadata = {
-  title: "KenaBecha JU — Jahangirnagar University Marketplace",
-  description: "Buy, sell, and run shops within the Jahangirnagar University community.",
+  // metadataBase makes every relative OG/canonical URL below resolve to an
+  // absolute one. Without it Next warns and social crawlers, which never
+  // resolve relative URLs, silently get nothing.
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — Jahangirnagar University Marketplace`,
+    // Pages set only their own title; this supplies the suffix.
+    template: `%s — ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "Jahangirnagar University",
+    "JU marketplace",
+    "student marketplace",
+    "buy and sell",
+    "campus shop",
+    "textbooks",
+    "জাহাঙ্গীরনগর বিশ্ববিদ্যালয়",
+  ],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — Jahangirnagar University Marketplace`,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    locale: "en_US",
+    alternateLocale: ["bn_BD"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — Jahangirnagar University Marketplace`,
+    description: SITE_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
 };
 
 export default async function RootLayout({
@@ -69,6 +109,10 @@ export default async function RootLayout({
                   <PageTransition>{children}</PageTransition>
                 </main>
                 <Footer />
+                {/* Fixed bar would otherwise cover the last ~3.5rem of every
+                    page on mobile; this reserves that space. */}
+                <div aria-hidden className="h-14 md:hidden" />
+                <MobileBottomNav />
                 <Toaster />
               </AuthProvider>
             </LanguageProvider>

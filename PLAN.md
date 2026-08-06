@@ -41,7 +41,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 29a — Audit of Phases 27–29.** Reviewed the Phase 27–29 work and fixed six defects it introduced or left open: two TypeScript errors that broke `next build` entirely, an unhandled FK violation returning 500 on an unknown `category_id`, navbar search silently not applying when already on `/listings`, search suggestions offering sold/removed listings, `npm install` replacing `npm ci` in the frontend image, and the category field being optional so every sidebar count stayed at zero.
 - [x] **Phase 30 — View counts, listing expiry & promotion.** Migration `87818c74aa4c`. De-duplicated view counting via a `listing_views` table (once per viewer per day, sellers excluded from their own counts), 30-day listing expiry with an hourly sweep task and an owner-facing Renew action, and admin-granted time-boxed promotion that floats a listing to the top of every browse ordering.
 - [x] **Phase 31 — i18n completion (Bangla + English).** Moved the locale from localStorage to a cookie so the server renders the right language on first paint — the old approach failed hydration outright whenever Bangla was selected. Added Noto Sans Bengali, locale-aware number/currency/date/relative-time formatting with Bengali numerals, a ~280-key message catalogue with key parity enforced by the type system, and machine-readable error codes from the API so backend errors are shown in the user's language.
-- [ ] **Phase 32 — SEO, error boundaries, 404 & mobile bottom nav.** Not started.
+- [x] **Phase 32 — SEO, error boundaries, 404 & mobile bottom nav.** Full metadata with per-listing Open Graph and schema.org Product data, `sitemap.xml`, `robots.txt`, route-level and global error boundaries, a custom 404, a thumb-reachable mobile bottom nav, and real Terms/Privacy pages wired into the footer's previously dead links.
 - [ ] **Phase 33 — Backend test suite.** Not started.
 - [ ] **Phase 34 — DevOps: production compose, CI, backups.** Not started.
 
@@ -106,6 +106,22 @@ I18N-01→04 — the `LanguageContext` and `messages/{en,bn}.ts` existed but cov
 
 ### Phase 32 — SEO, error boundaries, 404 & mobile bottom nav
 FE-BUG-02, FE-BUG-03, FE-FEAT-16, FE-FEAT-17, FEAT-14 (legal pages).
+
+**FE-FEAT-17 — SEO.** Root metadata gains `metadataBase` (without it Next warns and social crawlers, which never resolve relative URLs, get nothing), a title template, description, keywords, Open Graph and Twitter cards. Per-listing metadata comes from a thin **server** `layout.tsx` wrapping the client page, since Client Components cannot export `generateMetadata` — each listing now gets a real title, price-led description and OG image when shared on WhatsApp or Facebook. Sold and expired listings are marked `noindex` so they stop accumulating search traffic for something nobody can buy.
+
+schema.org `Product` JSON-LD is emitted from that same server layout, **not** from the page. Rendering it in the client page put it nowhere in the initial HTML: the page shows a skeleton until its data arrives, so a crawler reading the server response saw no structured data at all. Verified by parsing the raw HTML rather than the live DOM.
+
+`sitemap.ts` lists static routes plus the newest listings and shops, revalidating hourly, and swallows API failures — an empty-but-valid sitemap beats a 500, which crawlers read as a site-wide problem. `robots.ts` disallows the signed-in surfaces; `/inbox` in particular holds private conversations that must never be indexed if an auth check is ever loosened.
+
+**FE-BUG-02 — error boundaries.** `app/error.tsx` catches route-level throws, keeping the navbar, footer and a way out instead of a white screen; it uses `unstable_retry()` rather than `reset()`, since a transient API failure needs a re-fetch, not just a cleared error state. `app/global-error.tsx` covers a throw in the root layout itself — it *replaces* the layout, so it gets no provider, no theme and no `globals.css`, and is therefore self-contained and inline-styled (its English text is a constraint, not an oversight).
+
+**FE-BUG-03 — 404.** `not-found.tsx` shares the same shell, translated, with routes back to Home and Browse.
+
+**FE-FEAT-16 — mobile bottom nav.** Home / Search / Sell / Inbox / Profile, fixed and thumb-reachable, hidden from `md` up where the navbar already shows everything. Suppressed on `/admin` and inside a chat thread, where it would sit on top of the message composer. A spacer reserves its height so it never covers the end of a page, and it respects `env(safe-area-inset-bottom)` for the iOS home indicator.
+
+**FEAT-14 — legal pages.** `/terms` and `/privacy`, written against what this code actually does rather than from a template: the privacy page documents the salted-hash view counting, the 30-day listing expiry, exactly which profile fields are public (phone and WhatsApp are, deliberately), and that no payments are processed. The footer's Safety tips / Community rules links previously pointed at `/listings` — a dead end — and now reach the relevant sections.
+
+**Trade-off carried over from Phase 31.** Reading the locale cookie in the root layout opts every route into dynamic rendering; routes that built as `○ (Static)` are now `ƒ`. Since every page is a Client Component fetching at runtime, the static output was only ever an empty shell, and correct first-paint language plus a working `lang` attribute is worth more than caching that shell. Worth revisiting if static delivery ever matters.
 
 ### Phase 33 — Backend test suite
 FEAT-16 — `backend/tests/` is empty; zero coverage.

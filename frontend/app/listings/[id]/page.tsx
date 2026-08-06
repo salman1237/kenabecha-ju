@@ -151,8 +151,8 @@ export default function ListingDetailPage() {
       <Breadcrumbs
         className="mb-5"
         items={[
-          { label: "Home", href: "/" },
-          { label: "Listings", href: "/listings" },
+          { label: t.common.home, href: "/" },
+          { label: t.shops.listingsTab, href: "/listings" },
           ...(listing.category ? [{ label: listing.category.name, href: `/listings?category=${listing.category.slug}` }] : []),
           ...(listing.shop ? [{ label: listing.shop.shop_name, href: sellerHref }] : []),
           { label: listing.title },

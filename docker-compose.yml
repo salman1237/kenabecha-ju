@@ -45,6 +45,10 @@ services:
       # (the /media rewrite + image optimizer), which can't reach the
       # browser-facing localhost:8000 from inside this container.
       - INTERNAL_API_URL=http://backend:8000
+      # Public origin used for canonical links, Open Graph URLs and the
+      # sitemap. Crawlers never resolve relative URLs, so this has to be
+      # absolute and has to match how the site is actually reached.
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
     ports:
       - "3000:3000"
     volumes:
