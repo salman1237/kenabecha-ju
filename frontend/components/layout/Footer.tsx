@@ -6,37 +6,43 @@ import { Code2, Globe, Mail, MapPin, Send } from "lucide-react";
 import Link from "next/link";
 import { motion } from "motion/react";
 
+import { useLanguage } from "@/context/LanguageContext";
 import { revealOnScroll, staggerContainer, staggerItem } from "@/lib/motion";
+import type { Translations } from "@/messages/en";
 
-const LINK_GROUPS = [
-  {
-    heading: "Marketplace",
-    links: [
-      { label: "Browse listings", href: "/listings" },
-      { label: "Sell an item", href: "/listings/new" },
-      { label: "Open a shop", href: "/shops/dashboard" },
-      { label: "My dashboard", href: "/dashboard" },
-    ],
-  },
-  {
-    heading: "Account",
-    links: [
-      { label: "Log in", href: "/login" },
-      { label: "Sign up", href: "/signup" },
-      { label: "Inbox", href: "/inbox" },
-      { label: "Reset password", href: "/forgot-password" },
-    ],
-  },
-  {
-    heading: "Campus",
-    links: [
-      { label: "Jahangirnagar University", href: "https://juniv.edu" },
-      { label: "Safety tips", href: "/listings" },
-      { label: "Community rules", href: "/listings" },
-      { label: "Report a problem", href: "/listings" },
-    ],
-  },
-];
+// Built from the active translations rather than a module-level constant,
+// so the labels change with the language instead of being frozen at import.
+function linkGroups(t: Translations) {
+  return [
+    {
+      heading: t.footer.marketplace,
+      links: [
+        { label: t.footer.browseListings, href: "/listings" },
+        { label: t.footer.sellAnItem, href: "/listings/new" },
+        { label: t.footer.openShop, href: "/shops/dashboard" },
+        { label: t.footer.myDashboard, href: "/dashboard" },
+      ],
+    },
+    {
+      heading: t.footer.account,
+      links: [
+        { label: t.footer.logIn, href: "/login" },
+        { label: t.footer.signUp, href: "/signup" },
+        { label: t.nav.inbox, href: "/inbox" },
+        { label: t.footer.resetPassword, href: "/forgot-password" },
+      ],
+    },
+    {
+      heading: t.footer.campus,
+      links: [
+        { label: t.footer.university, href: "https://juniv.edu" },
+        { label: t.footer.safetyTips, href: "/listings" },
+        { label: t.footer.communityRules, href: "/listings" },
+        { label: t.footer.reportProblem, href: "/listings" },
+      ],
+    },
+  ];
+}
 
 const SOCIALS = [
   { label: "University website", href: "https://juniv.edu", icon: Globe },
@@ -45,7 +51,9 @@ const SOCIALS = [
 ];
 
 export function Footer() {
+  const { t, fmt } = useLanguage();
   const year = new Date().getFullYear();
+  const groups = linkGroups(t);
 
   return (
     <motion.footer
@@ -64,12 +72,11 @@ export function Footer() {
               KenaBecha <span className="text-emerald-600 dark:text-emerald-400">JU</span>
             </Link>
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-              The trusted marketplace built for Jahangirnagar University students — buy, sell, and run
-              your own campus shop.
+              {t.footer.tagline}
             </p>
             <p className="flex items-center gap-2 text-xs text-muted-foreground">
               <MapPin className="size-3.5 shrink-0" />
-              Jahangirnagar University, Savar, Dhaka 1342
+              {t.footer.address}
             </p>
             <div className="flex items-center gap-2 pt-1">
               {SOCIALS.map(({ label, href, icon: Icon }) => (
@@ -88,7 +95,7 @@ export function Footer() {
           </motion.div>
 
           {/* Link columns */}
-          {LINK_GROUPS.map((group) => (
+          {groups.map((group) => (
             <motion.div key={group.heading} variants={staggerItem} className="flex flex-col gap-3">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
                 {group.heading}
@@ -114,11 +121,11 @@ export function Footer() {
           className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-6 sm:flex-row"
         >
           <p className="text-xs text-muted-foreground">
-            © {year} KenaBecha JU. Built by students, for students.
+            © {fmt.number(year)} KenaBecha JU. {t.footer.rights}
           </p>
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Send className="size-3" />
-            No payments on-platform — always meet safely on campus.
+            {t.footer.noPayments}
           </p>
         </motion.div>
       </div>

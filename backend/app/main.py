@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
 from app.core.logging import setup_logging
+from app.core.errors import AppError, app_error_handler
 from app.tasks.expiry import sweeper
 from app.websocket.manager import manager
 from app.routers import (
@@ -59,6 +60,10 @@ app.add_middleware(
 )
 
 app.mount("/media", StaticFiles(directory=settings.MEDIA_ROOT), name="media")
+
+# Emits the machine-readable `code` alongside `detail` so the frontend can
+# translate errors instead of showing the API's English strings.
+app.add_exception_handler(AppError, app_error_handler)
 
 app.include_router(auth.router)
 app.include_router(public.router)

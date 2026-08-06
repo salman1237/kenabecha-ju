@@ -40,7 +40,7 @@ This is the schema/folder-structure plan approved before scaffolding began, kept
 - [x] **Phase 29 — Data-integrity & query-performance fixes.** Completed (Fixes for `DISTINCT ON` order in chat, `is_active` validation everywhere, shop pagination & N+1 ratings, tags usage_count decrement, image sort_order reordering, and deleted media cleanup).
 - [x] **Phase 29a — Audit of Phases 27–29.** Reviewed the Phase 27–29 work and fixed six defects it introduced or left open: two TypeScript errors that broke `next build` entirely, an unhandled FK violation returning 500 on an unknown `category_id`, navbar search silently not applying when already on `/listings`, search suggestions offering sold/removed listings, `npm install` replacing `npm ci` in the frontend image, and the category field being optional so every sidebar count stayed at zero.
 - [x] **Phase 30 — View counts, listing expiry & promotion.** Migration `87818c74aa4c`. De-duplicated view counting via a `listing_views` table (once per viewer per day, sellers excluded from their own counts), 30-day listing expiry with an hourly sweep task and an owner-facing Renew action, and admin-granted time-boxed promotion that floats a listing to the top of every browse ordering.
-- [ ] **Phase 31 — i18n completion (Bangla + English).** Not started.
+- [x] **Phase 31 — i18n completion (Bangla + English).** Moved the locale from localStorage to a cookie so the server renders the right language on first paint — the old approach failed hydration outright whenever Bangla was selected. Added Noto Sans Bengali, locale-aware number/currency/date/relative-time formatting with Bengali numerals, a ~280-key message catalogue with key parity enforced by the type system, and machine-readable error codes from the API so backend errors are shown in the user's language.
 - [ ] **Phase 32 — SEO, error boundaries, 404 & mobile bottom nav.** Not started.
 - [ ] **Phase 33 — Backend test suite.** Not started.
 - [ ] **Phase 34 — DevOps: production compose, CI, backups.** Not started.
@@ -90,7 +90,17 @@ FEAT-04, FEAT-05, FEAT-07.
 **FEAT-05 — promotion.** `featured_until` gives a time-boxed promotion separate from the permanent `is_top` flag. Applied as a leading sort key in every ordering rather than as a prepended list, so paging doesn't repeat featured items on each page. Admin-granted, not seller-set: there's no payment integration, and self-service promotion means everyone is promoted and the ordering stops meaning anything.
 
 ### Phase 31 — i18n completion
-I18N-01→04 — the `LanguageContext` and `messages/{en,bn}.ts` exist but cover only the landing page; extract the remaining strings, add Noto Sans Bengali, and localize dates/currency/numerals.
+I18N-01→04 — the `LanguageContext` and `messages/{en,bn}.ts` existed but covered only the landing page.
+
+**The foundation was broken, not just incomplete.** The old provider read `localStorage` in a `useState` initializer. That runs on the server (no `window`, so `en`) and again on the client (`bn`), so selecting Bangla failed hydration outright — React reported `Hydration failed because the server rendered text didn't match the client` and threw away the server tree. `<html lang>` also stayed `"en"` regardless of language, which misinforms screen readers and search engines. Both are fixed by moving the locale to a **cookie**: the root layout reads it server-side, stamps the right `lang`, and passes it to the provider as `initialLocale`. First paint is now already in the right language — no mismatch, and no flash of English.
+
+**I18N-01 — font.** Inter has no Bengali coverage, so Bangla was falling back to whatever the OS supplied. Added Noto Sans Bengali via `next/font`, placed *after* Inter in the stack: font fallback is per-glyph, so Latin keeps using Inter and only Bengali codepoints fall through. Loaded in both locales, since student-written shop names and listing titles contain Bangla even in English mode.
+
+**I18N-02 — extraction.** ~280 keys across nav, browse, listing detail, the listing form, the seller dashboard, auth, shops, inbox, profile, footer, and condition/status labels. `bn` is typed as `Translations` (= `typeof en`), so a missing or misspelled key is a compile error rather than a blank string in production.
+
+**I18N-03 — formatting.** `Intl` with the `bn-BD` locale gives Bengali numerals (০১২৩৪৫৬৭৮৯), Bangla month names, and correct relative-time grammar. The formatters are exposed pre-bound to the active locale as `fmt.*` on the context, so call sites can't forget to thread the locale through — the usual cause of a stray English numeral on an otherwise Bangla page.
+
+**I18N-04 — backend error codes.** Responses now carry a stable `code` next to the English `detail`, via an `AppError` subclass and a dedicated exception handler. `translateApiError` maps code → translated string, falling back to the server's `detail` for unknown codes and to a network message for non-API failures, so an error can never render blank. Deliberately additive: plain `HTTPException` is unchanged and simply has no code, so raise sites migrate one at a time instead of in a flag day.
 
 ### Phase 32 — SEO, error boundaries, 404 & mobile bottom nav
 FE-BUG-02, FE-BUG-03, FE-FEAT-16, FE-FEAT-17, FEAT-14 (legal pages).

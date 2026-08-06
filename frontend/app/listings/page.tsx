@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { ListingCard } from "@/components/listings/ListingCard";
+import { useLanguage } from "@/context/LanguageContext";
 import {
   DEFAULT_FILTERS,
   ListingFilters,
@@ -55,6 +56,7 @@ function ResultsSkeleton({ view }: { view: ViewMode }) {
 
 function BrowseListingsContent() {
   const searchParams = useSearchParams();
+  const { t, fmt } = useLanguage();
 
   const [q, setQ] = useState(() => searchParams.get("q") ?? "");
   const debouncedQ = useDebounce(q, 350);
@@ -180,14 +182,15 @@ function BrowseListingsContent() {
     />
   );
 
-  const resultCount = loading ? null : `${total} ${total === 1 ? "listing" : "listings"}`;
+  const resultCount = loading ? null : `${fmt.number(total)} ${t.shops.listings}`;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
       <div className="mb-6 flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Browse listings</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t.browse.title}</h1>
         <p className="text-sm text-muted-foreground">
-          Everything on sale across campus{resultCount ? ` — ${resultCount}` : ""}
+          {t.browse.subtitleCount}
+          {resultCount ? ` — ${resultCount}` : ""}
         </p>
       </div>
 
@@ -207,8 +210,8 @@ function BrowseListingsContent() {
               <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Search by title or description…"
-                aria-label="Search listings"
+                placeholder={t.browse.searchPlaceholder}
+                aria-label={t.browse.searchPlaceholder}
                 className="h-10 rounded-xl pl-9 shadow-[var(--shadow-soft-xs)]"
               />
             </div>
@@ -218,11 +221,11 @@ function BrowseListingsContent() {
               <SheetTrigger
                 render={<Button variant="outline" className="h-10 shrink-0 rounded-xl lg:hidden" />}
               >
-                <SlidersHorizontal /> Filters
+                <SlidersHorizontal /> {t.browse.filters}
               </SheetTrigger>
               <SheetContent side="left" className="w-[85vw] max-w-sm overflow-y-auto">
                 <SheetHeader>
-                  <SheetTitle>Filters</SheetTitle>
+                  <SheetTitle>{t.browse.filters}</SheetTitle>
                 </SheetHeader>
                 <div className="px-4 pb-8">{filterPanel}</div>
               </SheetContent>
@@ -230,8 +233,8 @@ function BrowseListingsContent() {
 
             <div className="hidden items-center gap-1 rounded-xl border border-border p-0.5 sm:flex">
               {([
-                ["grid", LayoutGrid, "Grid view"],
-                ["list", List, "List view"],
+                ["grid", LayoutGrid, t.browse.gridView],
+                ["list", List, t.browse.listView],
               ] as const).map(([mode, Icon, label]) => (
                 <button
                   key={mode}
@@ -255,8 +258,8 @@ function BrowseListingsContent() {
           {/* Results */}
           {failed ? (
             <ErrorState
-              title="Couldn't load listings"
-              description="Something went wrong reaching the server."
+              title={t.browse.failed}
+              description={t.errors.network}
               onRetry={() => setReloadKey((k) => k + 1)}
             />
           ) : loading ? (
@@ -264,8 +267,8 @@ function BrowseListingsContent() {
           ) : listings.length === 0 ? (
             <EmptyState
               icon={PackageSearch}
-              title="No listings match your filters"
-              description="Try widening the price range, clearing tags, or searching for something else."
+              title={t.browse.noResults}
+              description={t.browse.noResultsBody}
               action={
                 <Button
                   variant="outline"
@@ -274,7 +277,7 @@ function BrowseListingsContent() {
                     setQ("");
                   }}
                 >
-                  Clear all filters
+                  {t.browse.clearFilters}
                 </Button>
               }
             />

@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.errors import AppError, ErrorCode
 from app.models.category import Category
 from app.models.listing import Listing, ListingStatus
 
@@ -87,7 +88,7 @@ async def ensure_exists(db: AsyncSession, category_id: uuid.UUID | None) -> None
         return
     exists = await db.execute(select(Category.id).where(Category.id == category_id))
     if exists.scalar_one_or_none() is None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown category")
+        raise AppError(status.HTTP_400_BAD_REQUEST, ErrorCode.UNKNOWN_CATEGORY, "Unknown category")
 
 
 async def descendant_ids(db: AsyncSession, category: Category) -> list[uuid.UUID]:

@@ -3,11 +3,16 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export class ApiError extends Error {
   status: number;
   detail: unknown;
+  /** Stable machine-readable code from the API, when it sends one. The UI
+   *  translates this; `message` stays as the server's English text so there
+   *  is always something to fall back on. */
+  code?: string;
 
-  constructor(status: number, detail: unknown) {
+  constructor(status: number, detail: unknown, code?: string) {
     super(typeof detail === "string" ? detail : "Request failed");
     this.status = status;
     this.detail = detail;
+    this.code = code;
   }
 }
 
@@ -70,13 +75,15 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 
   if (!res.ok) {
     let detail: unknown = res.statusText;
+    let code: string | undefined;
     try {
       const body = await res.json();
       detail = body.detail ?? detail;
+      if (typeof body.code === "string") code = body.code;
     } catch {
       // no JSON body
     }
-    throw new ApiError(res.status, extractMessage(detail));
+    throw new ApiError(res.status, extractMessage(detail), code);
   }
 
   if (res.status === 204) return undefined as T;

@@ -44,16 +44,9 @@ import {
 import { ApiError } from "@/lib/api/client";
 import { getRatingEligibility } from "@/lib/api/ratings";
 import { staggerContainer, staggerItem } from "@/lib/motion";
-import { CONDITION_LABELS, cn, formatPrice, toTelHref, toWhatsAppHref } from "@/lib/utils";
+import { useLanguage } from "@/context/LanguageContext";
+import { cn, toTelHref, toWhatsAppHref } from "@/lib/utils";
 import type { Listing, Rating, RatingEligibility, SellerReviews } from "@/types/api";
-
-const STATUS_LABELS: Record<string, string> = {
-  active: "Active",
-  sold: "Sold",
-  out_of_stock: "Out of stock",
-  removed: "Removed",
-  expired: "Expired",
-};
 
 function DetailSkeleton() {
   return (
@@ -73,6 +66,7 @@ export default function ListingDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { t, fmt } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [listing, setListing] = useState<Listing | null>(null);
@@ -108,7 +102,7 @@ export default function ListingDetailPage() {
 
   if (isLoading) return <DetailSkeleton />;
   if (error || !listing) {
-    return <p className="mx-auto max-w-2xl px-6 py-12 text-sm text-destructive">Listing not found.</p>;
+    return <p className="mx-auto max-w-2xl px-6 py-12 text-sm text-destructive">{t.listing.notFound}</p>;
   }
 
   const isOwner = user?.id === listing.seller.id;
@@ -172,7 +166,7 @@ export default function ListingDetailPage() {
 
           {isOwner && (
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-border p-3">
-              <span className="text-xs font-medium text-muted-foreground">Manage photos:</span>
+              <span className="text-xs font-medium text-muted-foreground">{t.listing.managePhotos}</span>
               {listing.images.map((img) => (
                 <button
                   key={img.id}
@@ -212,8 +206,8 @@ export default function ListingDetailPage() {
 
           <Tabs defaultValue="description">
             <TabsList>
-              <TabsTrigger value="description">Description</TabsTrigger>
-              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="description">{t.listing.description}</TabsTrigger>
+              <TabsTrigger value="details">{t.listing.details}</TabsTrigger>
               <TabsTrigger value="reviews">
                 Reviews{sellerReviews?.rating_count ? ` (${sellerReviews.rating_count})` : ""}
               </TabsTrigger>
@@ -239,21 +233,24 @@ export default function ListingDetailPage() {
             <TabsContent value="details" className="pt-4">
               <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
                 {[
-                  ["Condition", listing.shop ? "New" : CONDITION_LABELS[listing.condition]],
-                  ["Price type", listing.price_type],
-                  ...(listing.unit ? [["Sold per", listing.unit]] : []),
-                  ["Fulfillment", listing.fulfillment_type],
+                  [
+                    t.listing.condition,
+                    listing.shop ? t.conditions.new : t.conditions[listing.condition],
+                  ],
+                  [t.listing.priceType, t.common[listing.price_type]],
+                  ...(listing.unit ? [[t.listing.soldPer, listing.unit]] : []),
+                  [t.listing.fulfillment, t.common[listing.fulfillment_type]],
                   ...(listing.fulfillment_type === "pickup"
-                    ? [["Pickup address", listing.pickup_address ?? "Ask the seller"]]
+                    ? [[t.listing.pickupAddress, listing.pickup_address ?? t.listing.askSeller]]
                     : []),
-                  ["Listed", new Date(listing.created_at).toLocaleDateString()],
-                  ["Views", String(listing.view_count)],
+                  [t.listing.listed, fmt.date(listing.created_at)],
+                  [t.listing.views, fmt.number(listing.view_count)],
                   // Only the seller needs the renewal deadline; to a buyer it
                   // reads as pressure to hurry, which isn't what it means.
                   ...(isOwner && listing.expires_at
-                    ? [["Expires", new Date(listing.expires_at).toLocaleDateString()]]
+                    ? [[t.listing.expires, fmt.date(listing.expires_at)]]
                     : []),
-                  ["Status", STATUS_LABELS[listing.status]],
+                  [t.listing.status, t.statuses[listing.status]],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-4 border-b border-border/60 pb-2">
                     <dt className="text-sm text-muted-foreground">{label}</dt>
@@ -282,13 +279,13 @@ export default function ListingDetailPage() {
                 variant={listing.status === "active" ? "default" : "secondary"}
                 className="shrink-0"
               >
-                {STATUS_LABELS[listing.status]}
+                {t.statuses[listing.status]}
               </Badge>
             </div>
 
             <div>
               <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
-                {formatPrice(listing.price, listing.price_type, listing.unit)}
+                {fmt.price(listing.price, listing.price_type, listing.unit)}
               </p>
               {listing.price_type === "negotiable" && (
                 <p className="text-xs text-muted-foreground">Price is negotiable</p>
@@ -298,7 +295,7 @@ export default function ListingDetailPage() {
             <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
               <span className="flex items-center gap-2">
                 <Package className="size-4 shrink-0" />
-                {listing.shop ? "New" : CONDITION_LABELS[listing.condition]}
+                {listing.shop ? t.conditions.new : t.conditions[listing.condition]}
               </span>
               <span className="flex items-center gap-2">
                 {listing.fulfillment_type === "pickup" ? (

@@ -8,6 +8,7 @@ from google.oauth2 import id_token as google_id_token
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import AppError, ErrorCode
 from app.core.config import get_settings
 from app.core.security import (
     generate_otp,
@@ -53,7 +54,9 @@ async def _create_otp(db: AsyncSession, user: User, background_tasks: Background
 
 async def signup(db: AsyncSession, payload: SignupRequest, background_tasks: BackgroundTasks) -> User:
     if await _get_user_by_email(db, payload.email) is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "An account with this email already exists")
+        raise AppError(
+            status.HTTP_409_CONFLICT, ErrorCode.EMAIL_TAKEN, "An account with this email already exists"
+        )
 
     existing_student_id = await db.execute(select(User).where(User.student_id == payload.student_id))
     if existing_student_id.scalar_one_or_none() is not None:
@@ -285,7 +288,9 @@ async def update_avatar(db: AsyncSession, user: User, avatar_url: str) -> User:
 
 
 async def authenticate(db: AsyncSession, payload: LoginRequest) -> User:
-    invalid_error = HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect email or password")
+    invalid_error = AppError(
+        status.HTTP_401_UNAUTHORIZED, ErrorCode.INVALID_CREDENTIALS, "Incorrect email or password"
+    )
     user = await _get_user_by_email(db, payload.email)
     if user is None or user.hashed_password is None:
         raise invalid_error
@@ -294,7 +299,11 @@ async def authenticate(db: AsyncSession, payload: LoginRequest) -> User:
     if not user.is_active:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "This account has been deactivated")
     if not user.is_verified:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Please verify your email before logging in")
+        raise AppError(
+            status.HTTP_403_FORBIDDEN,
+            ErrorCode.EMAIL_NOT_VERIFIED,
+            "Please verify your email before logging in",
+        )
     return user
 
 

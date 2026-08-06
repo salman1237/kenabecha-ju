@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { selectClass } from "@/components/ui/FormField";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { cn, CONDITION_LABELS } from "@/lib/utils";
+import { useLanguage } from "@/context/LanguageContext";
 import type { BrowseFilters } from "@/lib/api/listings";
 import type { Category, Tag } from "@/types/api";
 
@@ -47,6 +48,7 @@ export function ListingFilters({
   trending: Tag[];
   className?: string;
 }) {
+  const { t, fmt } = useLanguage();
   const set = <K extends keyof FilterState>(key: K, value: FilterState[K]) =>
     onChange({ ...filters, [key]: value });
 
@@ -72,7 +74,7 @@ export function ListingFilters({
       className={cn("flex flex-col gap-6", className)}
     >
       <motion.div variants={staggerItem} className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Filters</h2>
+        <h2 className="text-sm font-semibold">{t.browse.filters}</h2>
         {isDirty && (
           <Button
             variant="ghost"
@@ -80,7 +82,7 @@ export function ListingFilters({
             onClick={() => onChange(DEFAULT_FILTERS)}
             className="text-muted-foreground"
           >
-            <RotateCcw /> Reset
+            <RotateCcw /> {t.browse.clearFilters}
           </Button>
         )}
       </motion.div>
@@ -88,9 +90,9 @@ export function ListingFilters({
       {/* Price range */}
       <motion.div variants={staggerItem} className="flex flex-col gap-3">
         <div className="flex items-baseline justify-between">
-          <Label className="text-xs font-medium">Price range</Label>
+          <Label className="text-xs font-medium">{t.browse.priceRange}</Label>
           <span className="text-xs tabular-nums text-muted-foreground">
-            ৳{filters.price[0].toLocaleString()} – ৳{filters.price[1].toLocaleString()}
+            {fmt.currency(filters.price[0])} – {fmt.currency(filters.price[1])}
             {filters.price[1] === PRICE_MAX && "+"}
           </span>
         </div>
@@ -106,7 +108,7 @@ export function ListingFilters({
       {/* Category */}
       <motion.div variants={staggerItem} className="flex flex-col gap-2">
         <Label htmlFor="filter-category" className="text-xs font-medium">
-          Category
+          {t.browse.category}
         </Label>
         <select
           id="filter-category"
@@ -114,7 +116,7 @@ export function ListingFilters({
           value={filters.category}
           onChange={(e) => set("category", e.target.value)}
         >
-          <option value="">All categories</option>
+          <option value="">{t.browse.allCategories}</option>
           {categories.map((cat) => (
             <optgroup key={cat.id} label={`${cat.icon || ""} ${cat.name}`.trim()}>
               <option value={cat.slug}>{cat.name} (All)</option>
@@ -131,7 +133,7 @@ export function ListingFilters({
       {/* Condition */}
       <motion.div variants={staggerItem} className="flex flex-col gap-2">
         <Label htmlFor="filter-condition" className="text-xs font-medium">
-          Condition
+          {t.common.condition}
         </Label>
         <select
           id="filter-condition"
@@ -139,10 +141,10 @@ export function ListingFilters({
           value={filters.condition}
           onChange={(e) => set("condition", e.target.value)}
         >
-          <option value="">Any condition</option>
-          {Object.entries(CONDITION_LABELS).map(([value, label]) => (
+          <option value="">{t.browse.anyCondition}</option>
+          {Object.keys(CONDITION_LABELS).map((value) => (
             <option key={value} value={value}>
-              {label}
+              {t.conditions[value as keyof typeof t.conditions]}
             </option>
           ))}
         </select>
@@ -151,7 +153,7 @@ export function ListingFilters({
       {/* Sort */}
       <motion.div variants={staggerItem} className="flex flex-col gap-2">
         <Label htmlFor="filter-sort" className="text-xs font-medium">
-          Sort by
+          {t.browse.sortBy}
         </Label>
         <select
           id="filter-sort"
@@ -159,16 +161,17 @@ export function ListingFilters({
           value={filters.sort}
           onChange={(e) => set("sort", e.target.value as BrowseFilters["sort"])}
         >
-          <option value="newest">Newest first</option>
-          <option value="price_asc">Price: low to high</option>
-          <option value="price_desc">Price: high to low</option>
+          <option value="newest">{t.browse.sortNewest}</option>
+          <option value="price_asc">{t.browse.sortPriceAsc}</option>
+          <option value="price_desc">{t.browse.sortPriceDesc}</option>
+          <option value="popular">{t.browse.sortPopular}</option>
         </select>
       </motion.div>
 
       {/* Tags */}
       {trending.length > 0 && (
         <motion.div variants={staggerItem} className="flex flex-col gap-2">
-          <Label className="text-xs font-medium">Popular tags</Label>
+          <Label className="text-xs font-medium">{t.browse.popularTags}</Label>
           <div className="flex flex-wrap gap-1.5">
             {trending.map((tag) => {
               const active = filters.tags.includes(tag.name.toLowerCase());

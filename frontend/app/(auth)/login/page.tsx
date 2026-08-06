@@ -17,7 +17,8 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Separator } from "@/components/ui/separator";
 import { login } from "@/lib/api/auth";
-import { ApiError } from "@/lib/api/client";
+import { useLanguage } from "@/context/LanguageContext";
+import { translateApiError } from "@/lib/i18n/errors";
 import { type LoginFormValues, loginSchema } from "@/lib/validation/auth";
 import { useAuth } from "@/context/AuthContext";
 
@@ -29,6 +30,7 @@ function LoginForm() {
   const justReset = searchParams.get("reset") === "1";
   const next = searchParams.get("next") || "/";
   const [serverError, setServerError] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   const {
     register,
@@ -43,19 +45,19 @@ function LoginForm() {
       setUser(user);
       router.push(next);
     } catch (err) {
-      setServerError(err instanceof ApiError ? err.message : "Login failed.");
+      setServerError(translateApiError(err, t));
     }
   };
 
   return (
     <AuthShell
-      title="Welcome back"
-      subtitle="Log in to message sellers, save listings, and manage your shop."
+      title={t.auth.loginTitle}
+      subtitle={t.auth.loginSubtitle}
       footer={
         <>
-          Don&apos;t have an account?{" "}
+          {t.auth.noAccount}{" "}
           <Link href="/signup" className="font-medium text-foreground hover:underline">
-            Sign up
+            {t.auth.signup}
           </Link>
         </>
       }
@@ -120,7 +122,7 @@ function LoginForm() {
           </AnimatePresence>
 
           <Button type="submit" loading={isSubmitting} loadingText="Logging in…" className="mt-1 h-10">
-            Log in
+            {t.auth.login}
           </Button>
         </form>
       </div>

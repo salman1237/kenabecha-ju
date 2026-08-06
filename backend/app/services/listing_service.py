@@ -19,6 +19,7 @@ from app.models.listing import (
     listing_tags,
 )
 from app.core.config import get_settings
+from app.core.errors import AppError, ErrorCode
 from app.core.search import LIKE_ESCAPE, like_contains
 from app.models.user import User
 from app.schemas.listing import ListingCreate, ListingUpdate
@@ -101,7 +102,7 @@ async def get_listing(db: AsyncSession, listing_id: uuid.UUID) -> Listing:
     # that deactivates without stamping deleted_at would otherwise leave the
     # listing publicly reachable.
     if listing is None or listing.deleted_at is not None or not listing.is_active:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Listing not found")
+        raise AppError(status.HTTP_404_NOT_FOUND, ErrorCode.LISTING_NOT_FOUND, "Listing not found")
     return listing
 
 

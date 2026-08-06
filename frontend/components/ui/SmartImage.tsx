@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 
+import { useLanguage } from "@/context/LanguageContext";
 import { cn, mediaUrl } from "@/lib/utils";
 
 /**
@@ -34,6 +35,7 @@ export function SmartImage({
   /** Helps the optimizer pick a width; override for large hero images. */
   sizes?: string;
 }) {
+  const { t } = useLanguage();
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -45,7 +47,7 @@ export function SmartImage({
           wrapperClassName
         )}
       >
-        {fallback ?? "No photo"}
+        {fallback ?? t.common.noPhoto}
       </div>
     );
   }

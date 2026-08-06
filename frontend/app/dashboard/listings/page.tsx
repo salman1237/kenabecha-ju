@@ -11,19 +11,14 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { getMyListings, renewListing } from "@/lib/api/listings";
 import { getMyShops } from "@/lib/api/shops";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { Listing, Shop } from "@/types/api";
 
-const STATUS_FILTERS = [
-  { key: "all", label: "All" },
-  { key: "active", label: "Active" },
-  { key: "sold", label: "Sold" },
-  { key: "out_of_stock", label: "Out of stock" },
-  { key: "expired", label: "Expired" },
-] as const;
+const STATUS_FILTER_KEYS = ["all", "active", "sold", "out_of_stock", "expired"] as const;
 
 /** Warn this many days out, so a seller has a chance to renew before the
  *  listing actually drops out of browse rather than after. */
@@ -37,6 +32,7 @@ function daysUntil(iso: string | null): number | null {
 
 /** A listing card plus the seller-only expiry state and Renew action. */
 function SellerListing({ listing, onRenewed }: { listing: Listing; onRenewed: (l: Listing) => void }) {
+  const { t, fmt } = useLanguage();
   const [renewing, setRenewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,7 +47,7 @@ function SellerListing({ listing, onRenewed }: { listing: Listing; onRenewed: (l
     try {
       onRenewed(await renewListing(listing.id));
     } catch {
-      setError("Could not renew — try again.");
+      setError(t.dashboard.renewFailed);
     } finally {
       setRenewing(false);
     }
@@ -69,12 +65,14 @@ function SellerListing({ listing, onRenewed }: { listing: Listing; onRenewed: (l
             )}
           >
             {isExpired
-              ? "Expired — not visible to buyers"
-              : `Expires in ${left} day${left === 1 ? "" : "s"}`}
+              ? t.dashboard.expiredNotice
+              : `${t.dashboard.expiresIn} ${fmt.number(left!)} ${
+                  left === 1 ? t.dashboard.day : t.dashboard.days
+                }`}
           </p>
           <Button size="sm" variant="outline" onClick={renew} disabled={renewing} className="h-7 text-xs">
             <RefreshCw className={cn("size-3", renewing && "animate-spin")} />
-            {renewing ? "Renewing…" : "Renew for 30 days"}
+            {renewing ? t.dashboard.renewing : t.dashboard.renew}
           </Button>
           {error && <p className="text-[11px] text-destructive">{error}</p>}
         </div>
@@ -85,6 +83,7 @@ function SellerListing({ listing, onRenewed }: { listing: Listing; onRenewed: (l
 
 export default function MyListingsPage() {
   const { user } = useAuth();
+  const { t, fmt } = useLanguage();
   const [personal, setPersonal] = useState<Listing[]>([]);
   const [shopListings, setShopListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,27 +144,30 @@ export default function MyListingsPage() {
     >
       <motion.div variants={staggerItem} className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">My listings</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t.dashboard.myListings}</h1>
           <p className="text-sm text-muted-foreground">
-            {all.length} total · {personal.length} personal · {shopListings.length} from shops
-            {totalViews > 0 && ` · ${totalViews} view${totalViews === 1 ? "" : "s"}`}
+            {fmt.number(all.length)} {t.dashboard.total} · {fmt.number(personal.length)}{" "}
+            {t.dashboard.personal} · {fmt.number(shopListings.length)} {t.dashboard.fromShops}
+            {totalViews > 0 &&
+              ` · ${fmt.number(totalViews)} ${totalViews === 1 ? t.common.view : t.common.views}`}
           </p>
         </div>
         <Link href="/listings/new" className={cn(buttonVariants())}>
-          <PlusCircle /> New listing
+          <PlusCircle /> {t.dashboard.newListing}
         </Link>
       </motion.div>
 
       <motion.div variants={staggerItem} className="flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((f) => {
-          const count = f.key === "all" ? all.length : all.filter((l) => l.status === f.key).length;
+        {STATUS_FILTER_KEYS.map((key) => {
+          const count = key === "all" ? all.length : all.filter((l) => l.status === key).length;
+          const label = key === "all" ? t.dashboard.all : t.statuses[key];
           return (
-            <button key={f.key} type="button" onClick={() => setStatus(f.key)}>
+            <button key={key} type="button" onClick={() => setStatus(key)}>
               <Badge
-                variant={status === f.key ? "default" : "outline"}
+                variant={status === key ? "default" : "outline"}
                 className="cursor-pointer transition-colors"
               >
-                {f.label} ({count})
+                {label} ({fmt.number(count)})
               </Badge>
             </button>
           );
@@ -175,16 +177,14 @@ export default function MyListingsPage() {
       {filtered.length === 0 ? (
         <EmptyState
           icon={Package}
-          title={status === "all" ? "No listings yet" : `No ${status.replace("_", " ")} listings`}
+          title={t.dashboard.noListings}
           description={
-            status === "all"
-              ? "Anything you list — personal or through a shop — shows up here."
-              : "Try a different status filter."
+            status === "all" ? t.dashboard.noListingsBody : t.dashboard.tryAnotherFilter
           }
           action={
             status === "all" ? (
               <Link href="/listings/new" className={cn(buttonVariants())}>
-                <PlusCircle /> Create a listing
+                <PlusCircle /> {t.dashboard.createListing}
               </Link>
             ) : undefined
           }

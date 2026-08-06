@@ -1,23 +1,28 @@
+"use client";
+
 import Link from "next/link";
 
 import { SaveButton } from "@/components/listings/SaveButton";
 import { Badge } from "@/components/ui/badge";
 import { SmartImage } from "@/components/ui/SmartImage";
-import { CONDITION_LABELS, cn, formatPrice } from "@/lib/utils";
+import { useLanguage } from "@/context/LanguageContext";
+import { cn } from "@/lib/utils";
 import type { Listing } from "@/types/api";
 
 function TopBadge() {
+  const { t } = useLanguage();
   return (
     <Badge className="absolute left-2 top-2 bg-gradient-to-r from-amber-500 to-emerald-600 text-[10px] font-bold uppercase tracking-wider text-white shadow-xs">
-      ★ TOP
+      ★ {t.listing.top}
     </Badge>
   );
 }
 
 function FeaturedBadge() {
+  const { t } = useLanguage();
   return (
     <Badge className="absolute left-2 top-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-[10px] font-bold uppercase tracking-wider text-white shadow-xs">
-      ✦ Featured
+      ✦ {t.listing.featured}
     </Badge>
   );
 }
@@ -31,20 +36,22 @@ function PromoBadge({ listing }: { listing: Listing }) {
 }
 
 function ViewCount({ count }: { count: number }) {
+  const { fmt, t } = useLanguage();
   // Hidden at zero: "0 views" on a fresh listing reads as a failure rather
   // than as an absence of data.
   if (count < 1) return null;
   return (
-    <span title={`${count} ${count === 1 ? "view" : "views"}`}>
-      👁 {count}
+    <span title={`${fmt.number(count)} ${count === 1 ? t.common.view : t.common.views}`}>
+      👁 {fmt.number(count)}
     </span>
   );
 }
 
 function StatusBadge({ status }: { status: Listing["status"] }) {
+  const { t } = useLanguage();
   return (
-    <Badge variant="secondary" className="absolute right-2 top-2 text-[10px] capitalize">
-      {status.replace("_", " ")}
+    <Badge variant="secondary" className="absolute right-2 top-2 text-[10px]">
+      {t.statuses[status]}
     </Badge>
   );
 }
@@ -57,8 +64,9 @@ export function ListingCard({
   /** `list` is the horizontal row used by the browse page's list view. */
   variant?: "grid" | "list";
 }) {
+  const { t, fmt } = useLanguage();
   const image = listing.images[0];
-  const price = formatPrice(listing.price, listing.price_type, listing.unit);
+  const price = fmt.price(listing.price, listing.price_type, listing.unit);
 
   if (variant === "list") {
     return (
@@ -81,8 +89,8 @@ export function ListingCard({
               {listing.title}
             </p>
             {listing.status !== "active" && (
-              <Badge variant="secondary" className="shrink-0 text-[10px] capitalize">
-                {listing.status.replace("_", " ")}
+              <Badge variant="secondary" className="shrink-0 text-[10px]">
+                {t.statuses[listing.status]}
               </Badge>
             )}
           </div>
@@ -91,7 +99,7 @@ export function ListingCard({
             {listing.description}
           </p>
           <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-[11px] text-muted-foreground">
-            <span>{listing.shop ? "New" : CONDITION_LABELS[listing.condition]}</span>
+            <span>{listing.shop ? t.conditions.new : t.conditions[listing.condition]}</span>
             <span className="capitalize">{listing.fulfillment_type}</span>
             {listing.shop && <span className="truncate">🏪 {listing.shop.shop_name}</span>}
             <ViewCount count={listing.view_count} />

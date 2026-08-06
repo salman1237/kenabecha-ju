@@ -75,7 +75,7 @@ export function NavbarSearch() {
           onFocus={() => {
             if (suggestions.length > 0) setIsOpen(true);
           }}
-          placeholder="Search items..."
+          placeholder={t.nav.searchPlaceholder}
           className="h-9 w-full rounded-full border-emerald-500/20 bg-emerald-500/5 pl-9 pr-8 text-sm focus-visible:ring-emerald-500/20"
         />
         {isLoading && (
