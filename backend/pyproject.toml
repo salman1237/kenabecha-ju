@@ -23,6 +23,16 @@ dependencies = [
 # `pip install --group` needs pip >= 25.1 and the image ships 25.0, whereas
 # every pip understands extras. Installed only in the dev image stage, so the
 # production image never carries the test toolchain.
+# Without this setuptools tries to auto-discover packages and refuses, because
+# the project root holds `app`, `alembic` and `media` side by side:
+#   error: Multiple top-level packages discovered in a flat-layout
+# The Docker build only avoided it by copying pyproject.toml before the source,
+# so nothing was there to discover — an accident of layer ordering, not a fix.
+# `alembic` is a migrations directory and `media` is an upload volume; neither
+# is an importable package.
+[tool.setuptools]
+packages = ["app"]
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3",
