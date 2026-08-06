@@ -527,3 +527,80 @@ Rather than drop the number, it was added properly: `get_shops_follower_counts` 
 
 **A stale-cache trap worth recording.** After the rewrite the edit route returned 404 while the file was plainly present and the production build had listed it. `docker compose restart frontend` did not clear it; the container had to be recreated with its anonymous `.next` volume removed (`docker compose rm -sfv frontend`). Worth reaching for whenever a route exists on disk but 404s.
 
+---
+
+## Admin panel plan (Phases 40–44)
+
+Requested: role management for moderators, and admin control over the landing page, navbar and footer. What follows is the design, the trade-offs, and what is deliberately excluded.
+
+### Where the admin panel stands today
+
+| Area | Today |
+|---|---|
+| API | stats, users (activate/deactivate only), listings (remove, set top), shops (remove), reports (resolve) |
+| Roles | `user` and `admin`. No middle ground — moderating anything requires full admin |
+| Site copy | 422 translation keys compiled into the JS bundle at build time. Changing a headline needs a code change and a redeploy |
+| Categories | seeded by migration `6605a57ca25d`. Adding one means writing a migration |
+| Accountability | none. Nothing records who removed a listing or banned a user |
+
+### Phase 40 — Roles: moderators
+
+A `moderator` value on the existing enum, plus a split in the permission dependencies:
+
+- `get_current_staff` — admin **or** moderator. Guards the moderation surface: reports, removing listings and shops.
+- `get_current_admin` — admin only. Keeps user management, role changes and site content.
+
+The point of the split is that moderation and administration are different jobs. A moderator should be able to act on a reported listing without also being able to grant themselves permissions or rewrite the homepage.
+
+**Two rails, both tested:**
+
+- **No self-promotion.** A user cannot change their own role, so a moderator who reaches the endpoint cannot escalate.
+- **No last-admin demotion.** Demoting or deactivating the final admin is refused. Otherwise a single mis-click locks everyone out of the panel permanently — recoverable only with a database shell, which is the exact problem `ADMIN_EMAILS` was added to solve.
+
+`ADMIN_EMAILS` continues to promote to admin and remains one-way.
+
+### Phase 41 — Audit log
+
+**Deliberately before moderators get used in anger.** The moment removal powers belong to more than one person, "who deleted this shop?" becomes a question the system must be able to answer.
+
+An `audit_log` table recording actor, action, target type and id, a small JSON detail blob, and timestamp. Written by the privileged endpoints, exposed read-only in the admin panel with filtering by actor and action.
+
+Append-only, and not deletable through the UI — an audit trail an admin can quietly edit is not an audit trail.
+
+### Phase 42 — Site content management
+
+The largest piece, and the one with a real architectural decision.
+
+**Store overrides, not content.** The bundled translations stay as the source of defaults; the database holds only the keys an admin has changed, per locale. Merged over the defaults when the app loads.
+
+The alternative — moving all copy into the database — was rejected: it makes an empty or unreachable database a blank website, turns 422 keys into a data-migration problem, and loses the type-checked key parity between English and Bangla that the current catalogue enforces at compile time.
+
+With overrides:
+
+- an empty table means the site renders exactly as it does now;
+- an admin edits only what they care about;
+- "reset to default" is a delete, not a restore;
+- a typo in a key name cannot blank out a page.
+
+**Scope: the marketing surface only** — `hero`, `sections`, `howItWorks`, `cta`, `footer`, `nav`. Roughly 60 keys of the 422. The remaining 360 are UI mechanics (field labels, validation messages, error codes) where editing invites breakage for no benefit. Both languages are editable side by side, since a change to only one leaves the other silently stale.
+
+**Delivery.** Fetched server-side in the root layout and merged into the language provider, so every existing `t.*` call site keeps working untouched — no page rewrites. Cached with a short revalidation window; the app is already dynamically rendered because of the locale cookie, so nothing is lost.
+
+**Excluded for now:** rich text, image uploads, and section reordering. Each turns this into a page builder. Text first; revisit once it is actually in use.
+
+### Phase 43 — Category management
+
+The taxonomy is currently frozen in a migration, so adding a category means writing code. Admin CRUD, with the constraints the model already implies: two levels only, slugs unique and auto-derived, and a category holding listings cannot be deleted — it must be merged into another or emptied first, since `ondelete=SET NULL` would otherwise silently uncategorise real stock.
+
+### Phase 44 — Admin dashboard & moderation tooling
+
+- A dashboard worth opening: signups, listings and messages over time, pending report count, most-viewed listings.
+- Bulk actions on the moderation tables, which currently force one-at-a-time work.
+- A site-wide announcement banner (maintenance notices, term dates), dismissible and scheduled — reusing the Phase 42 override mechanism rather than inventing a second one.
+
+### Sequencing
+
+Roles before audit log would mean handing out moderation powers with no record of their use, so 40 and 41 ship together in that order. 42 is independent and the most visible. 43 and 44 are additive and can be dropped or deferred without affecting the rest.
+
+Estimated: 40 and 41 are small; 42 is the substantial one; 43 and 44 are moderate.
+
