@@ -51,6 +51,7 @@ export function ListingForm({
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ListingFormValues>({
     resolver: zodResolver(listingSchema),
@@ -74,8 +75,18 @@ export function ListingForm({
       .then(([shopsRes, catsRes]) => {
         setShops(shopsRes);
         setCategories(catsRes);
+        // The <select> below has no <option> for defaultShopId until this
+        // list arrives — a native select can't select a value with no
+        // matching option, so the browser silently falls back to the first
+        // one ("Personal listing") and RHF's defaultValues never gets a
+        // second chance to apply. Re-set it explicitly once the real
+        // option exists.
+        if (mode === "create" && defaultShopId) {
+          setValue("shop_id", defaultShopId);
+        }
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
