@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
-import type { NavLink, NavMenu, Navigation, NavVisibility } from "@/types/api";
+import type { NavLink, NavMenu, Navigation, NavVisibility, SiteInfo } from "@/types/api";
 
 /** Active menus and links only — what the navbar and footer render. */
 export function getNavigation() {
@@ -89,4 +89,22 @@ export function setNavbarControls(controls: Record<string, boolean>) {
     method: "PUT",
     body: JSON.stringify({ controls }),
   });
+}
+
+/** Only the named fields change; anything omitted keeps its value. */
+export function updateSiteInfo(payload: {
+  contact_email?: string | null;
+  whatsapp_number?: string | null;
+  social_links?: Record<string, string>;
+}) {
+  return apiFetch<SiteInfo>("/admin/navigation/site-info", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function uploadSiteLogo(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiFetch<SiteInfo>("/admin/navigation/site-info/logo", { method: "POST", body: formData });
 }

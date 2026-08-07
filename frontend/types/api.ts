@@ -422,11 +422,22 @@ export interface NavMenu {
   links: NavLink[];
 }
 
+/** Admin-editable branding/contact — logo, contact email, WhatsApp, social
+ *  links. Every field is nullable/empty by default, so an unconfigured site
+ *  still renders the hard-coded fallbacks in Navbar/Footer. */
+export interface SiteInfo {
+  logo_url: string | null;
+  contact_email: string | null;
+  whatsapp_number: string | null;
+  social_links: Record<string, string>;
+}
+
 export interface Navigation {
   menus: NavMenu[];
   navbar_controls: Record<string, boolean>;
   /** The site-wide banner, when one is live. Null is the normal case. */
   announcement?: Announcement | null;
+  site_info: SiteInfo;
 }
 
 

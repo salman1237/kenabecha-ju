@@ -57,6 +57,7 @@ export function visibleLinks(menu: NavMenu, signedIn: boolean): NavLink[] {
  */
 export const FALLBACK_NAVIGATION: Navigation = {
   navbar_controls: { search: true, language: true, theme: true, notifications: true },
+  site_info: { logo_url: null, contact_email: null, whatsapp_number: null, social_links: {} },
   menus: [
     {
       id: "navbar",

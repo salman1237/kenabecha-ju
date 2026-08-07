@@ -1,20 +1,28 @@
 "use client";
 
-// lucide-react dropped its brand icons (Facebook/Github/etc.) — these are
+// lucide-react dropped its brand icons (Facebook/Instagram/etc.) — these are
 // the generic equivalents, which is fine since each link is labelled anyway.
-import { Code2, Globe, Mail, MapPin, Send } from "lucide-react";
+import { Briefcase, Camera, Globe, Mail, MapPin, MessageCircle, Send, Video } from "lucide-react";
 import Link from "next/link";
 
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useNavigation } from "@/context/NavigationContext";
 import { menusAt, navLabel, visibleLinks } from "@/lib/navigation";
+import { SmartImage } from "@/components/ui/SmartImage";
 
-const SOCIALS = [
-  { label: "University website", href: "https://juniv.edu", icon: Globe },
-  { label: "Source on GitHub", href: "https://github.com/salman1237/kenabecha-ju", icon: Code2 },
-  { label: "Email support", href: "mailto:support@kenabecha.ju", icon: Mail },
-];
+//: Recognised platform keys for the admin-managed social links — an unknown
+//  key still renders (with a generic globe icon) rather than being dropped,
+//  so a typo'd key doesn't silently disappear from the footer.
+const SOCIAL_ICONS: Record<string, typeof Globe> = {
+  facebook: Globe,
+  instagram: Camera,
+  twitter: Send,
+  x: Send,
+  linkedin: Briefcase,
+  youtube: Video,
+  website: Globe,
+};
 
 export function Footer() {
   const { t, fmt, locale } = useLanguage();
@@ -23,6 +31,28 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   const columns = menusAt(navigation, "footer");
+  const { contact_email, whatsapp_number, social_links } = navigation.site_info;
+  const contactLinks = [
+    ...(contact_email
+      ? [{ key: "email", label: contact_email, href: `mailto:${contact_email}`, icon: Mail }]
+      : []),
+    ...(whatsapp_number
+      ? [
+          {
+            key: "whatsapp",
+            label: "WhatsApp",
+            href: `https://wa.me/${whatsapp_number.replace(/[^0-9]/g, "")}`,
+            icon: MessageCircle,
+          },
+        ]
+      : []),
+    ...Object.entries(social_links).map(([platform, href]) => ({
+      key: platform,
+      label: platform.charAt(0).toUpperCase() + platform.slice(1),
+      href,
+      icon: SOCIAL_ICONS[platform.toLowerCase()] ?? Globe,
+    })),
+  ];
 
   return (
     // Deliberately not scroll-revealed. The reveal helpers render their
@@ -38,9 +68,15 @@ export function Footer() {
           {/* Brand column */}
           <div className="flex flex-col gap-4">
             <Link href="/" className="flex items-center gap-2 text-base font-bold tracking-tight">
-              <span className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-black text-white shadow-[var(--shadow-soft-primary)]">
-                K
-              </span>
+              {navigation.site_info.logo_url ? (
+                <span className="block size-8 shrink-0 overflow-hidden rounded-xl shadow-[var(--shadow-soft-primary)]">
+                  <SmartImage src={navigation.site_info.logo_url} alt="" sizes="32px" />
+                </span>
+              ) : (
+                <span className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-sm font-black text-white shadow-[var(--shadow-soft-primary)]">
+                  K
+                </span>
+              )}
               KenaBecha <span className="text-emerald-600 dark:text-emerald-400">JU</span>
             </Link>
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
@@ -50,20 +86,22 @@ export function Footer() {
               <MapPin className="size-3.5 shrink-0" />
               {t.footer.address}
             </p>
-            <div className="flex items-center gap-2 pt-1">
-              {SOCIALS.map(({ label, href, icon: Icon }) => (
-                <a
-                  key={label}
-                  href={href}
-                  aria-label={label}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex size-9 items-center justify-center rounded-xl border border-border/70 bg-background text-muted-foreground transition-all hover:-translate-y-0.5 hover:border-emerald-500/40 hover:text-emerald-600 hover:shadow-[var(--shadow-soft-sm)] dark:hover:text-emerald-400"
-                >
-                  <Icon className="size-4" />
-                </a>
-              ))}
-            </div>
+            {contactLinks.length > 0 && (
+              <div className="flex items-center gap-2 pt-1">
+                {contactLinks.map(({ key, label, href, icon: Icon }) => (
+                  <a
+                    key={key}
+                    href={href}
+                    aria-label={label}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex size-9 items-center justify-center rounded-xl border border-border/70 bg-background text-muted-foreground transition-all hover:-translate-y-0.5 hover:border-emerald-500/40 hover:text-emerald-600 hover:shadow-[var(--shadow-soft-sm)] dark:hover:text-emerald-400"
+                  >
+                    <Icon className="size-4" />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Link columns — managed from the admin panel. */}

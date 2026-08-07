@@ -131,3 +131,16 @@ NAVBAR_CONTROLS: dict[str, bool] = {
 }
 
 NAVBAR_CONTROLS_KEY = "navbar_controls"
+
+#: Site-wide branding/contact info an admin can edit without a deploy —
+#: logo, contact email, WhatsApp number, social links. Missing keys take
+#: these defaults, same "empty row is still a working site" rule as the
+#: navbar controls above.
+DEFAULT_SITE_INFO: dict = {
+    "logo_url": None,
+    "contact_email": None,
+    "whatsapp_number": None,
+    "social_links": {},
+}
+
+SITE_INFO_KEY = "site_info"

@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_admin
@@ -17,8 +17,10 @@ from app.schemas.navigation import (
     NavMenuOrderIn,
     NavMenuOut,
     NavMenuUpdate,
+    SiteInfoIn,
+    SiteInfoOut,
 )
-from app.services import announcement_service, navigation_service
+from app.services import announcement_service, media_service, navigation_service
 
 # Public: the navbar and footer render on every page for signed-out visitors
 # too, so this must not require authentication. Only active menus and links
@@ -36,6 +38,7 @@ async def get_navigation(db: AsyncSession = Depends(get_db)) -> NavigationOut:
         ],
         navbar_controls=await navigation_service.get_navbar_controls(db),
         announcement=await announcement_service.get_live_announcement(db),
+        site_info=SiteInfoOut(**await navigation_service.get_site_info(db)),
     )
 
 
@@ -57,6 +60,7 @@ async def list_navigation(db: AsyncSession = Depends(get_db)) -> NavigationOut:
             for m in await navigation_service.list_menus(db, active_only=False)
         ],
         navbar_controls=await navigation_service.get_navbar_controls(db),
+        site_info=SiteInfoOut(**await navigation_service.get_site_info(db)),
     )
 
 
@@ -175,3 +179,26 @@ async def set_navbar_controls(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, bool]:
     return await navigation_service.set_navbar_controls(db, payload.controls, actor=actor)
+
+
+@admin_router.put("/site-info", response_model=SiteInfoOut)
+async def set_site_info(
+    payload: SiteInfoIn,
+    actor: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> SiteInfoOut:
+    updated = await navigation_service.set_site_info(
+        db, payload.model_dump(exclude_unset=True), actor=actor
+    )
+    return SiteInfoOut(**updated)
+
+
+@admin_router.post("/site-info/logo", response_model=SiteInfoOut)
+async def upload_site_logo(
+    file: UploadFile,
+    actor: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+) -> SiteInfoOut:
+    image_url = await media_service.save_image(file, "site")
+    updated = await navigation_service.set_site_logo(db, image_url, actor=actor)
+    return SiteInfoOut(**updated)

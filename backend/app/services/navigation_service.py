@@ -8,8 +8,10 @@ from sqlalchemy.orm import selectinload
 
 from app.models.audit import AuditAction
 from app.models.navigation import (
+    DEFAULT_SITE_INFO,
     NAVBAR_CONTROLS,
     NAVBAR_CONTROLS_KEY,
+    SITE_INFO_KEY,
     NavLink,
     NavLocation,
     NavMenu,
@@ -420,3 +422,48 @@ async def set_navbar_controls(
     row.value = merged
     await db.commit()
     return merged
+
+
+async def get_site_info(db: AsyncSession) -> dict:
+    """Admin-editable branding/contact info. Missing keys take their default,
+    same rule as get_navbar_controls — an empty row is a fully working site
+    with the hard-coded fallbacks the frontend already renders."""
+    row = (await db.execute(select(SiteSetting).where(SiteSetting.key == SITE_INFO_KEY))).scalar_one_or_none()
+    stored = row.value if row else {}
+    return {**DEFAULT_SITE_INFO, **stored}
+
+
+async def _get_or_create_site_info_row(db: AsyncSession) -> SiteSetting:
+    row = (await db.execute(select(SiteSetting).where(SiteSetting.key == SITE_INFO_KEY))).scalar_one_or_none()
+    if row is None:
+        row = SiteSetting(key=SITE_INFO_KEY, value={})
+        db.add(row)
+    return row
+
+
+async def set_site_info(db: AsyncSession, updates: dict, *, actor: User) -> dict:
+    """Only the named fields change; anything omitted keeps its value."""
+    row = await _get_or_create_site_info_row(db)
+    merged = {**await get_site_info(db)}
+    for name, value in updates.items():
+        if name in DEFAULT_SITE_INFO:
+            merged[name] = value
+
+    if merged != row.value:
+        audit_service.record(
+            db,
+            actor=actor,
+            action=AuditAction.SITE_INFO_CHANGED,
+            target_type="site_setting",
+            target_label=SITE_INFO_KEY,
+            detail={"from": row.value, "to": merged},
+        )
+    row.value = merged
+    await db.commit()
+    return merged
+
+
+async def set_site_logo(db: AsyncSession, logo_url: str | None, *, actor: User) -> dict:
+    """Same partial-update mechanics as set_site_info, split out since the
+    logo is uploaded as a file rather than sent in the same JSON body."""
+    return await set_site_info(db, {"logo_url": logo_url}, actor=actor)

@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowDown, ArrowUp, Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { NavLinkEditor } from "@/components/admin/NavLinkEditor";
@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SmartImage } from "@/components/ui/SmartImage";
 import { useLanguage } from "@/context/LanguageContext";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -33,10 +34,190 @@ import {
   setNavbarControls,
   updateLink,
   updateMenu,
+  updateSiteInfo,
+  uploadSiteLogo,
 } from "@/lib/api/navigation";
 import { navLabel } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
-import type { NavLink, NavMenu, Navigation } from "@/types/api";
+import type { NavLink, NavMenu, Navigation, SiteInfo } from "@/types/api";
+
+/** Logo upload, contact email/WhatsApp, and social links — the branding an
+ *  admin can change without a deploy. Its own component since it manages a
+ *  form draft the parent's navigation state doesn't need to know about. */
+function SiteInfoSection({
+  siteInfo,
+  onSaved,
+}: {
+  siteInfo: SiteInfo;
+  onSaved: (updated: SiteInfo) => void;
+}) {
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [contactEmail, setContactEmail] = useState(siteInfo.contact_email ?? "");
+  const [whatsappNumber, setWhatsappNumber] = useState(siteInfo.whatsapp_number ?? "");
+  const [socialLinks, setSocialLinks] = useState<[string, string][]>(
+    Object.entries(siteInfo.social_links)
+  );
+  const [saving, setSaving] = useState(false);
+
+  const onLogoSelected = async (file: File) => {
+    setLogoUploading(true);
+    try {
+      onSaved(await uploadSiteLogo(file));
+      toast.success("Logo updated");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not upload the logo");
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const onSave = async () => {
+    setSaving(true);
+    try {
+      const updated = await updateSiteInfo({
+        contact_email: contactEmail.trim() || null,
+        whatsapp_number: whatsappNumber.trim() || null,
+        social_links: Object.fromEntries(
+          socialLinks
+            .map(([platform, url]) => [platform.trim(), url.trim()] as [string, string])
+            .filter(([platform, url]) => platform && url)
+        ),
+      });
+      onSaved(updated);
+      toast.success("Site info saved");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not save site info");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="flex flex-col gap-4 rounded-xl border border-border p-4">
+      <div>
+        <h3 className="font-semibold">Site branding &amp; contact</h3>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          The logo, contact email, WhatsApp number and social links shown across the site — no
+          deploy needed to change any of these.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => logoInputRef.current?.click()}
+          disabled={logoUploading}
+          className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted text-xs font-medium text-muted-foreground"
+        >
+          {siteInfo.logo_url ? (
+            <SmartImage src={siteInfo.logo_url} alt="" sizes="56px" />
+          ) : (
+            <span>{logoUploading ? "…" : "K"}</span>
+          )}
+        </button>
+        <div className="flex flex-col gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={logoUploading}
+            onClick={() => logoInputRef.current?.click()}
+          >
+            {logoUploading ? "Uploading…" : siteInfo.logo_url ? "Change logo" : "Upload logo"}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Replaces the &ldquo;K&rdquo; badge in the navbar and footer.
+          </p>
+        </div>
+        <input
+          ref={logoInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onLogoSelected(file);
+            e.target.value = "";
+          }}
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="contact-email">Contact email</Label>
+          <Input
+            id="contact-email"
+            type="email"
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+            placeholder="support@kenabecha.ju"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="whatsapp-number">WhatsApp number</Label>
+          <Input
+            id="whatsapp-number"
+            value={whatsappNumber}
+            onChange={(e) => setWhatsappNumber(e.target.value)}
+            placeholder="8801XXXXXXXXX"
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>Social links</Label>
+        {socialLinks.map(([platform, url], i) => (
+          <div key={i} className="flex items-center gap-2">
+            <Input
+              value={platform}
+              onChange={(e) =>
+                setSocialLinks((prev) =>
+                  prev.map((row, idx) => (idx === i ? [e.target.value, row[1]] : row))
+                )
+              }
+              placeholder="facebook"
+              className="w-36 shrink-0"
+            />
+            <Input
+              value={url}
+              onChange={(e) =>
+                setSocialLinks((prev) =>
+                  prev.map((row, idx) => (idx === i ? [row[0], e.target.value] : row))
+                )
+              }
+              placeholder="https://facebook.com/kenabechaju"
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label="Remove social link"
+              onClick={() => setSocialLinks((prev) => prev.filter((_, idx) => idx !== i))}
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="w-fit text-xs"
+          onClick={() => setSocialLinks((prev) => [...prev, ["", ""]])}
+        >
+          <Plus className="size-3.5" />
+          Add social link
+        </Button>
+      </div>
+
+      <Button className="w-fit" disabled={saving} onClick={onSave}>
+        {saving ? "Saving…" : "Save"}
+      </Button>
+    </section>
+  );
+}
 
 const VISIBILITY_LABELS: Record<string, string> = {
   always: "Everyone",
@@ -306,6 +487,13 @@ export default function AdminNavigationPage() {
           reordered, hidden, or shown only to signed-in or signed-out visitors.
         </p>
       </div>
+
+      <SiteInfoSection
+        siteInfo={navigation.site_info}
+        onSaved={(updated) =>
+          setNavigation((prev) => (prev ? { ...prev, site_info: updated } : prev))
+        }
+      />
 
       {/* Navbar */}
       <div className="flex flex-col gap-3">

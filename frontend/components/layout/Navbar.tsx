@@ -9,6 +9,7 @@ import { NavbarSearch } from "@/components/layout/NavbarSearch";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { SmartImage } from "@/components/ui/SmartImage";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import {
   DropdownMenu,
@@ -88,9 +89,15 @@ export function Navbar() {
     >
       <div className="flex min-w-0 items-center gap-4 lg:gap-6">
         <Link href="/" className="group flex items-center gap-2 text-lg font-bold tracking-tight">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-            K
-          </div>
+          {navigation.site_info.logo_url ? (
+            <div className="h-8 w-8 overflow-hidden rounded-xl shadow-md shadow-emerald-500/20 transition-transform group-hover:scale-105">
+              <SmartImage src={navigation.site_info.logo_url} alt="" sizes="32px" />
+            </div>
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+              K
+            </div>
+          )}
           {/* nowrap: at 390px the wordmark otherwise breaks after "KenaBecha"
               and doubles the header height. */}
           <span className="gradient-text whitespace-nowrap text-lg font-extrabold sm:text-xl">

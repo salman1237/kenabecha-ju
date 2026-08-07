@@ -34,6 +34,13 @@ class NavMenuOut(BaseModel):
     links: list[NavLinkOut] = []
 
 
+class SiteInfoOut(BaseModel):
+    logo_url: str | None = None
+    contact_email: str | None = None
+    whatsapp_number: str | None = None
+    social_links: dict[str, str] = Field(default_factory=dict)
+
+
 class NavigationOut(BaseModel):
     """Everything the navbar and footer need, in one request.
 
@@ -48,6 +55,10 @@ class NavigationOut(BaseModel):
     #: layout, and a second round trip per page for an optional banner is not
     #: worth it. Null is the normal case.
     announcement: dict | None = None
+    #: Admin-editable branding/contact — logo, contact email, WhatsApp,
+    #: social links. Bundled here for the same reason as the two above:
+    #: chrome fetched once per page load, not a separate round trip.
+    site_info: SiteInfoOut
 
 
 # --- admin input -------------------------------------------------------------
@@ -91,3 +102,13 @@ class NavbarControlsIn(BaseModel):
     """Only the named controls change; anything omitted keeps its value."""
 
     controls: dict[str, bool]
+
+
+class SiteInfoIn(BaseModel):
+    """Only the named fields change; anything omitted keeps its value — same
+    partial-update rule as NavbarControlsIn. Logo is uploaded separately as
+    a file, so it has no field here."""
+
+    contact_email: str | None = Field(default=None, max_length=255)
+    whatsapp_number: str | None = Field(default=None, max_length=30)
+    social_links: dict[str, str] | None = None
