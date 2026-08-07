@@ -64,6 +64,8 @@ export interface ShopStats {
   average_rating: number | null;
   /** null when the viewer is anonymous — distinct from false (not following). */
   is_following: boolean | null;
+  /** Null for anonymous viewers and when nothing is currently rateable. */
+  rateable_listing: { id: string; title: string } | null;
 }
 
 export interface Tag {

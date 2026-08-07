@@ -8,7 +8,7 @@ from app.db.session import get_db
 from app.models.shop import Shop
 from app.models.user import User
 from app.schemas.rating import RatingOut
-from app.schemas.shop import ShopCreate, ShopOut, ShopStatsOut, ShopUpdate
+from app.schemas.shop import RateableListingOut, ShopCreate, ShopOut, ShopStatsOut, ShopUpdate
 from app.services import media_service, rating_service, shop_service
 
 router = APIRouter(prefix="/shops", tags=["shops"])
@@ -85,12 +85,17 @@ async def get_shop_stats(
     stats = await shop_service.get_shop_stats(db, shop)
     avg, _count = await rating_service.get_shop_rating_summary(db, shop.id)
 
+    rateable = (
+        await rating_service.find_rateable_listing_for_shop(db, shop.id, user) if user else None
+    )
+
     return ShopStatsOut(
         **stats,
         average_rating=avg,
         # None (not False) when anonymous, so the UI can prompt a login
         # rather than render a misleading "Following" state.
         is_following=(await shop_service.is_following(db, user.id, shop.id)) if user else None,
+        rateable_listing=RateableListingOut(id=rateable.id, title=rateable.title) if rateable else None,
     )
 
 

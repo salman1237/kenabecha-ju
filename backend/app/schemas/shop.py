@@ -18,6 +18,11 @@ class ShopUpdate(BaseModel):
     cover_url: str | None = None
 
 
+class RateableListingOut(BaseModel):
+    id: uuid.UUID
+    title: str
+
+
 class ShopStatsOut(BaseModel):
     active_listings: int
     sold_count: int
@@ -28,6 +33,8 @@ class ShopStatsOut(BaseModel):
     # (logged in, not following), so the UI can show a login prompt instead
     # of an unfollow-looking button.
     is_following: bool | None = None
+    # Null for anonymous viewers and when nothing is currently rateable.
+    rateable_listing: RateableListingOut | None = None
 
 
 class ShopOut(BaseModel):

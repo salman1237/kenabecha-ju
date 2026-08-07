@@ -233,6 +233,18 @@ export default function ShopStorefrontPage() {
           </TabsContent>
 
           <TabsContent value="reviews" className="pt-5">
+            {stats?.rateable_listing && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-600/30 bg-emerald-600/5 px-4 py-3">
+                <span className="text-sm">{t.shops.rateableListingPrompt}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/listings/${stats.rateable_listing!.id}`)}
+                >
+                  {t.shops.rateableListingCta}
+                </Button>
+              </div>
+            )}
             {reviews.length === 0 ? (
               <EmptyState
                 icon={Star}

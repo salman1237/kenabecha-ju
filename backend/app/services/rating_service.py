@@ -35,6 +35,29 @@ async def check_eligibility(db: AsyncSession, listing: Listing, user: User) -> t
     return True, None
 
 
+async def find_rateable_listing_for_shop(
+    db: AsyncSession, shop_id: uuid.UUID, user: User
+) -> Listing | None:
+    """Same eligibility rules as check_eligibility, searched across a shop's listings."""
+    result = await db.execute(
+        select(Listing)
+        .join(Conversation, Conversation.listing_id == Listing.id)
+        .outerjoin(
+            Rating, (Rating.listing_id == Listing.id) & (Rating.rater_id == user.id)
+        )
+        .where(
+            Listing.shop_id == shop_id,
+            Listing.status.in_([ListingStatus.sold, ListingStatus.out_of_stock]),
+            Listing.seller_id != user.id,
+            Conversation.buyer_id == user.id,
+            Rating.id.is_(None),
+        )
+        .order_by(Listing.updated_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def create_rating(db: AsyncSession, listing: Listing, user: User, payload: RatingCreate) -> Rating:
     can_rate, reason = await check_eligibility(db, listing, user)
     if not can_rate:

@@ -313,6 +313,8 @@ export const bn: Translations = {
     noActiveListings: "কোনো সক্রিয় পণ্য নেই",
     noReviews: "এখনো কোনো রিভিউ নেই",
     noReviewsBody: "লেনদেন সম্পন্ন হলে ক্রেতারা এই দোকানের রিভিউ দিতে পারবেন।",
+    rateableListingPrompt: "এই দোকান থেকে করা একটি কেনাকাটা আপনি এখনো রিভিউ দেননি",
+    rateableListingCta: "রিভিউ দিন",
     changeLogo: "লোগো পরিবর্তন",
     changeCover: "কভার পরিবর্তন",
     noCoverImage: "কভার ছবি নেই",

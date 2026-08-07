@@ -311,6 +311,8 @@ export const en = {
     noActiveListings: "No active listings",
     noReviews: "No reviews yet",
     noReviewsBody: "Buyers can review this shop after a completed trade.",
+    rateableListingPrompt: "You have a purchase from this shop you haven't rated yet",
+    rateableListingCta: "Rate it",
     changeLogo: "Change logo",
     changeCover: "Change cover",
     noCoverImage: "No cover image",
