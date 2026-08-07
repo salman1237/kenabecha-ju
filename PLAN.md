@@ -426,7 +426,7 @@ Six items reported together from the deployed site (`kenabechaju.deshlet.com`), 
 
 **What shipped.** The hover-reveal overlay is gone. `ShopLogoPicker` now shows a small always-visible camera badge in the logo circle's bottom-right corner (a bordered dot, `size-5`); `ShopCoverPicker` shows a persistent "Camera icon + Change cover" pill in the cover banner's bottom-right corner. Both components are shared between the collapsed shop row and the edit view's `FormSection`, so fixing them once fixes both places the report named. No hover state to discover, nothing that depends on a mouse. Verified: typecheck and lint clean, `/shops/dashboard` compiles and serves 200 against the running dev stack.
 
-### Phase 56 — "Add listing" from a shop still opens on Personal listing
+### Phase 56 — "Add listing" from a shop still opens on Personal listing (implemented)
 
 **The report, with a screenshot.** Clicking **Add listing** from "DeshLet-The Meat Codex" correctly lands on `/listings/new?shop_id=<that shop's id>` (screenshot 3's URL bar confirms the id arrives), but the "Sell as" dropdown still shows **Personal listing** selected. This exact bug was already fixed once, before Phase 53 — and per the report, the fix hasn't actually held.
 
@@ -444,7 +444,7 @@ Promise.all([getMyShops(), getCategories()]).then(([shopsRes, catsRes]) => {
 
 The comment above it correctly diagnoses the *original* bug (a native `<select>` can't select a value with no matching `<option>` yet) but the fix has the same bug shifted by one tick: `setValue` runs synchronously, in the same callback as `setShops`. React batches that state update and doesn't actually insert the new `<option>` elements into the DOM until it commits the next render — which happens *after* this callback returns. So `setValue` still fires before its own `<option>` exists, for the same reason as before, and the browser still falls back to whatever was already selected (index 0, "Personal listing").
 
-**What ships.** Move the `setValue` call out of the data-fetch `.then()` and into its own `useEffect` keyed on `shops` (`useEffect(() => { if (mode === "create" && defaultShopId && shops.length) setValue("shop_id", defaultShopId); }, [shops])`) — effects run after React commits the DOM for the render that produced them, which is the one guarantee the original fix needed and didn't have. Verified against a real render cycle before being called fixed a second time, not just read as correct.
+**What shipped.** The data-fetch effect now only fetches and calls `setShops`/`setCategories`; the `setValue("shop_id", defaultShopId)` call moved into its own `useEffect` keyed on `[shops, mode, defaultShopId, setValue]`. Effects run strictly after React commits the DOM for the render that produced them — the one guarantee the original fix needed and didn't have, since a plain callback inside `.then()` runs in the same tick as the `setShops` call, one render too early. Honest note on verification: this environment has no browser-automation tool and no frontend test framework installed (zero `*.test.ts(x)` files exist at all — that gap is Phase 48, still open), so this was verified by tracing React's actual commit/effect ordering against the code rather than by watching the select visually update. That's a real limitation given this exact bug was already "fixed" once and reported broken again — flagging it plainly rather than re-claiming a confidence level the tooling here can't back up.
 
 ### Phase 57 — Drag-and-drop reordering, replacing arrow buttons
 

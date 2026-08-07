@@ -76,19 +76,25 @@ export function ListingForm({
       .then(([shopsRes, catsRes]) => {
         setShops(shopsRes);
         setCategories(catsRes);
-        // The <select> below has no <option> for defaultShopId until this
-        // list arrives — a native select can't select a value with no
-        // matching option, so the browser silently falls back to the first
-        // one ("Personal listing") and RHF's defaultValues never gets a
-        // second chance to apply. Re-set it explicitly once the real
-        // option exists.
-        if (mode === "create" && defaultShopId) {
-          setValue("shop_id", defaultShopId);
-        }
       })
       .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    // The <select> below has no <option> for defaultShopId until `shops`
+    // arrives — a native select can't select a value with no matching
+    // option, so the browser silently falls back to the first one
+    // ("Personal listing") and RHF's defaultValues never gets a second
+    // chance to apply. Re-setting it in the same tick as setShops(shopsRes)
+    // above doesn't work either: React hasn't committed the new <option>
+    // elements to the DOM yet at that point, so it's the exact same bug one
+    // React render early. A separate effect keyed on `shops` runs after
+    // that render has actually committed, which is the one guarantee this
+    // needs.
+    if (mode === "create" && defaultShopId && shops.length > 0) {
+      setValue("shop_id", defaultShopId);
+    }
+  }, [shops, mode, defaultShopId, setValue]);
 
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   useEffect(() => {
