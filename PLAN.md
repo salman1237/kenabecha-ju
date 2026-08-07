@@ -418,13 +418,13 @@ No new `category_id` FK on `Shop` — that would make a shop a real two-level ci
 
 Six items reported together from the deployed site (`kenabechaju.deshlet.com`), not the dev stack — three screenshots plus four written complaints/questions. Each was traced to a real cause in the code before being turned into a phase; nothing here is a guess written up as a plan. Following the project's own rule for this kind of batch: plan every item first, confirm, then build one phase at a time rather than all at once.
 
-### Phase 55 — Photo-change controls are invisible until you happen to hover
+### Phase 55 — Photo-change controls are invisible until you happen to hover (implemented)
 
 **The report, with screenshots.** On "My Shops," the shop's logo circle shows the word "Change" sitting on top of it (screenshot 1) with no explanation of what it is. On the shop edit view, the same complaint from the other direction: "logo & cover photo change section is not properly visible" (screenshot 2) — i.e. it's *there*, but nothing about it reads as an editable, clickable thing.
 
 **Root cause.** Both `ShopLogoPicker` and `ShopCoverPicker` (`frontend/app/shops/dashboard/page.tsx`) render their "Change" label as a `bg-black/50` overlay that's `opacity-0` by default and only reaches `opacity-100` via `group-hover`. That's the entire affordance — no icon, no border, no persistent hint that the image is interactive. Two real problems follow from that single design: it depends on a mouse, so it's undiscoverable by definition on the touch devices most students are actually using; and even with a mouse, a 48px circle that silently turns into black-with-white-text the instant a cursor drifts near it reads as a glitch to anyone who hasn't already learned the convention — which is exactly what screenshot 1 is.
 
-**What ships.** Replace the hover-reveal overlay with a small, always-visible badge — a camera/pencil icon in the bottom-right corner of the logo circle and the cover banner, in both places this pattern is used today (the collapsed shop row *and* the edit view's `FormSection`). No hover state to discover, nothing that depends on a mouse; the same treatment scales down cleanly for `SmartImage`-backed avatars elsewhere if this reads better than the current approach (kept scoped to shops here, since that's the actual report).
+**What shipped.** The hover-reveal overlay is gone. `ShopLogoPicker` now shows a small always-visible camera badge in the logo circle's bottom-right corner (a bordered dot, `size-5`); `ShopCoverPicker` shows a persistent "Camera icon + Change cover" pill in the cover banner's bottom-right corner. Both components are shared between the collapsed shop row and the edit view's `FormSection`, so fixing them once fixes both places the report named. No hover state to discover, nothing that depends on a mouse. Verified: typecheck and lint clean, `/shops/dashboard` compiles and serves 200 against the running dev stack.
 
 ### Phase 56 — "Add listing" from a shop still opens on Personal listing
 
