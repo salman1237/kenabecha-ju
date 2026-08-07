@@ -20,6 +20,8 @@ export const listingSchema = z
     // listings would be unreachable from the category browse and would keep
     // every sidebar count at zero, so the form insists on one.
     category_id: z.string().min(1, "Pick a category"),
+    // Only meaningful when category_id === "other" — see the refine below.
+    custom_category: z.string().max(100).optional(),
     tagsInput: z.string().optional(),
     fulfillment_type: z.enum(["pickup", "delivery", "both"]),
     pickup_address: z.string().max(500).optional(),
@@ -35,6 +37,10 @@ export const listingSchema = z
   .refine((data) => data.fulfillment_type === "delivery" || !!data.pickup_address, {
     message: "Pickup address is required when pickup is offered",
     path: ["pickup_address"],
+  })
+  .refine((data) => data.category_id !== "other" || !!data.custom_category?.trim(), {
+    message: "Type your category name",
+    path: ["custom_category"],
   });
 
 export type ListingFormValues = z.infer<typeof listingSchema>;

@@ -77,6 +77,7 @@ async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate)
         seller_id=seller.id,
         shop_id=payload.shop_id,
         category_id=payload.category_id,
+        custom_category=payload.custom_category,
         title=payload.title,
         description=payload.description,
         price=payload.price,

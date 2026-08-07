@@ -15,6 +15,7 @@ export type JsonLdListing = {
   shop: { shop_name: string } | null;
   seller: { full_name: string };
   category: { name: string } | null;
+  custom_category?: string | null;
 };
 
 /**
@@ -46,7 +47,11 @@ export function ListingJsonLd({ listing }: { listing: JsonLdListing }) {
     image: listing.images.map((i) =>
       i.image_url.startsWith("http") ? i.image_url : absoluteUrl(i.image_url)
     ),
-    ...(listing.category ? { category: listing.category.name } : {}),
+    ...(listing.category
+      ? { category: listing.category.name }
+      : listing.custom_category
+        ? { category: listing.custom_category }
+        : {}),
     ...(listing.condition
       ? {
           itemCondition:

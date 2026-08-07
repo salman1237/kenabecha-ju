@@ -8,11 +8,15 @@ import { Pencil, PlusCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useLanguage } from "@/context/LanguageContext";
+import { CategorySelectOptions, OTHER_CATEGORY_VALUE } from "@/components/categories/CategorySelectOptions";
 import { FormSection } from "@/components/ui/FormSection";
+import { getCategories } from "@/lib/api/categories";
+import { categoryIdByName, categoryNameById } from "@/lib/categoryTree";
 import { cn } from "@/lib/utils";
 import { translateApiError } from "@/lib/i18n/errors";
 
 import { CompleteProfilePrompt } from "@/components/auth/CompleteProfilePrompt";
+import { selectClass } from "@/components/ui/FormField";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +39,7 @@ import { createShop, deleteShop, getMyShops, updateShop, uploadShopCover, upload
 import { ApiError } from "@/lib/api/client";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { type ShopFormValues, shopSchema } from "@/lib/validation/shop";
-import type { Shop } from "@/types/api";
+import type { Category, Shop } from "@/types/api";
 
 function ShopLogoPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Shop) => void }) {
   const { t } = useLanguage();
@@ -131,37 +135,50 @@ function ShopCoverPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Sh
 
 function ShopEditForm({
   shop,
+  categories,
   onUpdated,
   onSaved,
   onCancel,
 }: {
   shop: Shop;
+  categories: Category[];
   onUpdated: (shop: Shop) => void;
   onSaved: () => void;
   onCancel: () => void;
 }) {
   const { t } = useLanguage();
   const [serverError, setServerError] = useState<string | null>(null);
+  // The stored shop_type is a plain name string (not an id) — match it back
+  // to a real category for the select, or fall back to "Other" with the
+  // existing text preserved, rather than always resetting to blank.
+  const matchedCategoryId = shop.shop_type ? categoryIdByName(categories, shop.shop_type) : undefined;
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ShopFormValues>({
     resolver: zodResolver(shopSchema),
     defaultValues: {
       shop_name: shop.shop_name,
-      shop_type: shop.shop_type ?? "",
+      shop_type: matchedCategoryId ?? (shop.shop_type ? OTHER_CATEGORY_VALUE : ""),
+      custom_shop_type: matchedCategoryId ? "" : shop.shop_type ?? "",
       description: shop.description ?? "",
     },
   });
+  const shopType = watch("shop_type");
 
   const onSubmit = async (values: ShopFormValues) => {
     setServerError(null);
+    const resolvedType =
+      values.shop_type === OTHER_CATEGORY_VALUE
+        ? values.custom_shop_type?.trim()
+        : categoryNameById(categories, values.shop_type ?? "");
     try {
       const updated = await updateShop(shop.id, {
         shop_name: values.shop_name,
         description: values.description || undefined,
-        shop_type: values.shop_type || undefined,
+        shop_type: resolvedType || undefined,
       });
       onUpdated(updated);
       onSaved();
@@ -194,8 +211,23 @@ function ShopEditForm({
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`shop_type_${shop.id}`}>{t.shops.shopType}</Label>
-            <Input id={`shop_type_${shop.id}`} {...register("shop_type")} />
+            <select
+              id={`shop_type_${shop.id}`}
+              className={selectClass}
+              {...register("shop_type")}
+              defaultValue={matchedCategoryId ?? (shop.shop_type ? OTHER_CATEGORY_VALUE : "")}
+            >
+              <option value="">{t.listingForm.selectCategory}</option>
+              <CategorySelectOptions categories={categories} otherLabel={t.listingForm.otherCategory} />
+            </select>
             <p className="text-xs text-muted-foreground">{t.shops.shopTypeHint}</p>
+            {shopType === OTHER_CATEGORY_VALUE && (
+              <Input
+                id={`custom_shop_type_${shop.id}`}
+                placeholder={t.listingForm.customCategoryPlaceholder}
+                {...register("custom_shop_type")}
+              />
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`description_${shop.id}`}>{t.shops.description}</Label>
@@ -220,9 +252,11 @@ export default function MyShopsPage() {
   const { user, isLoading: authLoading } = useAuth();
   const { t, fmt } = useLanguage();
   const [shops, setShops] = useState<Shop[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [editingShopId, setEditingShopId] = useState<string | null>(null);
 
@@ -230,8 +264,10 @@ export default function MyShopsPage() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ShopFormValues>({ resolver: zodResolver(shopSchema) });
+  const shopType = watch("shop_type");
 
   const load = () => {
     setLoading(true);
@@ -245,23 +281,36 @@ export default function MyShopsPage() {
     getMyShops()
       .then(setShops)
       .finally(() => setLoading(false));
+    getCategories()
+      .then(setCategories)
+      .catch(() => {});
   }, [user]);
 
   const onSubmit = async (values: ShopFormValues) => {
     setServerError(null);
+    const resolvedType =
+      values.shop_type === OTHER_CATEGORY_VALUE
+        ? values.custom_shop_type?.trim()
+        : categoryNameById(categories, values.shop_type ?? "");
     try {
       const shop = await createShop({
         shop_name: values.shop_name,
         description: values.description || undefined,
-        shop_type: values.shop_type || undefined,
+        shop_type: resolvedType || undefined,
       });
       if (logoFile) {
         await uploadShopLogo(shop.id, logoFile).catch(() => {
           toast.error("Shop created, but the logo failed to upload — you can add it below.");
         });
       }
+      if (coverFile) {
+        await uploadShopCover(shop.id, coverFile).catch(() => {
+          toast.error("Shop created, but the cover photo failed to upload — you can add it below.");
+        });
+      }
       reset();
       setLogoFile(null);
+      setCoverFile(null);
       setShowForm(false);
       load();
     } catch (err) {
@@ -311,21 +360,44 @@ export default function MyShopsPage() {
                 {errors.shop_name && <p className="text-xs text-destructive">{errors.shop_name.message}</p>}
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="shop_type">Category</Label>
-                <Input id="shop_type" {...register("shop_type")} />
-                <p className="text-xs text-muted-foreground">e.g. Food, Jewelry, Electronics</p>
+                <Label htmlFor="shop_type">{t.shops.shopType}</Label>
+                <select id="shop_type" className={selectClass} {...register("shop_type")} defaultValue="">
+                  <option value="">{t.listingForm.selectCategory}</option>
+                  <CategorySelectOptions categories={categories} otherLabel={t.listingForm.otherCategory} />
+                </select>
+                <p className="text-xs text-muted-foreground">{t.shops.shopTypeHint}</p>
+                {shopType === OTHER_CATEGORY_VALUE && (
+                  <Input
+                    id="custom_shop_type"
+                    placeholder={t.listingForm.customCategoryPlaceholder}
+                    {...register("custom_shop_type")}
+                  />
+                )}
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="description">Description</Label>
                 <Textarea id="description" rows={3} {...register("description")} />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="logo">Logo (optional)</Label>
+                <Label htmlFor="logo">
+                  {t.shops.logo} ({t.common.optional})
+                </Label>
                 <Input
                   id="logo"
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="cover">
+                  {t.shops.cover} ({t.common.optional})
+                </Label>
+                <Input
+                  id="cover"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)}
                 />
               </div>
               {serverError && <p className="text-sm text-destructive">{serverError}</p>}
@@ -355,6 +427,7 @@ export default function MyShopsPage() {
               <ShopEditForm
                 key={shop.id}
                 shop={shop}
+                categories={categories}
                 onUpdated={(updated) =>
                   setShops((prev) => prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)))
                 }

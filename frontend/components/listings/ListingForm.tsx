@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { CategorySelectOptions, OTHER_CATEGORY_VALUE } from "@/components/categories/CategorySelectOptions";
 import { ListingPhotoManager } from "@/components/listings/ListingPhotoManager";
 import { TagInput } from "@/components/listings/TagInput";
 import { Button } from "@/components/ui/button";
@@ -63,7 +64,8 @@ export function ListingForm({
       unit: listing?.unit ?? "",
       condition: listing?.condition,
       shop_id: listing?.shop?.id ?? defaultShopId ?? "",
-      category_id: listing?.category?.id ?? "",
+      category_id: listing?.category?.id ?? (listing?.custom_category ? OTHER_CATEGORY_VALUE : ""),
+      custom_category: listing?.custom_category ?? "",
       fulfillment_type: listing?.fulfillment_type ?? "pickup",
       pickup_address: listing?.pickup_address ?? "",
     },
@@ -98,6 +100,7 @@ export function ListingForm({
   const priceType = watch("price_type");
   const shopId = watch("shop_id");
   const fulfillmentType = watch("fulfillment_type");
+  const categoryId = watch("category_id");
   const isShopListing = mode === "edit" ? Boolean(listing?.shop) : Boolean(shopId);
 
   const onSubmit = async (values: ListingFormValues) => {
@@ -110,7 +113,8 @@ export function ListingForm({
       unit: values.price_type === "free" ? null : values.unit || null,
       condition: isShopListing || !values.condition ? undefined : (values.condition as Condition),
       shop_id: mode === "create" ? values.shop_id || null : undefined,
-      category_id: values.category_id || null,
+      category_id: values.category_id === OTHER_CATEGORY_VALUE ? null : values.category_id || null,
+      custom_category: values.category_id === OTHER_CATEGORY_VALUE ? values.custom_category?.trim() || null : null,
       tags,
       fulfillment_type: values.fulfillment_type,
       pickup_address: values.fulfillment_type === "delivery" ? null : values.pickup_address,
@@ -254,18 +258,22 @@ export function ListingForm({
               <option value="" disabled>
                 {t.listingForm.selectCategory}
               </option>
-              {categories.map((cat) => (
-                <optgroup key={cat.id} label={`${cat.icon || ""} ${cat.name}`.trim()}>
-                  {cat.children.map((child) => (
-                    <option key={child.id} value={child.id}>
-                      {child.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
+              <CategorySelectOptions categories={categories} otherLabel={t.listingForm.otherCategory} />
             </select>
             {errors.category_id && (
               <p className="text-xs text-destructive">{errors.category_id.message}</p>
+            )}
+            {categoryId === OTHER_CATEGORY_VALUE && (
+              <>
+                <Input
+                  id="custom_category"
+                  placeholder={t.listingForm.customCategoryPlaceholder}
+                  {...register("custom_category")}
+                />
+                {errors.custom_category && (
+                  <p className="text-xs text-destructive">{errors.custom_category.message}</p>
+                )}
+              </>
             )}
           </div>
 

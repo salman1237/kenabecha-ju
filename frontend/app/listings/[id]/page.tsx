@@ -154,7 +154,11 @@ export default function ListingDetailPage() {
         items={[
           { label: t.common.home, href: "/" },
           { label: t.shops.listingsTab, href: "/listings" },
-          ...(listing.category ? [{ label: listing.category.name, href: `/listings?category=${listing.category.slug}` }] : []),
+          ...(listing.category
+            ? [{ label: listing.category.name, href: `/listings?category=${listing.category.slug}` }]
+            : listing.custom_category
+              ? [{ label: listing.custom_category }]
+              : []),
           ...(listing.shop ? [{ label: listing.shop.shop_name, href: sellerHref }] : []),
           { label: listing.title },
         ]}

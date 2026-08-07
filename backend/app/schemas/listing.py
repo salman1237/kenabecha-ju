@@ -52,6 +52,11 @@ class ListingCreate(BaseModel):
     fulfillment_type: FulfillmentType = FulfillmentType.pickup
     pickup_address: str | None = Field(default=None, max_length=500)
     category_id: uuid.UUID | None = None
+    # Set instead of category_id when the seller's item doesn't fit any
+    # category in the curated list. Mutually exclusive with category_id —
+    # enforced below rather than left to whichever one the client happened
+    # to send.
+    custom_category: str | None = Field(default=None, max_length=100)
 
     @model_validator(mode="after")
     def check_price_and_condition(self) -> "ListingCreate":
@@ -65,6 +70,8 @@ class ListingCreate(BaseModel):
             raise ValueError("Pickup address is required when pickup is offered")
         if self.fulfillment_type == FulfillmentType.delivery:
             self.pickup_address = None
+        if self.custom_category is not None:
+            self.category_id = None
         return self
 
 
@@ -79,10 +86,20 @@ class ListingUpdate(BaseModel):
     fulfillment_type: FulfillmentType | None = None
     pickup_address: str | None = Field(default=None, max_length=500)
     category_id: uuid.UUID | None = None
+    custom_category: str | None = Field(default=None, max_length=100)
     is_top: bool | None = None
     # Note: pickup/delivery consistency for updates is validated in listing_service.update_listing
     # against the merged final state, not here — a partial update might change only one of the two
     # fields while the other keeps its existing value on the model.
+
+    @model_validator(mode="after")
+    def clear_category_when_custom(self) -> "ListingUpdate":
+        # Mirrors ListingCreate: a custom category name always wins over a
+        # stale category_id from the same submit, rather than leaving both
+        # set and having the model's actual category depend on dict order.
+        if "custom_category" in self.model_fields_set and self.custom_category is not None:
+            self.category_id = None
+        return self
 
 
 class ListingOut(BaseModel):
@@ -107,6 +124,7 @@ class ListingOut(BaseModel):
     seller: ListingSellerOut
     shop: ListingShopOut | None
     category: CategoryRef | None = None
+    custom_category: str | None = None
     images: list[ListingImageOut]
     tags: list[TagOut]
     # Both default to their "not applicable" value and are only ever

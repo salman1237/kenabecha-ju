@@ -18,6 +18,7 @@ export interface ListingPayload {
   condition?: Condition | null;
   shop_id?: string | null;
   category_id?: string | null;
+  custom_category?: string | null;
   tags: string[];
   fulfillment_type: FulfillmentType;
   pickup_address?: string | null;

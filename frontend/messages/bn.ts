@@ -204,6 +204,8 @@ export const bn: Translations = {
     description: "বিবরণ",
     category: "ক্যাটাগরি",
     selectCategory: "ক্যাটাগরি বাছুন",
+    otherCategory: "অন্যান্য — নিজে লিখুন",
+    customCategoryPlaceholder: "ক্যাটাগরির নাম লিখুন",
     priceType: "মূল্যের ধরন",
     price: "মূল্য",
     unit: "ইউনিট",

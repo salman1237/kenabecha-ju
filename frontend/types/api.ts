@@ -140,6 +140,9 @@ export interface Listing {
   seller: { id: string; full_name: string; avatar_url: string | null; phone: string | null; whatsapp_number: string | null };
   shop: { id: string; shop_name: string; slug: string; logo_url: string | null } | null;
   category: CategoryRef | null;
+  // Set instead of category, when the seller picked "Other" and typed a
+  // name that isn't in the curated list. Never set alongside category.
+  custom_category: string | null;
   images: ListingImage[];
   tags: Tag[];
   // Both default to their "not applicable" value and are only ever actually

@@ -382,6 +382,38 @@ No re-introduction of `quantity`-as-inventory-count in any form — the removal 
 
 ---
 
+## Phase 54 — Real category pickers for listings and shops (implemented)
+
+Raised directly, five related complaints in one message: creating a shop required *typing* a category by hand; shop creation had no cover-photo upload option at all; the listing form forced picking a subcategory specifically rather than letting a top-level category stand on its own; the same rigidity applied to the (soon to exist) shop category field; and neither picker offered an "Other" escape hatch with a conditionally-shown text box. Checked against the actual code before touching anything:
+
+| Ask | Found |
+|---|---|
+| Shop category should be picked, not typed | `shop_type` was a plain `<Input>` on both the create and edit shop forms — free text, entirely unconnected to the real `categories` taxonomy from Phase 27/43. |
+| Cover photo on shop creation | `uploadShopCover` already existed as an API client function and `Shop.cover_url` already existed as a column — the backend support was there. The create form's submit handler simply never called it, only `uploadShopLogo`; cover upload was reachable only from the edit view, after the shop already existed. |
+| Listing category forces a subcategory | The listing form's `<select>` rendered every subcategory as an `<option>`, grouped under its parent as a non-selectable `<optgroup>` label — a top-level category was never itself a choice. The backend never enforced this: `category_service.ensure_exists` accepts any active category id regardless of depth, so the restriction was pure frontend UI, not a rule worth having. |
+| Same flexibility on the shop page | Blocked on the shop category picker above existing at all. |
+| "Other", typed name shown only when selected | Neither form had this in any form. |
+
+### What ships
+
+**Listing form.** The category `<select>` is now flat: each top-level category is itself a selectable option, with its children listed indented underneath — picking "Electronics" and stopping there is a real, complete choice instead of a dead end that demands a subcategory next. An "Other" option is appended last; choosing it reveals a text input and hides again the moment anything else is picked. That text goes into `custom_category`, a new nullable column on `Listing` — set instead of `category_id`, never alongside it. Both `ListingCreate` and `ListingUpdate` enforce the exclusivity themselves (a validator clears `category_id` whenever `custom_category` is present) rather than trusting whichever field the client happened to send last. Deliberately *not* wired into the curated `categories` table itself: that taxonomy is admin-managed by design (see `category_service`'s own docstrings on why), and letting any seller's typed text become a permanent row would pollute the sidebar and browse taxonomy for everyone with one-off names. The listing detail page's breadcrumb and its JSON-LD `category` field both fall back to `custom_category` when there's no real category to show.
+
+**Shop create + edit forms.** The free-text `shop_type` input is replaced with the same flattened parent/child select plus "Other," in a new shared `CategorySelectOptions` component so the option-list logic isn't written three times across the listing form and the two shop forms. `shop_type` itself stays exactly what it always was — a plain string column, no migration — because a shop is a single flat label, not a two-level classification; the select's value is a category id (or the "Other" sentinel) purely for picking from, resolved back to a display name (or the typed custom text) at submit time via a small `categoryNameById`/`categoryIdByName` lookup. Opening the edit form on a shop whose `shop_type` already happens to match a real category's name pre-selects that category rather than always parking it in "Other," so upgrading an existing shop doesn't visually reset something that already lines up.
+
+**Cover photo on shop creation.** The create form gains a second file input next to Logo, uploaded via the already-existing `uploadShopCover` right after the shop is created — same sequencing, same non-blocking failure toast as the logo upload it sits beside, so a failed image never rolls back the shop itself.
+
+**Backend surface:** one migration, `custom_category` (nullable `VARCHAR(100)`) added to `listings`, added to `ListingCreate`/`ListingUpdate`/`ListingOut`. No schema change to `shops` — `shop_type` needed nothing new, since the picker constrains what the frontend *sends*, not what the column *accepts*.
+
+### What's deliberately not in this phase
+
+No new `category_id` FK on `Shop` — that would make a shop a real two-level citizen of the taxonomy, which nobody asked for and which the storefront/admin surfaces aren't built to browse by; today's single flat label, now picked instead of typed, closes the actual complaint. No moderation or review queue for `custom_category` text — it carries the same trust level as every other free-text field a signed-in seller already controls directly (title, description, tags), and nothing about it is more exposed than those.
+
+### Verification
+
+115 existing listing/shop/category backend tests pass unchanged; the new migration applies cleanly on top of Phase 53's. Frontend typecheck and lint are clean on every touched file. No browser-automation tooling (Playwright/chromium-cli) is installed in this environment, so end-to-end verification was done directly against the running dev stack's API instead of a UI click-through: logged in as the existing `playwright.tester` fixture account, created a listing with a **top-level category and no subcategory** (previously impossible through the form) and confirmed it saved and returned correctly; created a listing with `custom_category` set and `category_id` omitted and confirmed `category` came back null with the typed name attached; sent both `category_id` and `custom_category` on the same request and confirmed the mutual-exclusivity validator wins in `custom_category`'s favor, matching what the form itself would never do but the API shouldn't trust blindly either way; and `PATCH`ed the test account's shop with a category-derived `shop_type` string, confirming it round-trips exactly like the old free-text value did. All test data created during this check was deleted and the shop's original `shop_type` restored afterward. Separately confirmed via the frontend dev server's own logs that `/shops/dashboard` and `/listings/new` both compile and serve `200` with the new components in place, with no console/build errors.
+
+---
+
 ## Notable deviations & judgment calls not covered above
 
 A handful of decisions that don't map to a single phase above, or that add context the phase entries didn't have room for:

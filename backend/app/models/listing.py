@@ -117,6 +117,13 @@ class Listing(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
     category_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("categories.id", ondelete="SET NULL"), index=True
     )
+    # Free-text fallback for "my item doesn't fit any category in the list" —
+    # deliberately not a row in `categories` itself, since that taxonomy is
+    # admin-curated (see category_service) and letting any seller add to it
+    # would pollute the sidebar/browse taxonomy with one-off names. Set
+    # together with category_id=None; cleared whenever a real category is
+    # chosen instead.
+    custom_category: Mapped[str | None] = mapped_column(String(100))
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     price: Mapped[float | None] = mapped_column(Numeric(10, 2))

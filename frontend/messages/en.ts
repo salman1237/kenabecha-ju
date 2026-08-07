@@ -202,6 +202,8 @@ export const en = {
     description: "Description",
     category: "Category",
     selectCategory: "Select category",
+    otherCategory: "Other — type your own",
+    customCategoryPlaceholder: "Type the category name",
     priceType: "Price type",
     price: "Price",
     unit: "Unit",
