@@ -329,6 +329,39 @@ Two features requested by studying a reference app (`Bostro-Bangla`, a Next.js/M
 
 ---
 
+## Phase 53 — Seller-controlled listing status (planned, not yet built)
+
+Raised as a direct question: can a seller currently mark something sold, flag it out of stock, reorder their listings, or pause/reactivate one? Checked against the actual code rather than assumed:
+
+| Ask | Current state |
+|---|---|
+| Mark sold | Exists (`POST /listings/{id}/mark-sold`), but it's one-way — nothing ever sets a listing back from `sold` to `active`. |
+| Flag out of stock | Only exists *indirectly*. `quantity` hitting `0` auto-flips a **shop** listing to `out_of_stock`, and rising above `0` flips it back — there is no manual toggle, and personal listings (no `quantity` concept) have no out-of-stock state at all. |
+| Reorder listings | Doesn't exist. Only listing *photos* have a seller-controlled position (Phase 38); the listings themselves have no display order beyond whatever a buyer's sort picks. |
+| Activate/deactivate | Doesn't exist as anything reversible. The only "deactivate" today is permanent soft-delete. |
+
+**Also raised in the same conversation, and it turns out to be the same problem**: remove the `quantity` field from the listing form. `quantity` currently has exactly one remaining job in this codebase — driving the automatic out-of-stock flip above. (It had a second job once, decrementing on checkout, but that entire cart/order system was removed after Phase 11; nothing has read or written `quantity` for any other reason since.) Pull the field from the form today with nothing to replace it, and every shop owner permanently loses the ability to signal out-of-stock — not "until this phase ships," but for good, since nothing else in the app would ever move a listing's status again except sold and delete. So the removal is scoped into this same phase rather than done in isolation: the manual toggle below ships in the same breath as the field that used to fake it.
+
+### What ships
+
+**`mark_out_of_stock` / `mark_available` — explicit, symmetric, works for every listing.** Two new endpoints alongside the existing `mark-sold`, mirroring its shape exactly (`get_owned_listing` ownership check, a status-transition guard, an audit-free simple state change — matching that `mark-sold` itself isn't audited either, since it's the seller acting on their own listing, not a privileged admin action). `out_of_stock → active` and `active → out_of_stock` are the only two legal transitions this action performs; it does not touch `sold`, `removed`, or `expired`. This replaces `quantity` as the *only* out-of-stock mechanism, and unlike the old one, it works for personal listings too — a real gap the quantity-only version had, since a personal listing can run out just as easily as a shop's.
+
+**`relist` — undoes `mark-sold` and the pause below.** The one genuinely missing piece today: once sold, a listing is stuck sold forever, even if the sale fell through. `relist` moves `sold → active` or `paused → active` (see below), refreshing `expires_at` from the moment of relisting rather than leaving a stale expiry from months earlier — the same reasoning Phase 30's `renew_listing` already uses, so this is that function's sibling, not a new pattern.
+
+**A new `paused` status — the reversible deactivate/activate toggle.** Added as a `ListingStatus` enum value (hand-written `ALTER TYPE`, the same pattern used for `expired` in Phase 30 and `both` in Phase 37 — Alembic doesn't diff enum values). Chosen over a separate boolean column deliberately: `browse_listings` already filters on `status == active` with zero extra work, so a listing a seller pauses drops out of public browse for free, with no new WHERE clause to keep in sync everywhere status is checked (the seller-reviews endpoint, the related-listings rail, the sitemap, the category listing counts — all the places Phase 25–30 already had to get this exactly right once). `active → paused` and `paused → active` (via `relist`, above) are the only transitions; pausing a `sold` or `removed` listing is refused, matching the same forward-only discipline this project's other status machines already enforce (Phase 37's fulfillment `both`, Phase 45's bulk actions).
+
+**Manual display order for a shop's own listings.** A `sort_order` column on `Listing`, meaningful only for shop listings (personal listings have nothing to reorder against — a seller with three or four personal items scattered across time has never asked for this, and adding it there would be scope with no requester). New listings append to the end of the shop's own order, matching every other reorder endpoint already in this codebase (Phase 38's image reorder, Phase 42's section reorder, Phase 43's category reorder, Phase 44's nav-link reorder) — same shape: the seller's "My listings" screen gets drag-to-reorder, the endpoint demands every one of the shop's listing ids exactly once, and a partial list is refused rather than silently leaving stale positions and duplicate `sort_order`s. The shop's public storefront defaults to this manual order; a buyer picking "Newest" or "Price" from the existing sort control overrides it exactly like it already overrides "newest" today — this is an additional sort option, not a replacement for the ones that exist.
+
+**Frontend**: the listing form's Stock section (title, hint, the `quantity` number input) is removed entirely — `ListingFormValues`/`listingSchema` drop the field, and the create/edit payload stops sending it. The status-actions section on the edit page (Phase 38 — currently Mark sold / Renew / Delete) gains Mark out of stock / Mark available (toggling by current status) and Relist (shown only when `sold` or `paused`). "My listings" (Phase 19's dashboard) gets a drag handle when viewing a single shop's inventory, hidden when viewing personal listings or "all shops" mixed together, since a cross-shop order has no single owner to resolve conflicts.
+
+**Backend surface**: `POST /listings/{id}/mark-out-of-stock`, `POST /listings/{id}/mark-available`, `POST /listings/{id}/relist`, `POST /listings/{id}/pause`, `POST /listings/{id}/reorder` (shop-scoped, full-list-required). Migration adds `paused` to the enum and `sort_order` to `listings`, backfilled by shop in creation order so nothing visibly reshuffles the day this ships — the same "seed reproduces the current order exactly" discipline Phase 42's and Phase 44's seed migrations already followed.
+
+### What's deliberately not in this phase
+
+No re-introduction of `quantity`-as-inventory-count in any form — the removal above is final, not a placeholder for a future stock-tracking feature; if real inventory counts (more than one of the same item) are ever wanted, that's a materially bigger feature (decrementing on a real transaction, which this app doesn't have) and a phase of its own, not a side effect of this one. No bulk status actions on this screen in v1, even though Phase 45 built exactly that pattern for admin moderation — a seller pausing or marking out-of-stock is normally a one-item, in-the-moment action; worth adding later only if real usage shows sellers doing this to several listings at once.
+
+---
+
 ## Notable deviations & judgment calls not covered above
 
 A handful of decisions that don't map to a single phase above, or that add context the phase entries didn't have room for:
