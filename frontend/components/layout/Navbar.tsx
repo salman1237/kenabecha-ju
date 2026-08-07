@@ -88,19 +88,22 @@ export function Navbar() {
       className="sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-emerald-500/10 bg-background/75 px-3 py-3 shadow-xs backdrop-blur-md sm:px-6 lg:px-8"
     >
       <div className="flex min-w-0 items-center gap-4 lg:gap-6">
-        <Link href="/" className="group flex items-center gap-2 text-lg font-bold tracking-tight">
+        <Link href="/" className="group flex min-w-0 items-center gap-2 text-lg font-bold tracking-tight">
           {navigation.site_info.logo_url ? (
-            <div className="h-8 w-8 overflow-hidden rounded-xl shadow-md shadow-emerald-500/20 transition-transform group-hover:scale-105">
+            <div className="h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-md shadow-emerald-500/20 transition-transform group-hover:scale-105">
               <SmartImage src={navigation.site_info.logo_url} alt="" sizes="32px" />
             </div>
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
               K
             </div>
           )}
-          {/* nowrap: at 390px the wordmark otherwise breaks after "KenaBecha"
-              and doubles the header height. */}
-          <span className="gradient-text whitespace-nowrap text-lg font-extrabold sm:text-xl">
+          {/* nowrap + truncate: on the narrowest phones this row is genuinely
+              tight against the controls on the right (language/theme toggle,
+              notification bell, avatar, menu) — this is the graceful-shrink
+              fallback so the wordmark ellipsizes instead of visually
+              overlapping its neighbours when it can't fit. */}
+          <span className="gradient-text truncate whitespace-nowrap text-lg font-extrabold sm:text-xl">
             KenaBecha JU
           </span>
         </Link>
@@ -132,11 +135,14 @@ export function Navbar() {
           variant="ghost"
           size="sm"
           onClick={toggleLanguage}
-          className="h-8 gap-1.5 rounded-full px-2.5 text-xs font-semibold hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400"
+          // Text label only from `sm` up — on a phone this row is already
+          // crowded (logo, theme toggle, bell, avatar, menu), and the label
+          // is the one control here that's pure convenience, not identity.
+          className="h-8 shrink-0 gap-1.5 rounded-full px-2 sm:px-2.5 text-xs font-semibold hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400"
           title="Toggle Language"
         >
           <Globe className="size-3.5" />
-          <span>{locale === "en" ? "বাংলা" : "EN"}</span>
+          <span className="hidden sm:inline">{locale === "en" ? "বাংলা" : "EN"}</span>
         </Button>
         )}
 

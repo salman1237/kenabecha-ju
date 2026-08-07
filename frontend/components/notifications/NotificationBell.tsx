@@ -73,7 +73,12 @@ export function NotificationBell() {
       </Button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/10">
+        // Fixed and viewport-clamped below `sm`: `w-80` anchored to the
+        // button's own `right-0` overflows off the left edge of a phone
+        // screen whenever the button itself isn't flush with the viewport's
+        // right edge (it never is — the avatar and menu button sit further
+        // right). `sm:` and up have enough room for the original anchor.
+        <div className="fixed inset-x-3 top-16 z-50 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/10 sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-80">
           <div className="flex items-center justify-between border-b border-border px-3 py-2">
             <span className="text-sm font-medium">Notifications</span>
             {unreadCount > 0 && (
