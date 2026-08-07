@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SmartImage } from "@/components/ui/SmartImage";
+import { DragHandle, SortableItem, SortableList } from "@/components/ui/sortable-list";
 import { useLanguage } from "@/context/LanguageContext";
 import { translateApiError } from "@/lib/i18n/errors";
 import {
@@ -86,6 +87,9 @@ export function ListingPhotoManager({
     void run(() => reorderListingImages(listing.id, next.map((i) => i.id)));
   };
 
+  const onDragReorder = (nextIds: string[]) =>
+    void run(() => reorderListingImages(listing.id, nextIds));
+
   const makeCover = (index: number) => {
     if (index === 0) return;
     const next = [images[index], ...images.filter((_, i) => i !== index)];
@@ -95,10 +99,18 @@ export function ListingPhotoManager({
   return (
     <div className="flex flex-col gap-3">
       {images.length > 0 && (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <SortableList
+          ids={images.map((i) => i.id)}
+          onReorder={onDragReorder}
+          disabled={busy}
+          strategy="grid"
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+        >
           {images.map((image, index) => (
-            <li
+            <SortableItem
               key={image.id}
+              id={image.id}
+              disabled={busy}
               className={cn(
                 "group relative overflow-hidden rounded-xl border bg-muted",
                 index === 0 ? "border-emerald-500/60" : "border-border/70"
@@ -113,6 +125,8 @@ export function ListingPhotoManager({
                   {t.listingForm.coverPhoto}
                 </span>
               )}
+
+              <DragHandle className="absolute right-1.5 top-1.5 z-10 bg-black/55 text-white hover:bg-black/70 hover:text-white" />
 
               <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-0.5 bg-black/55 p-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
                 <Button
@@ -160,9 +174,9 @@ export function ListingPhotoManager({
                   <Trash2 className="size-3.5" />
                 </Button>
               </div>
-            </li>
+            </SortableItem>
           ))}
-        </ul>
+        </SortableList>
       )}
 
       <Input

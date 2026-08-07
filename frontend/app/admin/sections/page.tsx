@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DragHandle, SortableItem, SortableList } from "@/components/ui/sortable-list";
 import {
   createSection,
   deleteSection,
@@ -49,9 +50,6 @@ export default function AdminSectionsPage() {
 
   useEffect(load, [load]);
 
-  /** Optimistic on the list, authoritative on the response: the reorder
-   *  endpoint returns the saved order, so a rejected move snaps back rather
-   *  than leaving the screen disagreeing with the database. */
   const move = async (index: number, direction: -1 | 1) => {
     if (!sections) return;
     const target = index + direction;
@@ -59,10 +57,21 @@ export default function AdminSectionsPage() {
 
     const next = [...sections];
     [next[index], next[target]] = [next[target], next[index]];
-    setSections(next);
+    await applyOrder(next.map((s) => s.id));
+  };
+
+  /** Optimistic on the list, authoritative on the response: the reorder
+   *  endpoint returns the saved order, so a rejected move snaps back rather
+   *  than leaving the screen disagreeing with the database. Shared by the
+   *  arrow buttons and drag-and-drop, since both just need to say what the
+   *  new full order is. */
+  const applyOrder = async (nextIds: string[]) => {
+    if (!sections) return;
+    const byId = new Map(sections.map((s) => [s.id, s]));
+    setSections(nextIds.map((id) => byId.get(id)).filter((s): s is PageSection => s !== undefined));
     setBusy(true);
     try {
-      setSections(await reorderSections(next.map((s) => s.id)));
+      setSections(await reorderSections(nextIds));
     } catch {
       toast.error("Could not save the new order");
       load();
@@ -153,17 +162,25 @@ export default function AdminSectionsPage() {
           The homepage has no sections. Add one to get started.
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <SortableList
+          ids={sections.map((s) => s.id)}
+          onReorder={applyOrder}
+          disabled={busy}
+          className="flex flex-col gap-2"
+        >
           {sections.map((section, index) => {
             const definition = getSectionDefinition(section.section_type);
             return (
-              <li
+              <SortableItem
                 key={section.id}
+                id={section.id}
+                disabled={busy}
                 className={cn(
                   "flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4 transition-opacity",
                   !section.is_active && "opacity-60"
                 )}
               >
+                <DragHandle />
                 <div className="flex flex-col">
                   <Button
                     variant="ghost"
@@ -231,10 +248,10 @@ export default function AdminSectionsPage() {
                     <Trash2 className="size-4" />
                   </Button>
                 </div>
-              </li>
+              </SortableItem>
             );
           })}
-        </ul>
+        </SortableList>
       )}
 
       {editing && (

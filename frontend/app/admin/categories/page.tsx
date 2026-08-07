@@ -9,6 +9,7 @@ import { CategoryEditor } from "@/components/admin/CategoryEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DragHandle, SortableItem, SortableList } from "@/components/ui/sortable-list";
 import {
   listAdminCategories,
   reorderCategories,
@@ -58,10 +59,16 @@ export default function AdminCategoriesPage() {
 
     const reordered = [...siblings];
     [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+    await applyOrder(category.parent_id, reordered.map((c) => c.id));
+  };
 
+  /** Scoped to one sibling group — the top level, or one parent's children —
+   *  matching what `reorderCategories` itself demands. Shared by the arrow
+   *  buttons and drag-and-drop. */
+  const applyOrder = async (parentId: string | null, nextIds: string[]) => {
     setBusy(true);
     try {
-      await reorderCategories(category.parent_id, reordered.map((c) => c.id));
+      await reorderCategories(parentId, nextIds);
       load();
     } catch {
       toast.error("Could not save the new order");
@@ -100,14 +107,17 @@ export default function AdminCategoriesPage() {
     const hiddenByParent = parent !== null && !parent.is_active && category.is_active;
 
     return (
-      <li
+      <SortableItem
         key={category.id}
+        id={category.id}
+        disabled={busy}
         className={cn(
           "flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3 transition-opacity",
           isChild && "ml-6 border-dashed",
           (!category.is_active || hiddenByParent) && "opacity-60"
         )}
       >
+        <DragHandle />
         <div className="flex flex-col">
           <Button
             variant="ghost"
@@ -197,7 +207,7 @@ export default function AdminCategoriesPage() {
             <Trash2 className="size-4" />
           </Button>
         </div>
-      </li>
+      </SortableItem>
     );
   };
 
@@ -228,12 +238,35 @@ export default function AdminCategoriesPage() {
           There are no categories yet. Add one to get started.
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {parents.flatMap((parent) => [
-            row(parent, null),
-            ...siblingsOf(parent.id).map((child) => row(child, parent)),
-          ])}
-        </ul>
+        <SortableList
+          ids={parents.map((p) => p.id)}
+          onReorder={(nextIds) => applyOrder(null, nextIds)}
+          disabled={busy}
+          className="flex flex-col gap-2"
+        >
+          {parents.map((parent) => {
+            const children = siblingsOf(parent.id);
+            return (
+              // display:contents so this grouping wrapper doesn't add a box
+              // to the <ul>'s flex layout — the parent row and its children
+              // still lay out as if they were direct siblings.
+              <div key={parent.id} className="contents">
+                {row(parent, null)}
+                {children.length > 0 && (
+                  <SortableList
+                    ids={children.map((c) => c.id)}
+                    onReorder={(nextIds) => applyOrder(parent.id, nextIds)}
+                    disabled={busy}
+                    as="div"
+                    className="contents"
+                  >
+                    {children.map((child) => row(child, parent))}
+                  </SortableList>
+                )}
+              </div>
+            );
+          })}
+        </SortableList>
       )}
 
       {(editing || adding) && (

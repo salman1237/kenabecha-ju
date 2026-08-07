@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DragHandle, SortableItem, SortableList } from "@/components/ui/sortable-list";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { useLanguage } from "@/context/LanguageContext";
 import { ApiError } from "@/lib/api/client";
@@ -267,30 +268,38 @@ export default function AdminNavigationPage() {
     }
   };
 
+  const applyLinkOrder = (menu: NavMenu, nextIds: string[]) =>
+    run(() => reorderLinks(menu.id, nextIds));
+
   const moveLink = (menu: NavMenu, index: number, direction: -1 | 1) => {
     const ordered = [...menu.links].sort((a, b) => a.sort_order - b.sort_order);
     const target = index + direction;
     if (target < 0 || target >= ordered.length) return;
     [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
-    return run(() => reorderLinks(menu.id, ordered.map((l) => l.id)));
+    return applyLinkOrder(menu, ordered.map((l) => l.id));
   };
+
+  const applyMenuOrder = (nextIds: string[]) => run(() => reorderMenus("footer", nextIds));
 
   const moveMenu = (index: number, direction: -1 | 1) => {
     const target = index + direction;
     if (target < 0 || target >= footerMenus.length) return;
     const ordered = [...footerMenus];
     [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
-    return run(() => reorderMenus("footer", ordered.map((m) => m.id)));
+    return applyMenuOrder(ordered.map((m) => m.id));
   };
 
   const linkRow = (menu: NavMenu, link: NavLink, index: number, total: number) => (
-    <li
+    <SortableItem
       key={link.id}
+      id={link.id}
+      disabled={busy}
       className={cn(
         "flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-2.5",
         !link.is_active && "opacity-60"
       )}
     >
+      <DragHandle />
       <div className="flex flex-col">
         <Button
           variant="ghost"
@@ -367,44 +376,41 @@ export default function AdminNavigationPage() {
           <Trash2 className="size-4" />
         </Button>
       </div>
-    </li>
+    </SortableItem>
   );
 
   const menuCard = (menu: NavMenu, index: number, reorderable: boolean) => {
     const links = [...menu.links].sort((a, b) => a.sort_order - b.sort_order);
-    return (
-      <section
-        key={menu.id}
-        className={cn(
-          "flex flex-col gap-3 rounded-xl border border-border p-4",
-          !menu.is_active && "opacity-60"
-        )}
-      >
+    const content = (
+      <>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {reorderable && (
-              <div className="flex flex-col">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-5"
-                  aria-label="Move column up"
-                  disabled={busy || index === 0}
-                  onClick={() => moveMenu(index, -1)}
-                >
-                  <ArrowUp className="size-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-5"
-                  aria-label="Move column down"
-                  disabled={busy || index === footerMenus.length - 1}
-                  onClick={() => moveMenu(index, 1)}
-                >
-                  <ArrowDown className="size-3.5" />
-                </Button>
-              </div>
+              <>
+                <DragHandle />
+                <div className="flex flex-col">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-5"
+                    aria-label="Move column up"
+                    disabled={busy || index === 0}
+                    onClick={() => moveMenu(index, -1)}
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-5"
+                    aria-label="Move column down"
+                    disabled={busy || index === footerMenus.length - 1}
+                    onClick={() => moveMenu(index, 1)}
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </Button>
+                </div>
+              </>
             )}
             <h3 className="font-semibold">
               {menu.location === "navbar" ? "Navbar links" : navLabel(menu, locale, t)}
@@ -460,10 +466,30 @@ export default function AdminNavigationPage() {
             No links yet.
           </p>
         ) : (
-          <ul className="flex flex-col gap-1.5">
+          <SortableList
+            ids={links.map((l) => l.id)}
+            onReorder={(nextIds) => applyLinkOrder(menu, nextIds)}
+            disabled={busy}
+            className="flex flex-col gap-1.5"
+          >
             {links.map((link, i) => linkRow(menu, link, i, links.length))}
-          </ul>
+          </SortableList>
         )}
+      </>
+    );
+
+    const sectionClassName = cn(
+      "flex flex-col gap-3 rounded-xl border border-border p-4",
+      !menu.is_active && "opacity-60"
+    );
+
+    return reorderable ? (
+      <SortableItem key={menu.id} id={menu.id} as="section" disabled={busy} className={sectionClassName}>
+        {content}
+      </SortableItem>
+    ) : (
+      <section key={menu.id} className={sectionClassName}>
+        {content}
       </section>
     );
   };
@@ -542,7 +568,15 @@ export default function AdminNavigationPage() {
         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Footer columns
         </h3>
-        {footerMenus.map((menu, index) => menuCard(menu, index, true))}
+        <SortableList
+          ids={footerMenus.map((m) => m.id)}
+          onReorder={applyMenuOrder}
+          disabled={busy}
+          as="div"
+          className="flex flex-col gap-3"
+        >
+          {footerMenus.map((menu, index) => menuCard(menu, index, true))}
+        </SortableList>
 
         <div className="flex flex-wrap items-end gap-2 rounded-xl border border-dashed border-border p-4">
           <div className="flex flex-1 flex-col gap-1.5">

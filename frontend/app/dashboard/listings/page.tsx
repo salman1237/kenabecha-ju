@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DragHandle, SortableItem, SortableList } from "@/components/ui/sortable-list";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { getMyListings, renewListing, reorderListings } from "@/lib/api/listings";
@@ -112,10 +113,13 @@ function ReorderableShopListings({
     if (target < 0 || target >= ordered.length) return;
     const next = [...ordered];
     [next[index], next[target]] = [next[target], next[index]];
+    await applyOrder(next.map((l) => l.id));
+  };
 
+  const applyOrder = async (nextIds: string[]) => {
     setBusy(true);
     try {
-      onReordered(await reorderListings(shopId, next.map((l) => l.id)));
+      onReordered(await reorderListings(shopId, nextIds));
     } catch {
       toast.error(t.dashboard.reorderFailed);
     } finally {
@@ -124,14 +128,22 @@ function ReorderableShopListings({
   };
 
   return (
-    <ul className="flex flex-col gap-2">
+    <SortableList
+      ids={ordered.map((l) => l.id)}
+      onReorder={applyOrder}
+      disabled={busy}
+      className="flex flex-col gap-2"
+    >
       {ordered.map((listing, index) => {
         const image = listing.images[0];
         return (
-          <li
+          <SortableItem
             key={listing.id}
+            id={listing.id}
+            disabled={busy}
             className="flex items-center gap-3 rounded-xl border border-border bg-card p-2.5"
           >
+            <DragHandle />
             <div className="flex flex-col">
               <Button
                 variant="ghost"
@@ -187,10 +199,10 @@ function ReorderableShopListings({
                 )}
               </div>
             </div>
-          </li>
+          </SortableItem>
         );
       })}
-    </ul>
+    </SortableList>
   );
 }
 
