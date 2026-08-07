@@ -47,7 +47,6 @@ class ListingCreate(BaseModel):
     price_type: PriceType = PriceType.fixed
     unit: str | None = Field(default=None, max_length=20)
     condition: Condition | None = None
-    quantity: int | None = Field(default=None, ge=0)
     shop_id: uuid.UUID | None = None
     tags: list[str] = Field(default_factory=list, max_length=10)
     fulfillment_type: FulfillmentType = FulfillmentType.pickup
@@ -76,7 +75,6 @@ class ListingUpdate(BaseModel):
     price_type: PriceType | None = None
     unit: str | None = Field(default=None, max_length=20)
     condition: Condition | None = None
-    quantity: int | None = Field(default=None, ge=0)
     tags: list[str] | None = Field(default=None, max_length=10)
     fulfillment_type: FulfillmentType | None = None
     pickup_address: str | None = Field(default=None, max_length=500)
@@ -97,8 +95,8 @@ class ListingOut(BaseModel):
     price_type: PriceType
     unit: str | None
     condition: Condition
-    quantity: int
     status: ListingStatus
+    sort_order: int = 0
     fulfillment_type: FulfillmentType
     pickup_address: str | None
     is_top: bool
@@ -111,6 +109,14 @@ class ListingOut(BaseModel):
     category: CategoryRef | None = None
     images: list[ListingImageOut]
     tags: list[TagOut]
+    # Both default to their "not applicable" value and are only ever
+    # actually populated by the router handlers that can afford the extra
+    # targeted query — get_listing (one detail page) sets the former,
+    # list_my_listings (one seller's own inventory) sets the latter. Left
+    # unset everywhere else (bulk browse) rather than computed per row,
+    # which would be an N+1 on every listing in a results page.
+    has_pending_restock_request: bool | None = None
+    restock_request_count: int = 0
 
     @computed_field
     @property
@@ -125,6 +131,15 @@ class ListingImageOrderIn(BaseModel):
     """Every image id on the listing, in the order they should appear."""
 
     image_ids: list[uuid.UUID] = Field(min_length=1)
+
+
+class ListingOrderIn(BaseModel):
+    """Every listing id in one shop's inventory, in the order they should
+    appear. Shop-scoped rather than global — personal listings have no
+    manual order to speak of."""
+
+    shop_id: uuid.UUID
+    listing_ids: list[uuid.UUID] = Field(min_length=1)
 
 
 class ListingFeatureIn(BaseModel):

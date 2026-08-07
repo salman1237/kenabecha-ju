@@ -22,6 +22,7 @@ class NotificationType(str, enum.Enum):
     listing_removed = "listing_removed"
     shop_reported = "shop_reported"
     shop_removed = "shop_removed"
+    restock_available = "restock_available"
 
 
 class Notification(UUIDPKMixin, CreatedAtMixin, Base):

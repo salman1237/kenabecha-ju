@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ImageGallery } from "@/components/listings/ImageGallery";
 import { ListingCard } from "@/components/listings/ListingCard";
+import { RestockButton } from "@/components/listings/RestockButton";
 import { RatingForm } from "@/components/ratings/RatingForm";
 import { RatingSummary } from "@/components/ratings/RatingSummary";
 import { StarRating } from "@/components/ratings/StarRating";
@@ -341,6 +342,12 @@ export default function ListingDetailPage() {
               </div>
             ) : user ? (
               <div className="flex flex-col gap-2">
+                {listing.status === "out_of_stock" && listing.shop && (
+                  <RestockButton
+                    listingId={listing.id}
+                    initiallyRequested={listing.has_pending_restock_request ?? false}
+                  />
+                )}
                 <Button onClick={onContactSeller} className="h-10 w-full">
                   Chat with seller
                 </Button>

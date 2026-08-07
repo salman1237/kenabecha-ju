@@ -110,7 +110,7 @@ export interface ListingImage {
 
 export type PriceType = "fixed" | "negotiable" | "free";
 export type Condition = "new" | "used_like_new" | "used_good" | "used_fair";
-export type ListingStatus = "active" | "sold" | "out_of_stock" | "removed" | "expired";
+export type ListingStatus = "active" | "sold" | "out_of_stock" | "removed" | "expired" | "paused";
 export type FulfillmentType = "pickup" | "delivery" | "both";
 
 export interface Listing {
@@ -121,8 +121,11 @@ export interface Listing {
   price_type: PriceType;
   unit: string | null;
   condition: Condition;
-  quantity: number;
   status: ListingStatus;
+  // Manual display order within one shop's inventory — meaningless (always
+  // its default) for personal listings, which have nothing to reorder
+  // against.
+  sort_order: number;
   is_top: boolean;
   view_count: number;
   featured_until: string | null;
@@ -139,6 +142,13 @@ export interface Listing {
   category: CategoryRef | null;
   images: ListingImage[];
   tags: Tag[];
+  // Both default to their "not applicable" value and are only ever actually
+  // populated by the endpoints that can afford the extra query — the single
+  // listing detail page sets the former, "my listings" sets the latter.
+  // null (not false) for a signed-out visitor, so the button can prompt a
+  // login rather than render a misleading "not requested" state.
+  has_pending_restock_request?: boolean | null;
+  restock_request_count?: number;
 }
 
 export interface Page<T> {

@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, Query, Request, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import (
@@ -21,11 +21,12 @@ from app.schemas.listing import (
     ListingFeatureIn,
     ListingImageOrderIn,
     ListingImageOut,
+    ListingOrderIn,
     ListingOut,
     ListingUpdate,
 )
 from app.schemas.rating import RatingOut, SellerReviewsOut
-from app.services import listing_service, media_service, rating_service
+from app.services import listing_service, media_service, rating_service, shop_service
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -95,7 +96,15 @@ async def list_my_listings(
     db: AsyncSession = Depends(get_db),
 ) -> list[ListingOut]:
     listings = await listing_service.list_my_listings(db, user.id, shop_id)
-    return [ListingOut.model_validate(i) for i in listings]
+    # Batched, not one query per row, the same shape shop follower counts
+    # already use — this can return a seller's whole inventory at once.
+    counts = await listing_service.get_restock_request_counts(db, [i.id for i in listings])
+    return [
+        ListingOut.model_validate(i).model_copy(
+            update={"restock_request_count": counts.get(i.id, 0)}
+        )
+        for i in listings
+    ]
 
 
 @router.get("/{listing_id}", response_model=ListingOut)
@@ -116,7 +125,19 @@ async def get_listing(
         client_identifier(request),
         request.headers.get("user-agent"),
     )
-    return ListingOut.model_validate(listing)
+    out = ListingOut.model_validate(listing)
+    # None (not False) when anonymous, so the button can prompt a login
+    # instead of rendering a misleading "not requested" state — same
+    # reasoning as ShopStatsOut.is_following.
+    if viewer is not None:
+        out = out.model_copy(
+            update={
+                "has_pending_restock_request": await listing_service.has_pending_restock_request(
+                    db, listing.id, viewer.id
+                )
+            }
+        )
+    return out
 
 
 @router.get("/{listing_id}/related", response_model=list[ListingOut])
@@ -188,6 +209,74 @@ async def mark_sold(
     listing = await listing_service.get_owned_listing(db, listing_id, user)
     listing = await listing_service.mark_sold(db, listing)
     return ListingOut.model_validate(listing)
+
+
+@router.post("/{listing_id}/mark-out-of-stock", response_model=ListingOut)
+async def mark_out_of_stock(
+    listing_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> ListingOut:
+    listing = await listing_service.get_owned_listing(db, listing_id, user)
+    listing = await listing_service.mark_out_of_stock(db, listing)
+    return ListingOut.model_validate(listing)
+
+
+@router.post("/{listing_id}/mark-available", response_model=ListingOut)
+async def mark_available(
+    listing_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ListingOut:
+    listing = await listing_service.get_owned_listing(db, listing_id, user)
+    listing = await listing_service.mark_available(db, listing, background_tasks)
+    return ListingOut.model_validate(listing)
+
+
+@router.post("/{listing_id}/relist", response_model=ListingOut)
+async def relist_listing(
+    listing_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> ListingOut:
+    listing = await listing_service.get_owned_listing(db, listing_id, user)
+    listing = await listing_service.relist(db, listing)
+    return ListingOut.model_validate(listing)
+
+
+@router.post("/{listing_id}/pause", response_model=ListingOut)
+async def pause_listing(
+    listing_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> ListingOut:
+    listing = await listing_service.get_owned_listing(db, listing_id, user)
+    listing = await listing_service.pause_listing(db, listing)
+    return ListingOut.model_validate(listing)
+
+
+@router.post("/reorder", response_model=list[ListingOut])
+async def reorder_listings(
+    payload: ListingOrderIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[ListingOut]:
+    shop = await shop_service.get_owned_shop(db, payload.shop_id, user)
+    listings = await listing_service.reorder_listings(db, shop, payload.listing_ids)
+    return [ListingOut.model_validate(i) for i in listings]
+
+
+@router.post("/{listing_id}/restock-request", response_model=ListingOut)
+async def request_restock(
+    listing_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> ListingOut:
+    listing = await listing_service.get_listing(db, listing_id)
+    await listing_service.create_restock_request(db, listing, user)
+    return ListingOut.model_validate(listing).model_copy(
+        update={"has_pending_restock_request": True}
+    )
+
+
+@router.delete("/{listing_id}/restock-request", status_code=status.HTTP_204_NO_CONTENT)
+async def withdraw_restock_request(
+    listing_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> None:
+    await listing_service.delete_restock_request(db, listing_id, user)
 
 
 @router.post("/{listing_id}/renew", response_model=ListingOut)

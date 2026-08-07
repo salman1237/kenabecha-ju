@@ -51,6 +51,13 @@ class ListingStatus(str, enum.Enum):
     # Set by the expiry sweep, never by a seller. Distinct from `removed` so
     # the dashboard can offer Renew rather than treating it as taken down.
     expired = "expired"
+    # Seller-initiated, reversible hide — the deactivate/reactivate toggle.
+    # A real status value rather than a second boolean column so
+    # browse_listings' existing `status == active` filter excludes it for
+    # free, with no new WHERE clause to keep in sync everywhere status is
+    # already checked (seller-reviews, related listings, the sitemap,
+    # category counts).
+    paused = "paused"
 
 
 class FulfillmentType(str, enum.Enum):
@@ -81,8 +88,9 @@ class Listing(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
             "price_type != 'fixed' OR price IS NOT NULL",
             name="price_required_when_fixed",
         ),
-        CheckConstraint("quantity >= 0", name="quantity_non_negative"),
         Index("ix_listings_status_created_at", "status", "created_at"),
+        # For a shop's own manually-ordered inventory view and storefront.
+        Index("ix_listings_shop_id_sort_order", "shop_id", "sort_order"),
         Index(
             "ix_listings_title_trgm",
             "title",
@@ -119,13 +127,17 @@ class Listing(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
     condition: Mapped[Condition] = mapped_column(
         Enum(Condition, name="listing_condition"), default=Condition.new, nullable=False
     )
-    quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     status: Mapped[ListingStatus] = mapped_column(
         Enum(ListingStatus, name="listing_status"),
         default=ListingStatus.active,
         nullable=False,
         index=True,
     )
+    # Manual display order, meaningful only for shop listings — a shop's own
+    # storefront and inventory view default to this rather than "newest".
+    # Unused (always its default) for personal listings, which have no
+    # multi-item ordering to speak of.
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
     fulfillment_type: Mapped[FulfillmentType] = mapped_column(
         Enum(FulfillmentType, name="fulfillment_type"),
         default=FulfillmentType.pickup,
@@ -198,6 +210,40 @@ class ListingView(UUIDPKMixin, CreatedAtMixin, Base):
     # unique key, so a viewer counts once per window without needing a
     # range query or a periodic cleanup job to keep the constraint useful.
     window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ListingRestockRequest(UUIDPKMixin, CreatedAtMixin, Base):
+    """A buyer asking to be notified when an out-of-stock shop listing comes
+    back.
+
+    Uniqueness is deliberately partial, not blanket: a buyer can't queue two
+    pending requests for the same listing, but *can* ask again the next time
+    it runs out after being restocked once already. A flat unique constraint
+    would have permanently blocked a second request forever.
+    """
+
+    __tablename__ = "listing_restock_requests"
+    __table_args__ = (
+        Index(
+            "uq_restock_request_pending",
+            "listing_id",
+            "buyer_id",
+            unique=True,
+            postgresql_where="fulfilled_at IS NULL",
+        ),
+    )
+
+    listing_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("listings.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    buyer_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Set when the seller marks the listing available again and this
+    # requester has been notified. Left in place rather than deleted, so a
+    # second out-of-stock cycle on the same listing can tell a fresh request
+    # apart from one already answered.
+    fulfilled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Tag(UUIDPKMixin, CreatedAtMixin, Base):

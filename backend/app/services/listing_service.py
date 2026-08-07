@@ -3,7 +3,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy import delete, func, insert, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +13,7 @@ from app.models.listing import (
     FulfillmentType,
     Listing,
     ListingImage,
+    ListingRestockRequest,
     ListingStatus,
     ListingView,
     Tag,
@@ -21,9 +22,11 @@ from app.models.listing import (
 from app.core.config import get_settings
 from app.core.errors import AppError, ErrorCode
 from app.core.search import LIKE_ESCAPE, like_contains
+from app.models.notification import NotificationType
+from app.models.shop import Shop
 from app.models.user import User
 from app.schemas.listing import OFFERS_PICKUP, ListingCreate, ListingUpdate
-from app.services import category_service, shop_service, tag_service
+from app.services import category_service, notification_service, shop_service, tag_service
 
 MAX_IMAGES_PER_LISTING = 8
 
@@ -61,12 +64,12 @@ async def _attach_tags(db: AsyncSession, listing: Listing, tag_names: list[str],
 
 async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate) -> Listing:
     if payload.shop_id is not None:
-        await shop_service.get_owned_shop(db, payload.shop_id, seller)
+        shop = await shop_service.get_owned_shop(db, payload.shop_id, seller)
         condition = Condition.new
-        quantity = payload.quantity if payload.quantity is not None else 1
+        next_sort_order = await _next_shop_sort_order(db, shop.id)
     else:
         condition = payload.condition
-        quantity = 1
+        next_sort_order = 0
 
     await category_service.ensure_exists(db, payload.category_id)
 
@@ -80,7 +83,7 @@ async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate)
         price_type=payload.price_type,
         unit=payload.unit,
         condition=condition,
-        quantity=quantity,
+        sort_order=next_sort_order,
         fulfillment_type=payload.fulfillment_type,
         pickup_address=payload.pickup_address,
         expires_at=datetime.now(UTC) + timedelta(days=LISTING_TTL_DAYS),
@@ -111,6 +114,16 @@ async def get_owned_listing(db: AsyncSession, listing_id: uuid.UUID, seller: Use
     if listing.seller_id != seller.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "You don't own this listing")
     return listing
+
+
+async def _next_shop_sort_order(db: AsyncSession, shop_id: uuid.UUID) -> int:
+    """One past the end of a shop's current manual order, so a new listing
+    appends rather than landing at 0 and jumping ahead of everything else."""
+    return (
+        await db.execute(
+            select(func.coalesce(func.max(Listing.sort_order), -1)).where(Listing.shop_id == shop_id)
+        )
+    ).scalar_one() + 1
 
 
 class BrowseFilters:
@@ -219,6 +232,12 @@ async def browse_listings(db: AsyncSession, filters: BrowseFilters) -> tuple[lis
         query = query.order_by(featured_first, Listing.price.desc().nulls_last())
     elif filters.sort == "popular":
         query = query.order_by(featured_first, Listing.view_count.desc(), Listing.created_at.desc())
+    elif filters.sort == "manual":
+        # The seller's own display order (Phase 53's reorder), meaningful
+        # only within one shop — a caller browsing across every shop has no
+        # single order to fall back to, so this isn't the default sort;
+        # the shop storefront page requests it explicitly.
+        query = query.order_by(featured_first, Listing.sort_order.asc())
     else:
         query = query.order_by(featured_first, Listing.created_at.desc())
 
@@ -275,10 +294,12 @@ async def list_related_listings(db: AsyncSession, listing: Listing, limit: int =
 async def list_my_listings(db: AsyncSession, seller_id: uuid.UUID, shop_id: uuid.UUID | None = None) -> list[Listing]:
     query = select(Listing).where(Listing.seller_id == seller_id, Listing.deleted_at.is_(None))
     if shop_id is not None:
-        query = query.where(Listing.shop_id == shop_id)
+        # One shop's own inventory has a real manual order (Phase 53); a
+        # cross-shop or personal view has no single order to sort by, so it
+        # keeps the newest-first default.
+        query = query.where(Listing.shop_id == shop_id).order_by(Listing.sort_order.asc())
     else:
-        query = query.where(Listing.shop_id.is_(None))
-    query = query.order_by(Listing.created_at.desc())
+        query = query.where(Listing.shop_id.is_(None)).order_by(Listing.created_at.desc())
     return list((await db.execute(query)).scalars().unique().all())
 
 
@@ -302,11 +323,6 @@ async def update_listing(db: AsyncSession, listing: Listing, payload: ListingUpd
 
     if listing.shop_id is not None:
         listing.condition = Condition.new
-        if "quantity" in data:
-            if listing.quantity == 0 and listing.status == ListingStatus.active:
-                listing.status = ListingStatus.out_of_stock
-            elif listing.quantity > 0 and listing.status == ListingStatus.out_of_stock:
-                listing.status = ListingStatus.active
 
     if payload.tags is not None:
         await _attach_tags(db, listing, payload.tags, replace=True)
@@ -409,10 +425,231 @@ async def mark_sold(db: AsyncSession, listing: Listing) -> Listing:
     return listing
 
 
+async def mark_out_of_stock(db: AsyncSession, listing: Listing) -> Listing:
+    if listing.status != ListingStatus.active:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Only active listings can be marked out of stock"
+        )
+    listing.status = ListingStatus.out_of_stock
+    await db.commit()
+    await db.refresh(listing)
+    return listing
+
+
+async def mark_available(
+    db: AsyncSession, listing: Listing, background_tasks: BackgroundTasks
+) -> Listing:
+    """The other half of mark_out_of_stock. Also the moment any pending
+    restock requests get answered — see fulfil_restock_requests below."""
+    if listing.status != ListingStatus.out_of_stock:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Only out-of-stock listings can be marked available"
+        )
+    listing.status = ListingStatus.active
+    await fulfil_restock_requests(db, listing, background_tasks)
+    await db.commit()
+    await db.refresh(listing)
+    return listing
+
+
+async def relist(db: AsyncSession, listing: Listing) -> Listing:
+    """Undo mark_sold or pause. Refreshes expires_at from now, the same
+    reasoning renew_listing already uses — a relisted item shouldn't inherit
+    an expiry window that started months ago."""
+    if listing.status not in (ListingStatus.sold, ListingStatus.paused):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Only sold or paused listings can be relisted"
+        )
+    listing.status = ListingStatus.active
+    listing.expires_at = datetime.now(UTC) + timedelta(days=LISTING_TTL_DAYS)
+    await db.commit()
+    await db.refresh(listing)
+    return listing
+
+
+async def pause_listing(db: AsyncSession, listing: Listing) -> Listing:
+    """Reversible hide — undone by relist(), above. Refused on anything but
+    an active listing: sold and removed have no business being paused, and
+    out-of-stock already has its own reversible state."""
+    if listing.status != ListingStatus.active:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only active listings can be paused")
+    listing.status = ListingStatus.paused
+    await db.commit()
+    await db.refresh(listing)
+    return listing
+
+
+async def reorder_listings(
+    db: AsyncSession, shop: Shop, listing_ids: list[uuid.UUID]
+) -> list[Listing]:
+    """Apply an explicit display order to one shop's inventory.
+
+    The supplied ids must be exactly the shop's current (non-deleted)
+    listings: accepting a partial list would silently leave the omitted ones
+    at stale positions and produce duplicate sort_orders, the same reasoning
+    reorder_images uses above.
+    """
+    current = {
+        listing.id: listing
+        for listing in (
+            await db.execute(
+                select(Listing).where(
+                    Listing.shop_id == shop.id, Listing.deleted_at.is_(None)
+                )
+            )
+        )
+        .scalars()
+        .all()
+    }
+    if set(listing_ids) != set(current) or len(listing_ids) != len(current):
+        raise AppError(
+            status.HTTP_400_BAD_REQUEST,
+            ErrorCode.NOT_FOUND,
+            "The order must list every listing in this shop exactly once",
+        )
+
+    for index, listing_id in enumerate(listing_ids):
+        current[listing_id].sort_order = index
+
+    await db.commit()
+    return sorted(current.values(), key=lambda listing: listing.sort_order)
+
+
+# --- restock requests ---------------------------------------------------
+
+
+async def create_restock_request(
+    db: AsyncSession, listing: Listing, buyer: User
+) -> ListingRestockRequest:
+    if listing.shop_id is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Restock requests are only available on shop listings"
+        )
+    if listing.status != ListingStatus.out_of_stock:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "This listing isn't out of stock"
+        )
+    if listing.seller_id == buyer.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "You can't request your own listing")
+
+    existing = (
+        await db.execute(
+            select(ListingRestockRequest).where(
+                ListingRestockRequest.listing_id == listing.id,
+                ListingRestockRequest.buyer_id == buyer.id,
+                ListingRestockRequest.fulfilled_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        return existing
+
+    request = ListingRestockRequest(listing_id=listing.id, buyer_id=buyer.id)
+    db.add(request)
+    await db.commit()
+    await db.refresh(request)
+    return request
+
+
+async def delete_restock_request(db: AsyncSession, listing_id: uuid.UUID, buyer: User) -> None:
+    """Let a buyer withdraw a pending request — no reason to force one to
+    stay open if they've changed their mind."""
+    await db.execute(
+        delete(ListingRestockRequest).where(
+            ListingRestockRequest.listing_id == listing_id,
+            ListingRestockRequest.buyer_id == buyer.id,
+            ListingRestockRequest.fulfilled_at.is_(None),
+        )
+    )
+    await db.commit()
+
+
+async def has_pending_restock_request(
+    db: AsyncSession, listing_id: uuid.UUID, buyer_id: uuid.UUID
+) -> bool:
+    return (
+        await db.execute(
+            select(ListingRestockRequest.id).where(
+                ListingRestockRequest.listing_id == listing_id,
+                ListingRestockRequest.buyer_id == buyer_id,
+                ListingRestockRequest.fulfilled_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none() is not None
+
+
+async def get_restock_request_counts(
+    db: AsyncSession, listing_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    """Pending-request counts per listing, in one grouped query — the same
+    IN (...) GROUP BY shape get_shops_follower_counts already uses, so a
+    seller's own listings page doesn't issue one query per row."""
+    if not listing_ids:
+        return {}
+    rows = await db.execute(
+        select(ListingRestockRequest.listing_id, func.count())
+        .where(
+            ListingRestockRequest.listing_id.in_(listing_ids),
+            ListingRestockRequest.fulfilled_at.is_(None),
+        )
+        .group_by(ListingRestockRequest.listing_id)
+    )
+    return dict(rows.all())
+
+
+async def fulfil_restock_requests(
+    db: AsyncSession, listing: Listing, background_tasks: BackgroundTasks
+) -> None:
+    """Notify every pending requester that a listing is available again, one
+    at a time through the real notification path rather than a bulk update
+    with no trace — the same reasoning the admin bulk-moderation actions use.
+    Only mark_available calls this: relist() resolves `paused`, and a paused
+    listing was never publicly visible for a buyer to have requested against.
+    """
+    pending = (
+        await db.execute(
+            select(ListingRestockRequest).where(
+                ListingRestockRequest.listing_id == listing.id,
+                ListingRestockRequest.fulfilled_at.is_(None),
+            )
+        )
+    ).scalars().all()
+
+    for request in pending:
+        request.fulfilled_at = datetime.now(UTC)
+        await notification_service.notify(
+            db,
+            background_tasks,
+            request.buyer_id,
+            NotificationType.restock_available,
+            title="Back in stock",
+            body=f'"{listing.title}" is available again.',
+            link_url=f"/listings/{listing.id}",
+            email_subject=f'"{listing.title}" is back in stock on KenaBecha JU',
+            email_body=(
+                f'Good news — "{listing.title}" is back in stock.\n\n'
+                f"View it at: {get_settings().FRONTEND_URL}/listings/{listing.id}"
+            ),
+            related_listing_id=listing.id,
+        )
+
+
 async def delete_listing(db: AsyncSession, listing: Listing) -> None:
     listing.status = ListingStatus.removed
     listing.is_active = False
     listing.deleted_at = datetime.now(UTC)
+    # This is a soft delete, so the restock requests' ON DELETE CASCADE
+    # never fires — the listing row never actually goes away. Clear any
+    # pending requests explicitly instead: there is no restock to announce
+    # for a listing that's gone, and a soft-deleted listing can never reach
+    # mark_available again to trigger this on its own (get_listing 404s on
+    # it), so an unfulfilled row here would otherwise sit inert forever.
+    await db.execute(
+        delete(ListingRestockRequest).where(
+            ListingRestockRequest.listing_id == listing.id,
+            ListingRestockRequest.fulfilled_at.is_(None),
+        )
+    )
     await db.commit()
 
 

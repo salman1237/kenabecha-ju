@@ -21,8 +21,6 @@ export const listingSchema = z
     // every sidebar count at zero, so the form insists on one.
     category_id: z.string().min(1, "Pick a category"),
     tagsInput: z.string().optional(),
-    // A string because it comes from a number input; coerced at submit.
-    quantity: z.string().optional(),
     fulfillment_type: z.enum(["pickup", "delivery", "both"]),
     pickup_address: z.string().max(500).optional(),
   })

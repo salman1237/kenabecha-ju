@@ -16,7 +16,6 @@ export interface ListingPayload {
   price_type: PriceType;
   unit?: string | null;
   condition?: Condition | null;
-  quantity?: number | null;
   shop_id?: string | null;
   category_id?: string | null;
   tags: string[];
@@ -40,7 +39,7 @@ export interface BrowseFilters {
   is_top?: boolean;
   category_id?: string;
   category?: string;
-  sort?: "newest" | "price_asc" | "price_desc";
+  sort?: "newest" | "price_asc" | "price_desc" | "popular" | "manual";
   limit?: number;
   offset?: number;
 }
@@ -95,6 +94,41 @@ export function markSold(id: string) {
 
 export function renewListing(id: string) {
   return apiFetch<Listing>(`/listings/${id}/renew`, { method: "POST" });
+}
+
+export function markOutOfStock(id: string) {
+  return apiFetch<Listing>(`/listings/${id}/mark-out-of-stock`, { method: "POST" });
+}
+
+export function markAvailable(id: string) {
+  return apiFetch<Listing>(`/listings/${id}/mark-available`, { method: "POST" });
+}
+
+/** Undoes mark-sold or pause. */
+export function relistListing(id: string) {
+  return apiFetch<Listing>(`/listings/${id}/relist`, { method: "POST" });
+}
+
+/** Reversible hide — undone by relistListing. */
+export function pauseListing(id: string) {
+  return apiFetch<Listing>(`/listings/${id}/pause`, { method: "POST" });
+}
+
+/** `listingIds` must be every listing in that shop — the API rejects a
+ *  partial list rather than silently leaving gaps. */
+export function reorderListings(shopId: string, listingIds: string[]) {
+  return apiFetch<Listing[]>("/listings/reorder", {
+    method: "POST",
+    body: JSON.stringify({ shop_id: shopId, listing_ids: listingIds }),
+  });
+}
+
+export function requestRestock(id: string) {
+  return apiFetch<Listing>(`/listings/${id}/restock-request`, { method: "POST" });
+}
+
+export function withdrawRestockRequest(id: string) {
+  return apiFetch<void>(`/listings/${id}/restock-request`, { method: "DELETE" });
 }
 
 /** Admin-only. `days: null` clears the promotion. */

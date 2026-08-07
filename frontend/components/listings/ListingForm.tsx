@@ -64,7 +64,6 @@ export function ListingForm({
       condition: listing?.condition,
       shop_id: listing?.shop?.id ?? defaultShopId ?? "",
       category_id: listing?.category?.id ?? "",
-      quantity: listing?.quantity != null ? String(listing.quantity) : "1",
       fulfillment_type: listing?.fulfillment_type ?? "pickup",
       pickup_address: listing?.pickup_address ?? "",
     },
@@ -112,8 +111,6 @@ export function ListingForm({
       condition: isShopListing || !values.condition ? undefined : (values.condition as Condition),
       shop_id: mode === "create" ? values.shop_id || null : undefined,
       category_id: values.category_id || null,
-      // Only shop listings carry stock; personal ones are always a single item.
-      quantity: isShopListing && values.quantity !== "" ? Number(values.quantity) : undefined,
       tags,
       fulfillment_type: values.fulfillment_type,
       pickup_address: values.fulfillment_type === "delivery" ? null : values.pickup_address,
@@ -335,19 +332,6 @@ export function ListingForm({
           </div>
         )}
       </FormSection>
-
-      {/* --- Stock, shop listings only --------------------------------- */}
-      {isShopListing && (
-        <FormSection title={t.listingForm.sectionStock} description={t.listingForm.sectionStockHint}>
-          <div className="flex flex-col gap-1.5 sm:max-w-xs">
-            <Label htmlFor="quantity">{t.listingForm.quantity}</Label>
-            <Input id="quantity" type="number" min="0" step="1" {...register("quantity")} />
-            {errors.quantity && (
-              <p className="text-xs text-destructive">{errors.quantity.message}</p>
-            )}
-          </div>
-        </FormSection>
-      )}
 
       {/* --- Fulfillment ------------------------------------------------ */}
       <FormSection

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CheckCircle2, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, PackageX, Pause, RotateCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -24,7 +24,16 @@ import { FormSection } from "@/components/ui/FormSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { deleteListing, getListing, markSold, renewListing } from "@/lib/api/listings";
+import {
+  deleteListing,
+  getListing,
+  markAvailable,
+  markOutOfStock,
+  markSold,
+  pauseListing,
+  relistListing,
+  renewListing,
+} from "@/lib/api/listings";
 import { translateApiError } from "@/lib/i18n/errors";
 import type { Listing } from "@/types/api";
 
@@ -86,6 +95,10 @@ export default function EditListingPage() {
   if (!listing) return null;
 
   const canMarkSold = listing.status === "active";
+  const canMarkOutOfStock = listing.status === "active";
+  const canMarkAvailable = listing.status === "out_of_stock";
+  const canPause = listing.status === "active";
+  const canRelist = listing.status === "sold" || listing.status === "paused";
   const canRenew = listing.status === "active" || listing.status === "expired";
 
   return (
@@ -139,6 +152,66 @@ export default function EditListingPage() {
               }
             >
               <CheckCircle2 /> {t.listing.markSold}
+            </Button>
+          )}
+          {canMarkOutOfStock && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() =>
+                act(
+                  () => markOutOfStock(listing.id),
+                  () => toast.success(t.listing.markOutOfStock)
+                )
+              }
+            >
+              <PackageX /> {t.listing.markOutOfStock}
+            </Button>
+          )}
+          {canMarkAvailable && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() =>
+                act(
+                  () => markAvailable(listing.id),
+                  () => toast.success(t.listing.markAvailable)
+                )
+              }
+            >
+              <CheckCircle2 /> {t.listing.markAvailable}
+            </Button>
+          )}
+          {canPause && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() =>
+                act(
+                  () => pauseListing(listing.id),
+                  () => toast.success(t.listing.pauseListing)
+                )
+              }
+            >
+              <Pause /> {t.listing.pauseListing}
+            </Button>
+          )}
+          {canRelist && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() =>
+                act(
+                  () => relistListing(listing.id),
+                  () => toast.success(t.listing.relist)
+                )
+              }
+            >
+              <RotateCcw /> {t.listing.relist}
             </Button>
           )}
           {canRenew && (

@@ -1,9 +1,10 @@
 "use client";
 
-import { Package, PlusCircle, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, Bell, Package, PlusCircle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { ListingCard } from "@/components/listings/ListingCard";
 import { Badge } from "@/components/ui/badge";
@@ -12,13 +13,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { getMyListings, renewListing } from "@/lib/api/listings";
+import { getMyListings, renewListing, reorderListings } from "@/lib/api/listings";
 import { getMyShops } from "@/lib/api/shops";
 import { staggerContainer, staggerItem } from "@/lib/motion";
-import { cn } from "@/lib/utils";
+import { cn, mediaUrl } from "@/lib/utils";
 import type { Listing, Shop } from "@/types/api";
 
-const STATUS_FILTER_KEYS = ["all", "active", "sold", "out_of_stock", "expired"] as const;
+const STATUS_FILTER_KEYS = ["all", "active", "sold", "out_of_stock", "paused", "expired"] as const;
 
 /** Warn this many days out, so a seller has a chance to renew before the
  *  listing actually drops out of browse rather than after. */
@@ -56,6 +57,15 @@ function SellerListing({ listing, onRenewed }: { listing: Listing; onRenewed: (l
   return (
     <div className="flex flex-col gap-1.5">
       <ListingCard listing={listing} />
+      {listing.status === "out_of_stock" && (listing.restock_request_count ?? 0) > 0 && (
+        <p className="flex items-center gap-1 px-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+          <Bell className="size-3" />
+          {fmt.number(listing.restock_request_count ?? 0)}{" "}
+          {listing.restock_request_count === 1
+            ? t.dashboard.restockRequest
+            : t.dashboard.restockRequests}
+        </p>
+      )}
       {(isExpired || expiringSoon) && (
         <div className="flex flex-col gap-1 px-1">
           <p
@@ -81,28 +91,135 @@ function SellerListing({ listing, onRenewed }: { listing: Listing; onRenewed: (l
   );
 }
 
+/** One shop's inventory, reorderable. Only offered for a single shop with no
+ *  status filter applied — the API demands every one of the shop's listings
+ *  in the order, so reordering a filtered-down subset can't be expressed. */
+function ReorderableShopListings({
+  shopId,
+  listings,
+  onReordered,
+}: {
+  shopId: string;
+  listings: Listing[];
+  onReordered: (updated: Listing[]) => void;
+}) {
+  const { t } = useLanguage();
+  const [busy, setBusy] = useState(false);
+  const ordered = [...listings].sort((a, b) => a.sort_order - b.sort_order);
+
+  const move = async (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= ordered.length) return;
+    const next = [...ordered];
+    [next[index], next[target]] = [next[target], next[index]];
+
+    setBusy(true);
+    try {
+      onReordered(await reorderListings(shopId, next.map((l) => l.id)));
+    } catch {
+      toast.error(t.dashboard.reorderFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ul className="flex flex-col gap-2">
+      {ordered.map((listing, index) => {
+        const image = listing.images[0];
+        return (
+          <li
+            key={listing.id}
+            className="flex items-center gap-3 rounded-xl border border-border bg-card p-2.5"
+          >
+            <div className="flex flex-col">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6"
+                aria-label={t.listingForm.moveLeft}
+                disabled={busy || index === 0}
+                onClick={() => move(index, -1)}
+              >
+                <ArrowUp className="size-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6"
+                aria-label={t.listingForm.moveRight}
+                disabled={busy || index === ordered.length - 1}
+                onClick={() => move(index, 1)}
+              >
+                <ArrowDown className="size-3.5" />
+              </Button>
+            </div>
+
+            {image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={mediaUrl(image.image_url)}
+                alt=""
+                className="size-12 shrink-0 rounded-lg object-cover"
+              />
+            ) : (
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted">
+                <Package className="size-4 text-muted-foreground" />
+              </div>
+            )}
+
+            <div className="min-w-0 flex-1">
+              <Link
+                href={`/listings/${listing.id}`}
+                className="block truncate text-sm font-medium hover:text-emerald-600 dark:hover:text-emerald-400"
+              >
+                {listing.title}
+              </Link>
+              <div className="mt-0.5 flex items-center gap-1.5">
+                <Badge variant={listing.status === "active" ? "secondary" : "outline"} className="text-[11px]">
+                  {t.statuses[listing.status]}
+                </Badge>
+                {listing.status === "out_of_stock" && (listing.restock_request_count ?? 0) > 0 && (
+                  <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400">
+                    <Bell className="size-3" />
+                    {listing.restock_request_count}
+                  </span>
+                )}
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export default function MyListingsPage() {
   const { user } = useAuth();
   const { t, fmt } = useLanguage();
   const [personal, setPersonal] = useState<Listing[]>([]);
   const [shopListings, setShopListings] = useState<Listing[]>([]);
+  const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string>("all");
+  // "all" merges everything (the original view); "personal" and a shop id
+  // narrow to one source, which is also what unlocks manual reordering —
+  // an "all shops" order has no single owner to resolve conflicts.
+  const [shopFilter, setShopFilter] = useState<string>("all");
 
   useEffect(() => {
     if (!user) return;
 
-    // `/listings/mine` returns personal listings unless a shop_id is given,
-    // so shop inventory has to be fetched per shop and merged.
     const load = async () => {
-      const [mine, shops] = await Promise.all([
+      const [mine, myShops] = await Promise.all([
         getMyListings().catch(() => [] as Listing[]),
         getMyShops().catch(() => [] as Shop[]),
       ]);
       setPersonal(mine);
+      setShops(myShops);
 
       const perShop = await Promise.all(
-        shops.map((s) => getMyListings(s.id).catch(() => [] as Listing[]))
+        myShops.map((s) => getMyListings(s.id).catch(() => [] as Listing[]))
       );
       setShopListings(perShop.flat());
     };
@@ -111,16 +228,26 @@ export default function MyListingsPage() {
   }, [user]);
 
   const all = [...personal, ...shopListings];
-  const filtered = status === "all" ? all : all.filter((l) => l.status === status);
+  const bySource =
+    shopFilter === "all"
+      ? all
+      : shopFilter === "personal"
+        ? personal
+        : shopListings.filter((l) => l.shop?.id === shopFilter);
+  const filtered = status === "all" ? bySource : bySource.filter((l) => l.status === status);
   const totalViews = all.reduce((sum, l) => sum + l.view_count, 0);
 
-  // Renewing returns the updated listing; patch it into whichever list it
-  // came from rather than refetching every shop's inventory again.
-  const applyRenewed = (updated: Listing) => {
-    const patch = (rows: Listing[]) => rows.map((r) => (r.id === updated.id ? updated : r));
+  // Renewing (or reordering) returns the updated listing(s); patch them into
+  // whichever list they came from rather than refetching every shop's
+  // inventory again.
+  const patchListings = (updated: Listing[]) => {
+    const byId = new Map(updated.map((l) => [l.id, l]));
+    const patch = (rows: Listing[]) => rows.map((r) => byId.get(r.id) ?? r);
     setPersonal(patch);
     setShopListings(patch);
   };
+
+  const showReorder = status === "all" && shopFilter !== "all" && shopFilter !== "personal";
 
   if (loading) {
     return (
@@ -157,9 +284,28 @@ export default function MyListingsPage() {
         </Link>
       </motion.div>
 
+      {shops.length > 0 && (
+        <motion.div variants={staggerItem} className="flex flex-wrap gap-2">
+          {[
+            { key: "all", label: t.dashboard.all },
+            { key: "personal", label: t.dashboard.personal },
+            ...shops.map((s) => ({ key: s.id, label: s.shop_name })),
+          ].map(({ key, label }) => (
+            <button key={key} type="button" onClick={() => setShopFilter(key)}>
+              <Badge
+                variant={shopFilter === key ? "default" : "outline"}
+                className="cursor-pointer transition-colors"
+              >
+                {label}
+              </Badge>
+            </button>
+          ))}
+        </motion.div>
+      )}
+
       <motion.div variants={staggerItem} className="flex flex-wrap gap-2">
         {STATUS_FILTER_KEYS.map((key) => {
-          const count = key === "all" ? all.length : all.filter((l) => l.status === key).length;
+          const count = key === "all" ? bySource.length : bySource.filter((l) => l.status === key).length;
           const label = key === "all" ? t.dashboard.all : t.statuses[key];
           return (
             <button key={key} type="button" onClick={() => setStatus(key)}>
@@ -189,6 +335,15 @@ export default function MyListingsPage() {
             ) : undefined
           }
         />
+      ) : showReorder ? (
+        <motion.div variants={staggerItem} className="flex flex-col gap-3">
+          <p className="text-xs text-muted-foreground">{t.dashboard.reorderHint}</p>
+          <ReorderableShopListings
+            shopId={shopFilter}
+            listings={filtered}
+            onReordered={patchListings}
+          />
+        </motion.div>
       ) : (
         <motion.div
           variants={staggerContainer(0.03)}
@@ -196,7 +351,7 @@ export default function MyListingsPage() {
         >
           {filtered.map((l) => (
             <motion.div key={l.id} variants={staggerItem}>
-              <SellerListing listing={l} onRenewed={applyRenewed} />
+              <SellerListing listing={l} onRenewed={(updated) => patchListings([updated])} />
             </motion.div>
           ))}
         </motion.div>

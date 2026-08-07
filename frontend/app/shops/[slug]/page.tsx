@@ -60,7 +60,10 @@ export default function ShopStorefrontPage() {
     getShopBySlug(params.slug)
       .then((s) => {
         setShop(s);
-        return browseListings({ shop_id: s.id, limit: 50 });
+        // The seller's own manual order (Phase 53) rather than "newest" —
+        // this page has no sort control of its own, so there's nothing to
+        // override it with; /listings?shop_id=... still offers real sorting.
+        return browseListings({ shop_id: s.id, limit: 50, sort: "manual" });
       })
       .then((page) => setListings(page.items))
       .catch(() => setError(true));
