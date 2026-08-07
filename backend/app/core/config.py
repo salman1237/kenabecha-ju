@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "KenaBecha JU"
 
     DATABASE_URL: str = "postgresql+asyncpg://kenabecha:kenabecha@db:5432/kenabecha"
+    # Fan-out for the WebSocket connection registry across worker processes
+    # (see websocket/manager.py) — each of the `--workers 4` processes only
+    # ever holds a subset of live sockets in memory, so a chat push has to be
+    # published somewhere every process can see it.
+    REDIS_URL: str = "redis://redis:6379/0"
 
     JWT_SECRET_KEY: str = INSECURE_JWT_SECRET
     JWT_ALGORITHM: str = "HS256"

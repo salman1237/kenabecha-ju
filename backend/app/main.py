@@ -44,11 +44,15 @@ Path(settings.MEDIA_ROOT).mkdir(parents=True, exist_ok=True)
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # The heartbeat has to be started inside the running event loop, not at
-    # import time — asyncio.create_task needs a loop to attach to.
+    # import time — asyncio.create_task needs a loop to attach to. Same
+    # reason the Redis pub/sub subscriber (manager.py's fan-out across the
+    # backend's worker processes) starts here rather than at import time.
     manager.start_heartbeat()
+    await manager.start_pubsub()
     sweeper.start()
     yield
     await manager.stop_heartbeat()
+    await manager.stop_pubsub()
     await sweeper.stop()
 
 

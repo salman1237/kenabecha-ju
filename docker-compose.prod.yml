@@ -30,6 +30,20 @@ services:
       timeout: 5s
       retries: 10
 
+  # Fan-out for the WebSocket connection registry across the backend's
+  # worker processes (see backend/app/websocket/manager.py) — nothing is
+  # persisted, it's pub/sub only, so no volume.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: ./backend
@@ -37,6 +51,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-kenabecha}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-kenabecha}
+      REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       CORS_ORIGINS: ${CORS_ORIGINS}
@@ -63,6 +78,8 @@ services:
       start_period: 60s
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   frontend:

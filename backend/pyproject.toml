@@ -17,6 +17,7 @@ dependencies = [
     "python-multipart>=0.0.12",
     "google-auth>=2.35",
     "requests>=2.32",
+    "redis>=5.2",
 ]
 
 # An optional-dependency extra rather than a PEP 735 dependency-group:
