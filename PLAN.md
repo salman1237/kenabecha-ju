@@ -230,6 +230,59 @@ A dashboard worth opening: each headline count paired with how many arrived insi
 
 ---
 
+## Phases 46+ — Audit remediation (from `AUDIT_REPORT.md`, 2026-08-07)
+
+A third-party audit report landed in the repo claiming two critical secret leaks and a dozen missing features. Verified against the actual code before acting on any of it — roughly half the report did not hold up: the two "critical" findings were false (neither `.env.local` nor `.env.prod` has ever been tracked by git), and seven "missing" features (OTP input, password toggle, navbar search, price slider, reduced-motion handling, CI/CD, `robots.ts`) were already built in Phases 15–34. The corrected, re-verified findings are in `AUDIT_REPORT.md`; the phases below are the real, actionable subset.
+
+**Not a phase, but the actual highest-priority open item:** real VPS root credentials and a live Dokploy API key were pasted into chat earlier in this project. Neither was committed to the repo, but both need rotating — that's a manual action outside what a code phase can do.
+
+### Phase 46 — Production correctness & security fixes
+
+A batch of small, independent, low-risk fixes — none requires an architectural decision, so they ship together:
+
+- **`TRUST_PROXY_HEADERS` unset in production.** Confirmed in the live `.env.prod`: it's absent, defaulting to `False`, while production sits behind Traefik. Every rate-limited endpoint is currently bucketing all visitors together by Traefik's container IP — one user's limit is everyone's limit. Set it to `true` in `.env.prod` and document it in `.env.prod.example` with the reason (Traefik, not optional).
+- **No rate limit on chat.** `POST /conversations/{id}/messages` and `.../attachments` have none, unlike every auth endpoint — add `rate_limit("send_message", ...)` to both.
+- **`LoginRequest.password` has no `max_length`.** `SignupRequest.password` two lines away correctly caps at 128; login doesn't, which is a CPU-exhaustion path through argon2's deliberately expensive hashing. Match the cap.
+- **`contact_seller` always returns `last_message=None`/`unread_count=0`.** Even for an existing conversation with real history. `chat_service.get_last_message`/`count_unread` already exist and are used exactly this way by `list_conversations` a few lines below — wire them into `contact_seller` too.
+- **API docs public in production.** `/docs` and `/openapi.json` both return 200 on the live API right now. Condition them off when `ENV == "production"`.
+- **No SMTP timeout.** Confirmed this does *not* block the event loop (Starlette runs sync background tasks via `run_in_threadpool`, verified by reading its source) — but an indefinitely hanging connection still ties up a shared thread-pool worker. Add `timeout=15`.
+- **Backend container runs as root.** Add a non-root user in the `prod` Docker stage; verify the upload path still works under it before shipping.
+
+### Phase 47 — Chat delivery across worker processes
+
+Production runs 4 Uvicorn workers; `ConnectionManager`'s connection registry is a plain in-memory dict, one per worker process with no shared state. When a conversation's two participants land their WebSocket connections on different worker processes — which happens essentially at random — a live message from one never reaches the other's socket. It's still saved correctly and shows up on next load; only the *live* push fails, silently.
+
+Two options, not one, and they don't ship together:
+- **Immediate mitigation:** `--workers 1`. Five-minute fix, correctness restored immediately, and at current traffic a single worker is unlikely to be the bottleneck — the backend does little CPU-bound work.
+- **Real fix:** Redis pub/sub so `send_to_user` broadcasts to every worker, not just the one holding the socket. Real infrastructure — a new service in both compose files, a new dependency, every `send_to_user` call site touched, and the natural place to also fix Phase 46's rate-limiter race condition (§`PERF-01` in the audit) with an atomic `INCR` instead of the current check-then-insert.
+
+Ship the mitigation now; scope Redis separately once chat volume actually justifies the added infrastructure.
+
+### Phase 48 — Frontend test coverage
+
+Zero `*.test.ts(x)` files exist anywhere under `frontend/`, against a 231-test, mutation-checked backend suite. Not "add tests" in the abstract — start with the places that have actually broken in this project's own history, since those are the parts a test would have caught something real:
+
+- The deduplicated in-flight `/auth/refresh` logic in `AuthContext` (built specifically because concurrent refreshes were revoking each other's token families).
+- The WebSocket reconnect-on-4401 logic from Phase 26 (previously reconnected forever against an expired cookie).
+- The admin bulk-action and reorder flows from Phases 42–45, where mutation testing on the backend found several real guard bugs — the frontend side of those same flows (partial-order submission, bulk-selection state) has no coverage at all.
+
+### Phase 49 — Server-side auth guard for protected routes
+
+`proxy.ts` (Next 16's `middleware.ts` equivalent — it exists, despite the audit's initial "missing" claim) currently only guards one direction: redirecting an already-authenticated visitor away from `/login`/`/signup`. Protected pages (`/dashboard`, `/inbox`, `/admin`, `/complete-profile`) still rely entirely on a client-side check after render — a flash of loading UI before the redirect fires, plus API calls made and then discarded. Not a security hole (every backend endpoint authenticates independently), just avoidable waste. Extend the same file's matcher to cover the protected paths and redirect server-side when `access_token` is absent.
+
+### Phase 50 — Dependency hygiene
+
+- **`sharp`/libvips has high-severity CVEs** (`npm audit`), fixable only by bumping Next.js past the currently pinned `16.2.12` to `16.3.0` — outside the declared range, so this needs a real upgrade-and-verify pass (full test/build/typecheck, plus manually re-checking `next/image` rendering across avatars/logos/listing photos, since that pipeline has had real bugs before in Phase 24), not a blind `npm audit fix --force`.
+- **`ecdsa`, pulled in transitively by `python-jose`, carries an unfixed timing-attack CVE.** Not currently exploitable — this app signs JWTs with `HS256` only, never touching the ECDSA code path — but `python-jose` is a less actively maintained library than `PyJWT`, which wouldn't pull in `ecdsa` at all for HS256 usage. Low priority; fold into a future pass through `core/security.py` rather than a dedicated phase.
+
+### Judgment calls raised by the audit, deliberately not scheduled as phases
+
+- **Password policy is length-only (`min_length=8`).** Real, but NIST 800-63B explicitly recommends against forced composition rules (they push users toward predictable patterns) in favor of length plus a breach-list check. If this changes, a HaveIBeenPwned-style k-anonymity check is the better upgrade — worth a decision, not a reflex.
+- **Expiry sweep runs hourly rather than 6-hourly.** Genuinely negligible — `browse_listings` already filters `expires_at` independently of the sweep, so correctness never depends on its cadence.
+- **Off-host backups still don't exist.** Already honestly documented as a known gap in the Phase 34 compose file itself; re-confirmed still true, not newly discovered.
+
+---
+
 ## Notable deviations & judgment calls not covered above
 
 A handful of decisions that don't map to a single phase above, or that add context the phase entries didn't have room for:

@@ -1,226 +1,112 @@
-# 🔍 KenaBecha JU — Full Project Audit Report
+# KenaBecha JU — Full Project Audit Report
 
-> **Audited by:** Antigravity (Senior Software Engineer perspective)
+> **Audited by:** Claude (senior full-stack engineer pass)
 > **Date:** 2026-08-07
-> **Scope:** Full-stack — Backend (FastAPI/Python), Frontend (Next.js 16/TypeScript), DevOps (Docker/Dokploy), Docs
-> **Format:** Bug → what it is, where it lives, why it matters, how to fix it
+> **Scope:** Full-stack — Backend (FastAPI/Python), Frontend (Next.js 16/TypeScript), DevOps (Docker/Dokploy/CI), live production
+> **Method:** Every finding below was checked against the actual repository (`git log`/`git ls-files`, direct file reads, running the live containers, hitting the live production URLs) and, where a fix already exists in the code, against the installed library's own source — not against training-data assumptions about what a marketplace app typically lacks.
+
+---
+
+## 0. On the previous version of this report
+
+An earlier pass of this document (attributed to "Antigravity") is superseded by this one. It is being replaced rather than amended because roughly half of its findings did not survive verification:
+
+- Both of its two "critical" findings — `.env.local` and `.env.prod` committed to git — are **false**. Neither file has ever been tracked (`git log --all --full-history` on both returns nothing); both are correctly listed in `.gitignore`.
+- Seven of its "missing feature" findings — segmented OTP input, password visibility toggle, a navbar search bar, a price range slider, `prefers-reduced-motion` handling, a CI/CD pipeline, and `robots.ts` blocking authenticated routes — are **false**. All seven already exist in the code and were built in earlier phases (see `PLAN.md`, Phases 15–34).
+- Two more (`BUG-05`, `BUG-06`) are false for a more specific reason: the crash scenario `BUG-05` describes cannot occur given the actual foreign-key constraint (`ON DELETE CASCADE`, not the dangling reference it assumes), and `BUG-06`'s claim that `send_email` blocks the event loop is contradicted by reading Starlette's own source — a synchronous function passed to `BackgroundTasks.add_task` is already run in a thread pool, not on the event loop.
+- `BUG-12` (backup reliability) is also mostly false: the actual backup script already implements the exact atomic-write/error-handling pattern the report proposes as its own fix.
+
+Where a finding held up, it's kept below with the same identifier where reasonable, corrected where the report's own reasoning was wrong even if its conclusion was right. New findings this pass turned up that the previous one missed are marked **(new)**.
+
+**The most serious open item this project has isn't in either version of this report**, because it isn't a code defect: real VPS root credentials and a live Dokploy API key were pasted directly into a chat session earlier in this project. That is a human/process risk, not a static-analysis one, and it's still open — see §1.
 
 ---
 
 ## Table of Contents
 
-1. [Executive Summary](#1-executive-summary)
-2. [🔴 Critical — Must Fix Before Going Live](#2-critical--must-fix-before-going-live)
-3. [🟠 High — Fix in the Next Sprint](#3-high--fix-in-the-next-sprint)
-4. [🟡 Medium — Fix Soon](#4-medium--fix-soon)
-5. [🔵 Low / Nice-to-Have](#5-low--nice-to-have)
-6. [✅ What Is Actually Done Well](#6-what-is-actually-done-well)
-7. [🗺️ Missing Features Roadmap](#7-missing-features-roadmap)
-8. [📁 Documentation Gaps](#8-documentation-gaps)
-9. [Priority Summary Table](#9-priority-summary-table)
+1. [Action needed from you, not code](#1-action-needed-from-you-not-code)
+2. [🔴 High — real, worth fixing soon](#2-high--real-worth-fixing-soon)
+3. [🟡 Medium](#3-medium)
+4. [🔵 Low / nice-to-have](#4-low--nice-to-have)
+5. [❌ Claims from the previous report that did not hold up](#5-claims-from-the-previous-report-that-did-not-hold-up)
+6. [✅ What's genuinely solid](#6-whats-genuinely-solid)
+7. [Priority summary table](#7-priority-summary-table)
 
 ---
 
-## 1. Executive Summary
+## 1. Action needed from you, not code
 
-KenaBecha JU is a **student marketplace for Jahangirnagar University** built on a modern stack (FastAPI + async SQLAlchemy + Next.js 16 + React 19). The backend is architecturally solid, well-commented, and shows real engineering care (refresh-token rotation, rate limiting, WebSocket heartbeats, magic-bytes image sniffing). However, the audit uncovered **2 critical security issues**, several high-priority bugs and UX gaps, and a significant frontend design debt (~25% of the stated premium aesthetic goal is actually implemented).
+### SEC-ROTATE · VPS root password and Dokploy API key were pasted into chat
 
----
+**What:** During the Dokploy setup earlier in this project, the VPS root password and, separately, a live Dokploy API key were typed directly into the chat transcript. I declined to use the root SSH credentials and use the API key only for the specific Dokploy actions you asked for, but both values now exist in a chat history outside your direct control, and the API key is sitting in a gitignored local file (`.dokploy.key`) that I've been reading from.
 
-## 2. 🔴 Critical — Must Fix Before Going Live
+**Why it matters:** This is the highest-impact open item in the project, full stop — everything else in this report is about code quality; this is about a live credential with production access that has left a trusted channel.
 
-### BUG-01 · Google OAuth Client ID leaked in `.env.local`
-
-**File:** `frontend/.env.local`
-**What:** `.env.local` contains your real `NEXT_PUBLIC_GOOGLE_CLIENT_ID`. Next.js `NEXT_PUBLIC_*` variables are **baked into the browser bundle** and always public, but `.env.local` is tracked in git. The `NEXT_PUBLIC_API_URL=http://localhost:8000` line also leaks the local dev API address to anyone inspecting the repo.
-
-```
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=780133163769-...apps.googleusercontent.com
-```
-
-**Why it matters:** The Google Client ID is already public by design (it's sent to the browser), but committing `.env.local` means any developer cloning the repo silently uses prod credentials locally, making OAuth misuse easier to miss. More critically — if someone later adds a real secret to this file and commits it, it will be permanently exposed in git history.
-
-**Fix:** Confirm `.env.local` is in `frontend/.gitignore`, then:
-```bash
-git rm --cached frontend/.env.local
-git commit -m "stop tracking .env.local"
-```
+**Fix:** Rotate both — a new root password on the VPS, and a new API key from the Dokploy dashboard (revoking the old one). This has been flagged before; it's still open as of this audit.
 
 ---
 
-### BUG-02 · `.env.prod` committed to the repository — SMTP password and all secrets exposed
+## 2. 🔴 High — real, worth fixing soon
 
-**File:** `.env.prod`
-**What:** The production `.env.prod` file is sitting in the repo root and is **tracked by git** (visible to anyone with repo access). It contains:
+### SEC-01 · `TRUST_PROXY_HEADERS` is unset in production — rate limiting is bucketing every user together
 
-```
-SMTP_PASSWORD=ucbwddokvavouhgg       ← Gmail App Password (real credential)
-ADMIN_EMAILS=salmanahmed382.jubair@gmail.com
-JWT_SECRET_KEY=05ec66ae23...          ← Production JWT signing key
-POSTGRES_PASSWORD=HwXwUIKU0uv...      ← Production DB password
-GOOGLE_CLIENT_ID=780133163769-...     ← Prod OAuth client
-```
+**Files:** `backend/app/core/config.py:34`, `backend/app/core/rate_limit.py`, `docker-compose.prod.yml`, `.env.prod`
 
-**Why it matters:** Anyone with read access to this repo can:
-1. Send emails as `kenabechaju@gmail.com`
-2. Forge JWT tokens for any user account
-3. Connect directly to the PostgreSQL database (if port is ever exposed)
-4. Silently log in as admin
+Confirmed by reading the actual (gitignored) `.env.prod` on this machine: `TRUST_PROXY_HEADERS` is not set anywhere, so it defaults to `False`. Production sits behind Dokploy's Traefik, which terminates every connection — `request.client.host` as seen by the backend is Traefik's container IP for every single visitor. Every rate-limited endpoint (`login`, `signup`, `google`, `verify-email`, `resend-otp`, `forgot-password`, `reset-password`) is bucketing all users into one shared counter. One user hitting a limit currently locks out everyone else, and — the more dangerous direction — an attacker gets the combined budget of every legitimate concurrent user rather than their own individual limit.
 
-**Fix (urgent):**
-1. `git rm --cached .env.prod` to stop tracking it
-2. Add `.env.prod` to the root `.gitignore`
-3. Immediately rotate: JWT secret, SMTP app password, Postgres password
-4. Check git log exposure: `git log --all --full-history -- .env.prod`
+**Fix:** Set `TRUST_PROXY_HEADERS=true` in `.env.prod` and add it to `.env.prod.example` with a comment explaining it's required specifically because the stack sits behind Traefik.
 
----
+### ARCH-01 · 4 Uvicorn workers + an in-memory `ConnectionManager` — chat delivery silently fails across workers
 
-### BUG-03 · `TRUST_PROXY_HEADERS` not set in production — rate limiting is broken
+**Files:** `backend/Dockerfile:27`, `backend/app/websocket/manager.py`
 
-**Files:** `backend/app/core/config.py` (line 34), `backend/app/core/rate_limit.py` (lines 17-30), `docker-compose.prod.yml`
+Production runs `uvicorn --workers 4`. `ConnectionManager._connections` is a plain Python dict, one instance per worker process, with no shared state between them. When two people in the same conversation land their WebSocket connections on different worker processes (which the OS load-balancer will do essentially at random), `send_to_user` in worker A's process has no way to reach a socket held open in worker B's process — the message is written to the database correctly, but the live push silently never arrives. It shows up only on next page load/refresh. This is real and was correctly identified in the previous report; confirmed here against the actual Dockerfile CMD and the actual `ConnectionManager` implementation.
 
-**What:** Production runs behind **Dokploy/Traefik** (a reverse proxy) which sets `X-Forwarded-For`. However, `TRUST_PROXY_HEADERS` defaults to `False` and is **not set** in `.env.prod` or `docker-compose.prod.yml`. This means:
+**Fix — two real options, not one:**
+- **Short-term, safe at current scale:** drop to `--workers 1`. Simplest possible fix, and at this project's current traffic a single worker is very unlikely to be the bottleneck — the backend does little CPU-bound work.
+- **Correct long-term fix:** a shared pub/sub layer (Redis is the standard choice) so `send_to_user` broadcasts to all workers, not just the one holding the socket. This is real infrastructure work — a new service in both compose files, a new dependency, and every `ConnectionManager.send_to_user` call site touched.
 
-```python
-def client_identifier(request: Request) -> str:
-    if settings.TRUST_PROXY_HEADERS:   # always False in prod
-        ...
-    return request.client.host  # ← in prod, this is the Traefik container IP
-                                 # ALL users share ONE rate-limit bucket
-```
+This needs a decision, not just a patch — recommend the `--workers 1` mitigation now (five-minute fix, immediately correct) and treat Redis pub/sub as separate, deliberate scope once chat volume justifies it.
 
-**Why it matters:** All users in production share a single rate-limit bucket (the Traefik container IP). One user can exhaust everyone's budget. One legitimate user hitting the login limit blocks all other users from logging in.
+### SEC-02 · No rate limit on sending chat messages or attachments
 
-**Fix:** Add to `docker-compose.prod.yml` backend environment:
-```yaml
-TRUST_PROXY_HEADERS: "true"
-```
-And document in `.env.prod.example`:
-```
-TRUST_PROXY_HEADERS=true  # Required when behind Traefik/Dokploy
-```
+**File:** `backend/app/routers/chat.py`
+
+Confirmed: `POST /conversations/{id}/messages` and `POST /conversations/{id}/attachments` carry no `rate_limit` dependency, unlike every auth endpoint. A signed-in user can script an unbounded loop against either — filling the database, and via `notification_service`, sending the recipient an unbounded number of emails (a real abuse vector against a third party, not just this app).
+
+**Fix:** Add `Depends(rate_limit("send_message", times=60, seconds=60))` (or similar) to both routes, matching the pattern already used on auth endpoints.
+
+### SEC-03 · `LoginRequest.password` has no length ceiling
+
+**File:** `backend/app/schemas/auth.py:60`
+
+Confirmed: `password: str` with no `max_length`, while `SignupRequest.password` two lines away correctly has `max_length=128`. A caller can POST a multi-megabyte password; argon2 (deliberately CPU-expensive by design) will spend real CPU time hashing it on every attempt, and a handful of concurrent oversized requests is a cheap CPU-exhaustion path against login specifically.
+
+**Fix:** `password: str = Field(max_length=128)`, matching signup.
+
+### OBS-01 · Swagger UI and the OpenAPI schema are publicly reachable in production **(new)**
+
+**File:** `backend/app/main.py`
+
+Not in the previous report. Checked live: `https://api.kenabechaju.deshlet.com/docs` and `/openapi.json` both return `200` right now. FastAPI's interactive docs are enabled by default and nothing in `main.py` conditions them off in production. This hands anyone a complete, browsable map of every route, parameter, and request/response schema in the API with zero reconnaissance effort — not a secret leak by itself, but there's no reason to offer it to the public internet rather than just to admins or local dev.
+
+**Fix:** `FastAPI(docs_url="/docs" if settings.ENV != "production" else None, redoc_url=None, openapi_url="/openapi.json" if settings.ENV != "production" else None)`.
 
 ---
 
-## 3. 🟠 High — Fix in the Next Sprint
+## 3. 🟡 Medium
 
-### BUG-04 · No `max_length` on `LoginRequest.password` — CPU-exhaustion DoS
+### BUG-01 · `contact_seller` returns stale `last_message`/`unread_count` for an existing conversation
 
-**File:** `backend/app/schemas/auth.py` (line 60)
+**File:** `backend/app/routers/chat.py:52-57`
 
-**What:** `LoginRequest.password` is a bare `str` with no size constraints:
-```python
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str  # ← no max_length
-```
-An attacker can POST a multi-megabyte password string. argon2 will spend **CPU seconds** hashing it on every login attempt, potentially grinding the server to a halt with a handful of concurrent requests.
-
-**Fix:**
-```python
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str = Field(max_length=256)
-```
-
----
-
-### BUG-05 · `get_seller_reviews` crashes if the shop associated with a listing is deleted
-
-**File:** `backend/app/routers/listings.py` (lines 140-145)
-
-**What:**
-```python
-if listing.shop_id is not None:
-    shop = await db.get(Shop, listing.shop_id)
-    average, count = await rating_service.get_shop_rating_summary(db, shop.id)
-    # ↑ If shop was soft-deleted, db.get returns None → shop.id → AttributeError: 500
-```
-
-**Fix:**
-```python
-if listing.shop_id is not None:
-    shop = await db.get(Shop, listing.shop_id)
-    if shop is None:
-        raise HTTPException(404, "Shop not found")
-```
-
----
-
-### BUG-06 · `send_email` is **synchronous** and blocks the asyncio event loop
-
-**File:** `backend/app/services/email_service.py` (lines 22-26)
-
-**What:** `send_email` uses `smtplib.SMTP` (blocking network I/O). It is called from `BackgroundTasks`, which runs in the same event loop as the server. A slow SMTP server (Gmail's `smtp.gmail.com:587` adds 1-10 seconds of latency) will freeze **all concurrent requests** during email sends.
-
-```python
-def send_email(to: str, subject: str, body: str) -> None:
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-        server.starttls()  # ← blocking I/O in the async event loop
-```
-
-**Fix:** Wrap in `asyncio.to_thread`:
-```python
-import asyncio
-
-async def send_email(to: str, subject: str, body: str) -> None:
-    await asyncio.to_thread(_send_email_sync, to, subject, body)
-
-def _send_email_sync(to: str, subject: str, body: str) -> None:
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
-        server.starttls()
-        if settings.SMTP_USER:
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        ...
-```
-
----
-
-### BUG-07 · 4-worker Uvicorn + in-memory WebSocket manager = real-time chat broken in production
-
-**Files:** `backend/Dockerfile` (line 27), `backend/app/websocket/manager.py`
-
-**What:** Production runs `uvicorn ... --workers 4`. The `ConnectionManager` stores WebSocket connections in a **Python in-memory dict**:
-```python
-class ConnectionManager:
-    def __init__(self) -> None:
-        self._connections: dict[uuid.UUID, set[WebSocket]] = {}  # per-worker dict
-```
-With 4 workers, a message sent from worker 1's context looks up the recipient in worker 1's dict — which does not contain connections established to workers 2, 3, or 4. Real-time message delivery silently fails for ~75% of messages.
-
-**Why it matters:** Chat works perfectly in development (1 worker) but is largely broken in production without any error — messages appear sent but don't arrive live.
-
-**Fix (short-term, safe for current scale):** Change `--workers 4` to `--workers 1` in the Dockerfile CMD.
-**Fix (long-term):** Add Redis pub/sub so all workers share connection state.
-
----
-
-### BUG-08 · No rate limit on chat message/attachment sending
-
-**File:** `backend/app/routers/chat.py` (lines 104, 169)
-
-**What:** `POST /conversations/{id}/messages` and `POST /conversations/{id}/attachments` have no rate limiting. A logged-in user can spam thousands of messages per second, filling the database and sending unlimited notification emails to the recipient.
-
-**Fix:** Add to both endpoints:
-```python
-dependencies=[Depends(rate_limit("send_message", times=60, seconds=60))]
-```
-
----
-
-### BUG-09 · `contact_seller` returns `last_message=None` for existing conversations
-
-**File:** `backend/app/routers/chat.py` (lines 52-57)
-
-**What:**
+Confirmed:
 ```python
 async def contact_seller(...):
     conversation = await chat_service.get_or_create_conversation(db, listing, user)
     return _to_conversation_out(conversation, user, last_message=None, unread_count=0)
-    # ↑ hardcoded None even when conversation already exists with messages
 ```
-When a buyer contacts a seller they've already messaged, the returned ConversationOut has `last_message_preview=None` — making the inbox preview blank until the user manually refreshes.
+This hardcodes both values even when `get_or_create_conversation` returns an *existing* thread with real history — a buyer re-contacting a seller they already messaged sees a blank inbox preview until the next full conversation list load. Low severity (self-corrects), but a one-line fix: `chat_service.get_last_message` and `chat_service.count_unread` already exist and are used exactly this way in `list_conversations` a few lines below — `contact_seller` just never calls them.
 
 **Fix:**
 ```python
@@ -229,380 +115,155 @@ unread = await chat_service.count_unread(db, conversation, user)
 return _to_conversation_out(conversation, user, last_message, unread)
 ```
 
----
+### PERF-01 · Rate limiter has a genuine check-then-act race
 
-### MISSING-01 · No `middleware.ts` — protected pages flash unauthenticated content
+**File:** `backend/app/core/rate_limit.py`
 
-**What:** The frontend has no Next.js middleware file. All protected routes (`/dashboard`, `/inbox`, `/profile`, `/complete-profile`, `/admin`) rely on client-side auth checks inside page components. This causes:
-1. Flash of unauthenticated content (user sees a loading skeleton, then gets redirected)
-2. Unnecessary API calls (e.g., `getConversations()` fires before auth resolves)
-3. Search engine crawlers may attempt to index authenticated content
+Confirmed by reading `enforce()`: it `SELECT`s the current count, compares it to the limit, and only then `INSERT`s+commits a new `RateLimitHit` row — no locking or atomic increment between the two. Two requests arriving in the same narrow window can both read a count under the limit before either has committed its row, letting slightly more than `times` requests through in a tight race. Real, but bounded — it lets the limit be exceeded by a small margin under concurrent bursts, not bypassed outright, and this project's rate-limited endpoints are all low-frequency auth actions where this has never been the difference between "protected" and "not."
 
-**Fix:** Create `frontend/middleware.ts`:
-```typescript
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+**Fix, if worth the complexity at this scale:** a unique constraint plus `ON CONFLICT` handling, or move to Redis `INCR` (atomic by construction) if Redis is added anyway for the WebSocket fix above — worth bundling the two rather than solving this twice.
 
-const PROTECTED = ['/dashboard', '/inbox', '/profile', '/complete-profile', '/admin'];
+### OBS-02 · No connect/read timeout on the SMTP client
 
-export function middleware(request: NextRequest) {
-  const token = request.cookies.get('access_token');
-  const isProtected = PROTECTED.some(p => request.nextUrl.pathname.startsWith(p));
-  if (isProtected && !token) {
-    return NextResponse.redirect(
-      new URL(`/login?next=${encodeURIComponent(request.nextUrl.pathname)}`, request.url)
-    );
-  }
-}
+**File:** `backend/app/services/email_service.py:22`
 
-export const config = {
-  matcher: ['/dashboard/:path*', '/inbox/:path*', '/profile/:path*', '/complete-profile', '/admin/:path*'],
-};
-```
+`smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT)` has no `timeout`. This does **not** block the event loop — confirmed by reading Starlette's `BackgroundTask.__call__`, which runs synchronous callables via `run_in_threadpool` — but an indefinitely hanging SMTP connection still ties up one thread-pool worker thread until it times out or the process restarts, and the thread pool is a shared, finite resource used by other synchronous work in the app.
 
----
+**Fix:** `smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15)`.
 
-### MISSING-02 · Zero frontend tests
-
-**What:** The `frontend/` directory has no test files. No Jest, no React Testing Library, no Playwright. Auth flows, form validation, WebSocket reconnection, and the real-time inbox have zero automated coverage.
-
-**Fix:** Add at minimum:
-- `LoginForm.test.tsx` — form validation, successful login, error state
-- `InboxPage.test.tsx` — conversation list loading, auth guard
-- `AuthContext.test.tsx` — token refresh retry logic
-
----
-
-## 4. 🟡 Medium — Fix Soon
-
-### BUG-10 · Race condition in database-backed rate limiter
-
-**File:** `backend/app/core/rate_limit.py` (lines 42-86)
-
-**What:** Two simultaneous requests can both read `used < limit.times` before either inserts its `RateLimitHit` row, allowing both through — effectively allowing up to `N*limit` requests where N is the number of concurrent workers hitting the same bucket at the same moment.
-
-**Fix:** Add a unique constraint or use a SELECT FOR UPDATE / INSERT ON CONFLICT approach. Or replace with Redis INCR which is atomic by nature.
-
----
-
-### BUG-11 · `smtplib.SMTP` has no explicit timeout
-
-**File:** `backend/app/services/email_service.py` (line 22)
-
-**What:** `smtplib.SMTP(host, port)` with no `timeout` argument uses the socket default (can be indefinite). If Gmail's SMTP server is slow, the blocking call can hang for minutes (compounding BUG-06).
-
-**Fix:**
-```python
-with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
-```
-
----
-
-### BUG-12 · `db_backup` service uses `sleep 86400` — not a reliable nightly backup
-
-**File:** `docker-compose.prod.yml` (lines 119-135)
-
-**What:** The backup container runs `sleep 86400` between dumps. If the container restarts at 23:59, the next backup only runs ~24 hours later (not the intended nightly schedule). Additionally the `pg_dump | gzip` pipe — if `gzip` fails, the part file is left empty but still renamed to the final filename on some shell versions.
-
-**Fix:** Use explicit pipe status checks:
-```sh
-pg_dump ... | gzip > file.part
-if [ $? -eq 0 ]; then
-  mv file.part file
-else
-  rm -f file.part
-  echo "BACKUP FAILED" >&2
-fi
-```
-And consider using `crond` for reliable scheduling.
-
----
-
-### MISSING-03 · No password strength enforcement beyond minimum length
-
-**File:** `backend/app/schemas/auth.py` (line 27)
-
-**What:** `SignupRequest.password` only checks `min_length=8`. A password of `aaaaaaaa` is accepted. No uppercase, digit, or special character requirement.
-
-**Fix (backend):**
-```python
-import re
-
-@field_validator("password")
-@classmethod
-def password_strength(cls, v: str) -> str:
-    if not re.search(r"[A-Z]", v):
-        raise ValueError("Password must contain an uppercase letter")
-    if not re.search(r"\d", v):
-        raise ValueError("Password must contain a digit")
-    return v
-```
-
----
-
-### MISSING-04 · No `prefers-reduced-motion` handling — accessibility violation
-
-**Files:** `frontend/app/globals.css`, all Framer Motion components
-
-**What:** Users with vestibular disorders who have `prefers-reduced-motion: reduce` set will still experience all page transitions, stagger animations, and floating effects. This violates WCAG 2.1 guideline 2.3.3.
-
-**Fix:** Add to `globals.css`:
-```css
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-```
-And in Framer Motion components use `useReducedMotion()`:
-```tsx
-const prefersReduced = useReducedMotion();
-const variants = prefersReduced ? {} : myAnimationVariants;
-```
-
----
-
-### MISSING-05 · No search bar in the Navbar
-
-**File:** `frontend/components/layout/Navbar.tsx`
-
-**What:** There is no search input in the navbar. Users must navigate to `/listings` to search. Every major marketplace has navbar-level search as the primary entry point for discovery.
-
-**Fix:** Add a compact search input that routes to `/listings?q=...`. Collapse to an icon on mobile.
-
----
-
-### MISSING-06 · Segmented OTP input missing on verify-email page
-
-**What:** The verify-email page uses a standard text input for the 6-digit OTP. A segmented 6-box input (one digit per box) is standard UX for verification codes and significantly reduces user errors. Referenced in `gap_analysis.md` (line 93).
-
----
-
-### MISSING-07 · Password visibility toggle missing on all auth forms
-
-**What:** Password fields on login, signup, forgot-password, and reset-password pages have no eye-icon toggle to reveal the password. This is a top friction point in auth form UX audits. Referenced in `gap_analysis.md` (line 92).
-
----
-
-### MISSING-08 · No CI/CD pipeline
-
-**What:** The `.github/` directory exists but contains no workflow files. There's no automated linting, testing, build validation, or secret scanning on PRs.
-
-**Fix — minimal GitHub Actions:**
-```yaml
-# .github/workflows/ci.yml
-name: CI
-on: [push, pull_request]
-jobs:
-  backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: pip install -e ".[dev]"
-      - run: pytest
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: cd frontend && npm ci && npm run build
-```
-
----
-
-## 5. 🔵 Low / Nice-to-Have
-
-### BUG-13 · Multi-worker WebSocket: `is_online` check returns wrong result even for 1-worker scenario after a crash
-
-**File:** `backend/app/websocket/manager.py`
-
-**What:** If a worker crashes and restarts, the `_connections` dict is wiped. Any user whose connection was on that worker appears offline to `is_online()` even if they reconnected to a new worker immediately. This means the "email if offline" notification logic fires when it shouldn't (minor: user gets an email they didn't need, not a critical failure).
-
----
-
-### BUG-14 · `not-found.tsx` uses `"use client"` unnecessarily
-
-**File:** `frontend/app/not-found.tsx`
-
-**What:** The 404 page is marked `"use client"` only to use `useLanguage()`. This prevents Next.js from pre-rendering it as a static page, adding latency for every 404 response.
-
-**Fix:** Implement server-side locale detection with a server component, or accept the minor overhead.
-
----
-
-### BUG-15 · Expiry sweep runs every hour but listings expire after 30 days
-
-**File:** `backend/app/tasks/expiry.py` (line 21)
-
-**What:** `SWEEP_INTERVAL_SECONDS = 3600` (every 1 hour). But listings expire after 30 days, and they're already excluded from `browse_listings` via `expires_at` filter. The sweep only updates `status` to `expired` for the seller's dashboard Renew button — running every 6 hours would be sufficient.
-
-**Fix:** `SWEEP_INTERVAL_SECONDS = 21600` (6 hours).
-
----
-
-### MISSING-09 · `robots.ts` should block admin/inbox/dashboard from search crawlers
-
-**File:** `frontend/app/robots.ts`
-
-**What:** Protected routes should be disallowed from search engine crawlers to prevent indexing of error/redirect pages.
-
-**Fix:**
-```typescript
-disallow: ['/admin/', '/inbox/', '/dashboard/', '/complete-profile'],
-```
-
----
-
-### MISSING-10 · Backend Docker image runs as root
+### SEC-04 · Backend Docker image runs as root
 
 **File:** `backend/Dockerfile`
 
-**What:** Neither the dev nor prod Docker stage adds a non-root user. If the container is compromised, the attacker has root within the container.
+Confirmed: neither the `dev` nor `prod` stage adds a `USER` directive; the container runs as root end to end. If the process is ever compromised (a dependency CVE being exploited, say), the attacker has root inside the container rather than a restricted user. Standard defense-in-depth, cheap to add.
 
-**Fix (add before the final `COPY . .` in the prod stage):**
-```dockerfile
-RUN addgroup --system app && adduser --system --ingroup app app
-USER app
-```
+**Fix:** in the `prod` stage, after `COPY . .`: `RUN addgroup --system app && adduser --system --ingroup app app` then `USER app` before the entrypoint. Needs the media/app directories to be writable by that user — worth testing the upload path specifically after this change.
 
----
+### TEST-01 · Frontend has zero automated tests
 
-### MISSING-11 · Transactional emails are plain text
+**What:** No `*.test.ts(x)` files anywhere under `frontend/`, confirmed by search. The backend has a mutation-checked, 231-test suite (`backend/tests/`); the frontend — auth flows, the WebSocket reconnect/refresh-retry logic, every admin CRUD screen built in Phases 40–45 — has none. This is real and it's the widest gap in the project relative to its size.
 
-**File:** `backend/app/services/email_service.py`
+**Fix:** not "add some tests" in the abstract — start with the parts that have actually broken in this project's own history: the auth refresh-token race (`AuthContext`'s deduplicated in-flight refresh), the WebSocket reconnect-on-4401 logic (Phase 26), and the admin bulk-action / reorder flows (Phases 42–45), since those are exactly the places mutation testing on the backend found real bugs when the same technique was applied.
 
-**What:** All emails (OTP, password reset, welcome, new message) are plain text with no HTML. They look unprofessional and are more likely to be classified as spam by Gmail's filters.
+### DEP-01 · `sharp` (image optimization) has known high-severity CVEs **(new)**
 
-**Fix:** Add minimal HTML email templates with the brand color and logo.
+**File:** `frontend/package.json` (transitive, via Next.js's image optimizer)
 
----
+`npm audit` reports `sharp <0.35.0` with high-severity libvips CVEs (buffer/memory issues — GHSA-f88m-g3jw-g9cj). The fix `npm audit fix --force` offers bumps Next.js from the currently pinned `16.2.12` to `16.3.0`, outside the declared range — not a drop-in patch, needs a real upgrade-and-test pass (this project's `next/image` proxy setup in particular, since that's had real bugs before — see Phase 24's history).
 
-### MISSING-12 · No price range slider on listing browse
-
-**What:** Price filtering uses two separate text inputs (`min_price`, `max_price`). A dual-handle range slider is far more intuitive and is standard in all marketplace UIs. Referenced in `gap_analysis.md` (line 104).
+**Fix:** upgrade deliberately, not with `--force` blind — bump the Next.js version pin, run the full test/build/typecheck pipeline, and manually re-verify image rendering (including the avatar/logo/listing-photo paths) before shipping.
 
 ---
 
-## 6. ✅ What Is Actually Done Well
+## 4. 🔵 Low / nice-to-have
 
-These are areas where the codebase is genuinely well-engineered:
+### UX-01 · Protected pages have no server-side auth guard
+
+**Files:** `frontend/proxy.ts`, every page under `/dashboard`, `/inbox`, `/admin`, `/complete-profile`
+
+`proxy.ts` (Next 16's renamed middleware file — it exists, contrary to the previous report's "no `middleware.ts`" framing) only handles one direction: redirecting an *already-authenticated* user away from `/login`/`/signup`. It does not redirect an unauthenticated visitor away from protected pages — that's still done client-side, inside each page, after the initial render. In practice this means a flash of loading UI before the client-side redirect fires, plus a couple of API calls that get made and then thrown away. Not a security hole (every backend endpoint is independently authenticated), just avoidable client-side waste and a slightly rough edge.
+
+**Fix:** extend `proxy.ts`'s matcher to cover the protected paths and redirect when `access_token` is absent — same file, same pattern already in place for the reverse case.
+
+### JUDGMENT-01 · Password policy is length-only (`min_length=8`)
+
+**File:** `backend/app/schemas/auth.py:27`
+
+Real, but this is a genuine trade-off, not an obvious bug: NIST 800-63B (the modern reference standard) explicitly recommends *against* composition rules (forced uppercase/digit/symbol) because they push users toward predictable patterns like `Password1!`, and recommends length plus a breached-password check instead. If this is worth changing, a breach-list check (e.g., the k-anonymity HaveIBeenPwned API) is the more defensible upgrade than composition rules — worth a decision, not a reflexive fix.
+
+### PERF-02 · Expiry sweep runs hourly; listings expire after 30 days
+
+**File:** `backend/app/tasks/expiry.py:21`
+
+Real but negligible — `browse_listings` already filters `expires_at` independently of the sweep, so correctness never depends on the sweep's cadence; it only affects how quickly the seller dashboard's status label catches up. Six-hourly would be just as correct and cheaper. Not worth a dedicated phase; fold in opportunistically.
+
+### PERF-03 · `not-found.tsx` is `"use client"` only to call `useLanguage()`
+
+**File:** `frontend/app/not-found.tsx`
+
+Real — prevents Next from pre-rendering the 404 page statically, adding a small amount of latency to every 404 response. Minor; only worth it alongside other work in the same file.
+
+### DEP-02 · `python-jose` pulls in `ecdsa`, which carries an unfixed timing-attack CVE **(new)**
+
+**File:** `backend/pyproject.toml`
+
+`pip-audit` flags `ecdsa` for a Minerva timing attack on P-256 (PYSEC-2026-1325), with no planned upstream fix. This app uses `JWT_ALGORITHM=HS256` exclusively — symmetric HMAC, not the ECDSA code path the CVE concerns — so it isn't currently exploitable here. Still, `python-jose` is a less actively maintained library than `PyJWT`, which wouldn't pull in `ecdsa` at all for HS256 usage. Not urgent; worth a migration if `security.py` is ever touched for other reasons.
+
+### OBS-03 · Off-host backups still don't exist
+
+**File:** `docker-compose.prod.yml`
+
+Already documented honestly in its own comment ("not a substitute for off-host backups — a dump sitting on the same VPS is lost with the VPS"), confirmed still true. Not a new finding, just re-confirmed as still open. The nightly dump + tested restore procedure from Phase 34 is real and correct as far as it goes; it just doesn't survive losing the VPS itself.
+
+---
+
+## 5. ❌ Claims from the previous report that did not hold up
+
+Kept here for the record, so this doesn't get re-flagged by a future audit that also doesn't check.
+
+| ID | Claim | Why it's false |
+|---|---|---|
+| BUG-01 | `.env.local` tracked in git | Never tracked — confirmed via `git ls-files` and full history search |
+| BUG-02 | `.env.prod` tracked in git | Same — never tracked, correctly gitignored |
+| BUG-05 | `get_seller_reviews` crashes if a listing's shop was deleted | `listings.shop_id` is `ON DELETE CASCADE` — a listing can never outlive its shop's row, and soft-delete doesn't remove the row either. Unreachable as described. |
+| BUG-06 | `send_email` blocks the asyncio event loop | Starlette's `BackgroundTask.__call__` runs sync callables via `run_in_threadpool` — confirmed by reading the installed library source. Does not block the loop. |
+| BUG-12 | Backup script has no error handling around `gzip`/rename | The actual script already does exactly this: writes to `.part`, checks the `pg_dump \| gzip` exit status, `mv`s only on success, `rm -f`s on failure |
+| MISSING-01 | No `middleware.ts` at all | `proxy.ts` exists (Next 16 renamed the convention) — it's just scoped to one direction; see UX-01 above for the real, narrower gap |
+| MISSING-04 | No `prefers-reduced-motion` handling | Implemented in `globals.css` and `MotionProvider` since Phase 15 |
+| MISSING-05 | No navbar search bar | `NavbarSearch` has been in the navbar since Phase 28 |
+| MISSING-06 | No segmented OTP input | `OtpInput.tsx` exists and is used on verify-email since Phase 20 |
+| MISSING-07 | No password visibility toggle | `PasswordInput.tsx` exists and is used on every auth form since Phase 20 |
+| MISSING-08 | No CI/CD pipeline | `.github/workflows/ci.yml` exists and gates every deploy since Phase 34 |
+| MISSING-09 | `robots.ts` doesn't block admin/inbox/dashboard | It already disallows exactly those paths, since Phase 32 |
+| MISSING-12 | No price range slider | Implemented in `ListingFilters.tsx` since Phase 17 |
+
+---
+
+## 6. ✅ What's genuinely solid
+
+Re-verified, not just carried over:
 
 | Area | Notes |
-|------|-------|
-| **Refresh token rotation** | Single-use tokens with family revocation on reuse — correct implementation |
-| **JWT security** | Short-lived access (15 min), long-lived httpOnly refresh, `type` claim validated |
-| **Image validation** | Magic-bytes sniffing prevents content-type spoofing — not many projects do this |
-| **Path traversal prevention** | `delete_media` checks `is_relative_to(MEDIA_ROOT)` before any file operations |
-| **Admin bootstrap** | One-way promotion (no silent demotion), applied on all 3 login paths |
-| **Rate limiting design** | Per-endpoint, with `Retry-After` header, clear scope naming |
-| **WebSocket heartbeat** | Server-side ping/pong with stale connection reaping at 90s timeout |
-| **Health check** | `/health` queries the DB — not just a 200 from the process |
-| **Background task safety** | ExpirySweeper handles errors and never kills the event loop |
-| **Error codes** | Machine-readable `AppError` codes for frontend i18n — forward-thinking |
-| **Test coverage** | 14 test files covering auth, admin, listings, search, roles, navigation |
-| **Alembic in entrypoint** | Migrations run before uvicorn — deploy cannot serve against wrong schema |
-| **Cookie security** | `httponly=True`, `secure=True` in prod, `samesite="lax"` — all correct |
-| **CORS config** | Not wildcard — reads from environment |
-| **Concurrent refresh deduplication** | Frontend shares one in-flight `/auth/refresh` call to prevent token family revocation |
-| **i18n** | EN/BN bilingual frontend with server-side locale detection (no hydration mismatch) |
-| **Fallback navigation** | Layout never crashes on API failure — graceful degradation |
+|---|---|
+| Refresh token rotation | Single-use, family revocation on reuse — correct |
+| JWT lifetimes | 15-min access / 30-day refresh, `type` claim validated |
+| Image upload validation | Magic-byte sniffing, not client-supplied `content_type` |
+| Path traversal prevention | `delete_media` checks `is_relative_to(MEDIA_ROOT)` |
+| Admin bootstrap (`ADMIN_EMAILS`) | One-way, applied on signup, password login, and Google login |
+| CORS | Locked to the real production origin in `.env.prod`, not wildcard |
+| JWT secret startup guard | Refuses to start in production with the placeholder value |
+| Migrations on deploy | `entrypoint.sh` runs `alembic upgrade head` before serving, `set -e` |
+| Health check | Actually queries the database, not a bare 200 |
+| CI/CD | Tests + typecheck + build gate every deploy; a red build never reaches Dokploy |
+| Backend test suite | 231 tests, mutation-checked, against real Postgres |
+| i18n | Cookie-driven locale, no hydration mismatch, ~280 keys with compile-time parity |
+| Rate limiting design (endpoint coverage, not the proxy-trust gap above) | Sliding window, `Retry-After`, correctly excludes chat — see SEC-02 |
 
 ---
 
-## 7. 🗺️ Missing Features Roadmap
-
-### Frontend (UI/UX)
-
-| Feature | Priority | Status |
-|---------|----------|--------|
-| `middleware.ts` for route protection | 🟠 High | ❌ Missing |
-| Password visibility toggle | 🟠 High | ❌ Missing |
-| Segmented OTP input | 🟠 High | ❌ Missing |
-| Navbar search bar (desktop) | 🟡 Medium | ❌ Missing |
-| Price range slider filter | 🟡 Medium | ❌ Missing |
-| Page transitions (`AnimatePresence`) | 🟡 Medium | ❌ Missing |
-| `prefers-reduced-motion` support | 🟡 Medium | ❌ Missing |
-| Mobile bottom sheet dialogs | 🟡 Medium | ❌ Missing |
-| Empty state illustrations | 🟡 Medium | ❌ Missing |
-| Stagger animations on listing grids | 🔵 Low | ❌ Missing |
-| Image lazy-load fade-in | 🔵 Low | ❌ Missing |
-| Animated form validation errors | 🔵 Low | ❌ Missing |
-| Responsive admin tables (mobile-friendly) | 🟡 Medium | ❌ Missing |
-| User card component | 🔵 Low | ❌ Missing |
-| Latest reviews section on homepage | 🟡 Medium | ❌ Missing |
-
-### Backend (Features / Fixes)
-
-| Feature | Priority | Status |
-|---------|----------|--------|
-| Message send rate limiting | 🟠 High | ❌ Missing |
-| Fix WebSocket multi-worker (Redis pub/sub or single worker) | 🟠 High | ❌ Missing |
-| Async SMTP (`asyncio.to_thread` or `aiosmtplib`) | 🟠 High | ❌ Missing |
-| HTML email templates | 🟡 Medium | ❌ Missing |
-| Password strength validation | 🟡 Medium | ❌ Missing |
-| Redis-backed rate limiting (atomic, no race) | 🟡 Medium | ❌ Missing |
-| Shop listing pagination with total count | 🟡 Medium | ❌ Missing |
-| Notification email opt-out preference | 🔵 Low | ❌ Missing |
-
-### DevOps
-
-| Feature | Priority | Status |
-|---------|----------|--------|
-| `TRUST_PROXY_HEADERS=true` in prod env | 🔴 Critical | ❌ Missing |
-| CI/CD pipeline (GitHub Actions) | 🟠 High | ❌ Missing |
-| Secret scanning (GitGuardian / trufflehog) | 🟠 High | ❌ Missing |
-| Non-root Docker user | 🔵 Low | ❌ Missing |
-| Off-host database backup (S3/rclone) | 🟡 Medium | ❌ Missing |
-
----
-
-## 8. 📁 Documentation Gaps
-
-| File | Gap |
-|------|-----|
-| `README.md` | No local dev setup, no Docker quickstart, no architecture overview |
-| `DEPLOYMENT.md` | Missing: how to rotate secrets, TLS setup details, scaling guidance |
-| `backend/.env.example` | Missing `TRUST_PROXY_HEADERS` — critical for production |
-| `backend/app/core/config.py` | `Settings` class has no docstring — unclear which vars are required vs optional |
-| Root `.gitignore` | Missing `.env.prod` entry |
-| No `CONTRIBUTING.md` | No guide for PRs, branch naming, commit format |
-| No `CHANGELOG.md` | No record of what has been shipped |
-
----
-
-## 9. Priority Summary Table
+## 7. Priority summary table
 
 | ID | Severity | Area | Description |
-|----|----------|------|-------------|
-| BUG-02 | 🔴 Critical | Security | `.env.prod` with all production secrets committed to repo |
-| BUG-03 | 🔴 Critical | Security/Rate Limit | `TRUST_PROXY_HEADERS=false` — all rate limiting broken in prod |
-| BUG-01 | 🔴 Critical | Security | `.env.local` tracked in git |
-| BUG-07 | 🟠 High | Backend/Chat | 4-worker Uvicorn + in-memory WS manager — real-time chat fails in prod |
-| BUG-06 | 🟠 High | Backend/Perf | Blocking SMTP in async event loop — server freezes on email send |
-| BUG-04 | 🟠 High | Security | No `max_length` on `LoginRequest.password` — CPU DoS |
-| BUG-05 | 🟠 High | Backend | `get_seller_reviews` crashes with 500 when shop is deleted |
-| BUG-08 | 🟠 High | Security | No rate limit on chat message sending |
-| BUG-09 | 🟠 High | Backend/UX | `contact_seller` returns wrong `last_message=None` for existing convos |
-| MISSING-01 | 🟠 High | Frontend | No `middleware.ts` — FOUC and spurious API calls on protected pages |
-| MISSING-02 | 🟠 High | Testing | Zero frontend tests |
-| BUG-10 | 🟡 Medium | Backend | Race condition in DB rate limiter |
-| BUG-11 | 🟡 Medium | Backend | No SMTP timeout — can hang indefinitely |
-| BUG-12 | 🟡 Medium | DevOps | Unreliable backup scheduling with `sleep 86400` |
-| MISSING-03 | 🟡 Medium | Security | No password strength validation beyond length |
-| MISSING-04 | 🟡 Medium | Accessibility | No `prefers-reduced-motion` handling — WCAG violation |
-| MISSING-05 | 🟡 Medium | Frontend/UX | No navbar search bar |
-| MISSING-06 | 🟡 Medium | Frontend/UX | No segmented OTP input on verify-email |
-| MISSING-07 | 🟡 Medium | Frontend/UX | No password visibility toggle on auth forms |
-| MISSING-08 | 🟡 Medium | DevOps | No CI/CD pipeline |
-| BUG-13 | 🔵 Low | Backend | Stale `is_online` state after worker crash |
-| BUG-14 | 🔵 Low | Frontend | `not-found.tsx` unnecessarily client-side |
-| BUG-15 | 🔵 Low | Backend | Expiry sweep runs hourly — 6-hourly is sufficient |
-| MISSING-09 | 🔵 Low | SEO | `robots.ts` should block admin/inbox/dashboard |
-| MISSING-10 | 🔵 Low | DevOps | Docker image runs as root |
-| MISSING-11 | 🔵 Low | UX | Emails are plain text — no HTML templates |
-| MISSING-12 | 🔵 Low | Frontend/UX | No price range slider for listings filter |
+|---|---|---|---|
+| SEC-ROTATE | 🔴 Action, not code | Ops | VPS root password + Dokploy API key were pasted in chat — rotate both |
+| SEC-01 | 🔴 High | Security | `TRUST_PROXY_HEADERS` unset in prod — rate limiting bucketed by Traefik's IP for everyone |
+| ARCH-01 | 🔴 High | Backend/Chat | 4 workers + in-memory WS manager — cross-worker chat delivery silently fails |
+| SEC-02 | 🔴 High | Security | No rate limit on sending chat messages/attachments |
+| SEC-03 | 🔴 High | Security | No `max_length` on login password — CPU-exhaustion vector |
+| OBS-01 | 🔴 High | Security | `/docs` + `/openapi.json` public in production |
+| BUG-01 | 🟡 Medium | Backend/UX | `contact_seller` returns stale last-message/unread for existing conversations |
+| PERF-01 | 🟡 Medium | Backend | Rate limiter check-then-act race, bounded impact |
+| OBS-02 | 🟡 Medium | Backend | No SMTP timeout — can hang a thread-pool worker |
+| SEC-04 | 🟡 Medium | DevOps | Backend container runs as root |
+| TEST-01 | 🟡 Medium | Testing | Zero frontend tests |
+| DEP-01 | 🟡 Medium | DevOps | `sharp`/libvips high-severity CVEs, needs a tested Next.js bump |
+| UX-01 | 🔵 Low | Frontend | Protected pages guard client-side only — FOUC + wasted calls, not a security hole |
+| JUDGMENT-01 | 🔵 Low | Security | Password policy is length-only — defensible, worth a decision not a reflex |
+| PERF-02 | 🔵 Low | Backend | Expiry sweep hourly rather than every 6h |
+| PERF-03 | 🔵 Low | Frontend | `not-found.tsx` unnecessarily client-rendered |
+| DEP-02 | 🔵 Low | Backend | `ecdsa` CVE via `python-jose`, not exploitable under HS256-only usage |
+| OBS-03 | 🔵 Low | DevOps | Backups are on-host only, already documented as such |
 
 ---
 
-*End of Audit Report — KenaBecha JU v0.1.0*
-*Generated by full static code review of all backend routers, services, models, schemas, frontend pages, contexts, API clients, WebSocket client, CSS, Docker config, and environment files.*
+*End of audit — KenaBecha JU. See `PLAN.md` Phases 46+ for the fix plan built from this report.*
