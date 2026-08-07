@@ -414,6 +414,62 @@ No new `category_id` FK on `Shop` — that would make a shop a real two-level ci
 
 ---
 
+## Phases 55–59 — Live-site bug reports (planned, not yet built)
+
+Six items reported together from the deployed site (`kenabechaju.deshlet.com`), not the dev stack — three screenshots plus four written complaints/questions. Each was traced to a real cause in the code before being turned into a phase; nothing here is a guess written up as a plan. Following the project's own rule for this kind of batch: plan every item first, confirm, then build one phase at a time rather than all at once.
+
+### Phase 55 — Photo-change controls are invisible until you happen to hover
+
+**The report, with screenshots.** On "My Shops," the shop's logo circle shows the word "Change" sitting on top of it (screenshot 1) with no explanation of what it is. On the shop edit view, the same complaint from the other direction: "logo & cover photo change section is not properly visible" (screenshot 2) — i.e. it's *there*, but nothing about it reads as an editable, clickable thing.
+
+**Root cause.** Both `ShopLogoPicker` and `ShopCoverPicker` (`frontend/app/shops/dashboard/page.tsx`) render their "Change" label as a `bg-black/50` overlay that's `opacity-0` by default and only reaches `opacity-100` via `group-hover`. That's the entire affordance — no icon, no border, no persistent hint that the image is interactive. Two real problems follow from that single design: it depends on a mouse, so it's undiscoverable by definition on the touch devices most students are actually using; and even with a mouse, a 48px circle that silently turns into black-with-white-text the instant a cursor drifts near it reads as a glitch to anyone who hasn't already learned the convention — which is exactly what screenshot 1 is.
+
+**What ships.** Replace the hover-reveal overlay with a small, always-visible badge — a camera/pencil icon in the bottom-right corner of the logo circle and the cover banner, in both places this pattern is used today (the collapsed shop row *and* the edit view's `FormSection`). No hover state to discover, nothing that depends on a mouse; the same treatment scales down cleanly for `SmartImage`-backed avatars elsewhere if this reads better than the current approach (kept scoped to shops here, since that's the actual report).
+
+### Phase 56 — "Add listing" from a shop still opens on Personal listing
+
+**The report, with a screenshot.** Clicking **Add listing** from "DeshLet-The Meat Codex" correctly lands on `/listings/new?shop_id=<that shop's id>` (screenshot 3's URL bar confirms the id arrives), but the "Sell as" dropdown still shows **Personal listing** selected. This exact bug was already fixed once, before Phase 53 — and per the report, the fix hasn't actually held.
+
+**Root cause, re-diagnosed rather than re-assumed.** The existing fix (`ListingForm.tsx`) does this inside the data-loading `.then()`:
+
+```ts
+Promise.all([getMyShops(), getCategories()]).then(([shopsRes, catsRes]) => {
+  setShops(shopsRes);
+  setCategories(catsRes);
+  if (mode === "create" && defaultShopId) {
+    setValue("shop_id", defaultShopId);   // <- runs here
+  }
+});
+```
+
+The comment above it correctly diagnoses the *original* bug (a native `<select>` can't select a value with no matching `<option>` yet) but the fix has the same bug shifted by one tick: `setValue` runs synchronously, in the same callback as `setShops`. React batches that state update and doesn't actually insert the new `<option>` elements into the DOM until it commits the next render — which happens *after* this callback returns. So `setValue` still fires before its own `<option>` exists, for the same reason as before, and the browser still falls back to whatever was already selected (index 0, "Personal listing").
+
+**What ships.** Move the `setValue` call out of the data-fetch `.then()` and into its own `useEffect` keyed on `shops` (`useEffect(() => { if (mode === "create" && defaultShopId && shops.length) setValue("shop_id", defaultShopId); }, [shops])`) — effects run after React commits the DOM for the render that produced them, which is the one guarantee the original fix needed and didn't have. Verified against a real render cycle before being called fixed a second time, not just read as correct.
+
+### Phase 57 — Drag-and-drop reordering, replacing arrow buttons
+
+**The ask.** Every reorder screen this project has (listing photos — Phase 38, a shop's own listing order — Phase 53, admin sections/categories/nav-links — Phases 42–44) uses up/down arrow buttons, a deliberate choice at the time to reuse one interaction pattern everywhere rather than introduce drag-and-drop for just one screen. Directly requested now: real drag-and-drop instead.
+
+**What ships.** A shared drag-and-drop list primitive (`@dnd-kit/sortable` — pointer- and keyboard-accessible, unlike a raw HTML5 drag API, which matters since these lists already have to stay usable on the touch devices most of this app's traffic comes from) built once and reused across every existing arrow-button reorder screen: listing photos, a shop's listing order, and the admin sections/categories/nav-link screens. Same endpoints, same full-list-required contract each already has (Phase 38/42/43/44/53's `reorder` calls take every id in the list, not a delta) — this changes the *input method*, not the API contract or the ownership/validation rules already enforced server-side. Arrow buttons stay as a keyboard-accessible fallback alongside the drag handle rather than being removed outright, since drag-and-drop alone is a worse experience for keyboard-only and screen-reader use than what exists today.
+
+### Phase 58 — Chat messages don't arrive live; only after a reload
+
+**The report.** A sent message shows up for the other side only after they refresh the page — the WebSocket path isn't delivering it live.
+
+**Root cause, found in the actual deployed configuration, not assumed.** The push logic itself is correct: `POST /conversations/{id}/messages` calls `manager.send_to_user(message.receiver_id, {"type": "message", ...})` (`app/routers/chat.py`), and `ConnectionManager` (`app/websocket/manager.py`) tracks live sockets keyed by user id. The bug is that this registry is a **plain in-process Python dict** — and the production `Dockerfile` runs the backend as `uvicorn ... --workers 4`. Four separate OS processes means four separate, unsynchronized copies of `ConnectionManager._connections`. A user's live socket is registered in whichever worker Traefik happened to route their WebSocket upgrade to; the very next `POST /messages` from the other party can land on any of the other three workers, whose in-memory registry has never heard of that socket — so `send_to_user` iterates an empty set and silently does nothing. A page reload works because it goes through the database, which every worker shares; only the live push is worker-local. This is invisible in dev (`docker-compose.yml` runs a single `--reload` process, so there's only ever one registry) and only shows up under the production process count — exactly matching what was reported from the live site and not from local testing.
+
+**What ships.** The connection registry needs to be shared across workers, not per-process. The straightforward fix for this scale is Redis pub/sub: each worker still holds its own local sockets, but `send_to_user` publishes to a channel every worker subscribes to, so whichever process actually owns the recipient's socket receives the publish and forwards it over that socket — the same pattern this exact problem always resolves to once a WebSocket server is horizontally scaled. Redis is a new piece of infrastructure for this stack (currently just Postgres), so the docker-compose files, health checks, and `.env.prod.example` all need the new service wired through, matching how `db`'s healthcheck-gated startup already works. The lower-effort alternative — dropping back to `--workers 1` — removes the bug with no new infrastructure, at the cost of the multi-core throughput four workers exist for; worth naming as the fallback if Redis turns out to be more than this phase should take on, but the pub/sub fix is the one that doesn't trade away capacity to get correctness.
+
+### Phase 59 — No way to review a shop, and "Featured" vs "Top" isn't explained anywhere
+
+**Reviews.** A `RatingForm` genuinely exists and is wired into the listing detail page — but only when `GET /listings/{id}/rating-eligibility` returns `can_rate: true`, which `rating_service.check_eligibility` restricts to: the listing is `sold` or `out_of_stock`, the viewer isn't the seller, the viewer has an existing conversation on that listing (i.e. actually messaged about it), and they haven't rated it already. That's a deliberate real-transaction gate, not a bug — but it means a rating can only ever be left from the *listing* page, after messaging and a completed sale, and there is no path to it from the *shop* page at all: `app/shops/[slug]/page.tsx`'s Reviews tab only lists existing reviews, with no button, link, or hint pointing back to "go rate a purchase to leave one." A buyer who finishes a trade and goes looking for "review this shop" on the shop's own page finds nothing, which is the actual gap in the report — not that rating is broken, but that it's undiscoverable from the one place a buyer would naturally look for it.
+
+**What ships.** The shop page's Reviews tab, when a viewer has at least one eligible-to-rate listing from that shop, surfaces a direct link into the relevant listing's rating prompt instead of silently having nothing there for them — closing the discovery gap without loosening `check_eligibility`'s real-transaction requirement, which stays exactly as strict as it is today.
+
+**Featured vs. Top**, answered directly since it's a real, reasonable question and not a bug: `is_featured` is a **time-boxed, seller-facing promotion** — `featured_until` is a real deadline (`ListingFeatureIn.days`, 1–90), computed live (`is_featured = featured_until > now`), and it outranks Top wherever both could show (`FeaturedBadge` wins over `TopBadge` in `ListingCard`). `is_top` is the opposite on every axis: **permanent, admin-only, and not something a seller can set** — `toggle_listing_top` is an admin action (`app/routers/admin.py`), used for a curated "Top pick" designation that feeds the homepage's Top Products section. In short: Featured is "this seller boosted this listing for a while," Top is "an admin has vouched for this one, indefinitely." Neither label explains itself in the UI today, which is worth a one-line tooltip on each badge — folded into this phase as a small addition alongside the review-discovery fix above, rather than earning a phase of its own.
+
+---
+
 ## Notable deviations & judgment calls not covered above
 
 A handful of decisions that don't map to a single phase above, or that add context the phase entries didn't have room for:
