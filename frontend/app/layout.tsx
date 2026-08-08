@@ -35,49 +35,6 @@ const notoBengali = Noto_Sans_Bengali({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  // metadataBase makes every relative OG/canonical URL below resolve to an
-  // absolute one. Without it Next warns and social crawlers, which never
-  // resolve relative URLs, silently get nothing.
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: `${SITE_NAME} — Jahangirnagar University Marketplace`,
-    // Pages set only their own title; this supplies the suffix.
-    template: `%s — ${SITE_NAME}`,
-  },
-  description: SITE_DESCRIPTION,
-  applicationName: SITE_NAME,
-  keywords: [
-    "Jahangirnagar University",
-    "JU marketplace",
-    "student marketplace",
-    "buy and sell",
-    "campus shop",
-    "textbooks",
-    "জাহাঙ্গীরনগর বিশ্ববিদ্যালয়",
-  ],
-  alternates: { canonical: "/" },
-  openGraph: {
-    type: "website",
-    siteName: SITE_NAME,
-    title: `${SITE_NAME} — Jahangirnagar University Marketplace`,
-    description: SITE_DESCRIPTION,
-    url: "/",
-    locale: "en_US",
-    alternateLocale: ["bn_BD"],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: `${SITE_NAME} — Jahangirnagar University Marketplace`,
-    description: SITE_DESCRIPTION,
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, "max-image-preview": "large" },
-  },
-};
-
 /** Never let a navigation failure take down every page. An API blip would
  *  otherwise leave the whole site with no way to get anywhere, which is far
  *  worse than slightly stale menus. */
@@ -92,6 +49,59 @@ async function loadNavigation(): Promise<Navigation> {
   } catch {
     return FALLBACK_NAVIGATION;
   }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  // Same fetch as RootLayout below — Next dedupes identical fetch() calls
+  // within a request, so this doesn't cost a second round trip.
+  const { site_info } = await loadNavigation();
+
+  return {
+    // metadataBase makes every relative OG/canonical URL below resolve to an
+    // absolute one. Without it Next warns and social crawlers, which never
+    // resolve relative URLs, silently get nothing.
+    metadataBase: new URL(SITE_URL),
+    title: {
+      default: `${SITE_NAME} — Jahangirnagar University Marketplace`,
+      // Pages set only their own title; this supplies the suffix.
+      template: `%s — ${SITE_NAME}`,
+    },
+    description: SITE_DESCRIPTION,
+    applicationName: SITE_NAME,
+    keywords: [
+      "Jahangirnagar University",
+      "JU marketplace",
+      "student marketplace",
+      "buy and sell",
+      "campus shop",
+      "textbooks",
+      "জাহাঙ্গীরনগর বিশ্ববিদ্যালয়",
+    ],
+    alternates: { canonical: "/" },
+    // Falls back to the static app/favicon.ico when no admin logo is set.
+    icons: site_info.logo_url
+      ? { icon: site_info.logo_url, shortcut: site_info.logo_url, apple: site_info.logo_url }
+      : undefined,
+    openGraph: {
+      type: "website",
+      siteName: SITE_NAME,
+      title: `${SITE_NAME} — Jahangirnagar University Marketplace`,
+      description: SITE_DESCRIPTION,
+      url: "/",
+      locale: "en_US",
+      alternateLocale: ["bn_BD"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${SITE_NAME} — Jahangirnagar University Marketplace`,
+      description: SITE_DESCRIPTION,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, "max-image-preview": "large" },
+    },
+  };
 }
 
 export default async function RootLayout({
