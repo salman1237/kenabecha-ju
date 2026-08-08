@@ -63,7 +63,7 @@ function ShopLogoPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Sho
       type="button"
       onClick={() => inputRef.current?.click()}
       disabled={uploading}
-      className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-semibold text-muted-foreground"
+      className="group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-semibold text-muted-foreground"
       title={t.shops.changeLogo}
       aria-label={t.shops.changeLogo}
     >
@@ -73,16 +73,13 @@ function ShopLogoPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Sho
         sizes="48px"
         fallback={<span className="text-sm font-semibold">{shop.shop_name.charAt(0).toUpperCase()}</span>}
       />
-      {/* Always visible, not a hover reveal — hover has no equivalent on
-          touch, and even with a mouse a text label that appears only when
-          the cursor happens to land here reads as a glitch rather than a
-          control. */}
-      <span className="absolute -bottom-0.5 -right-0.5 z-10 flex size-5 items-center justify-center rounded-full border-2 border-background bg-foreground text-background">
-        {uploading ? (
-          <span className="size-1.5 animate-pulse rounded-full bg-background" />
-        ) : (
-          <Camera className="size-2.5" />
+      <span
+        className={cn(
+          "absolute inset-0 z-10 flex items-center justify-center bg-foreground/50 opacity-0 transition-opacity group-hover:opacity-100",
+          uploading && "opacity-100"
         )}
+      >
+        {uploading && <span className="size-1.5 animate-pulse rounded-full bg-background" />}
       </span>
       <input
         ref={inputRef}
@@ -121,12 +118,16 @@ function ShopCoverPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Sh
       type="button"
       onClick={() => inputRef.current?.click()}
       disabled={uploading}
-      className="relative flex h-24 w-full items-center justify-center overflow-hidden rounded-md bg-muted text-xs font-medium text-muted-foreground"
+      className="group relative flex h-24 w-full items-center justify-center overflow-hidden rounded-md bg-muted text-xs font-medium text-muted-foreground"
       aria-label={t.shops.changeCover}
     >
       <SmartImage src={shop.cover_url} alt="" sizes="100vw" fallback={t.shops.noCoverImage} />
-      {/* Always visible, not a hover reveal — see ShopLogoPicker above. */}
-      <span className="absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded-full bg-foreground/90 px-2 py-1 text-[11px] font-medium text-background">
+      <span
+        className={cn(
+          "absolute bottom-2 right-2 z-10 flex items-center gap-1 rounded-full bg-foreground/90 px-2 py-1 text-[11px] font-medium text-background opacity-0 transition-opacity group-hover:opacity-100",
+          uploading && "opacity-100"
+        )}
+      >
         {uploading ? (
           t.shops.uploading
         ) : (
