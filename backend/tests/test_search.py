@@ -56,6 +56,26 @@ async def test_underscore_is_matched_literally(client, db):
     assert "filexname guide" not in titles
 
 
+async def test_search_matches_tags(client, db):
+    seller = await make_user(db)
+    tagged = await make_listing(db, seller, title="Desk lamp")
+    await listing_service._attach_tags(db, tagged, ["vintage"], replace=False)
+    await make_listing(db, seller, title="Modern lamp")
+
+    titles = [i["title"] for i in (await client.get("/listings?q=vintage")).json()["items"]]
+    assert "Desk lamp" in titles
+    assert "Modern lamp" not in titles
+
+
+async def test_tag_search_is_case_insensitive(client, db):
+    seller = await make_user(db)
+    listing = await make_listing(db, seller, title="Bicycle")
+    await listing_service._attach_tags(db, listing, ["Outdoor"], replace=False)
+
+    res = await client.get("/listings?q=OUTDOOR")
+    assert any(i["title"] == "Bicycle" for i in res.json()["items"])
+
+
 async def test_backslash_search_does_not_error(client, db):
     """The escape character itself must round-trip cleanly."""
     seller = await make_user(db)

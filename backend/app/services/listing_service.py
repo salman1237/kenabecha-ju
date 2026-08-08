@@ -183,9 +183,15 @@ async def browse_listings(db: AsyncSession, filters: BrowseFilters) -> tuple[lis
 
     if filters.q:
         like = like_contains(filters.q)
+        tag_match = Listing.id.in_(
+            select(listing_tags.c.listing_id)
+            .join(Tag, Tag.id == listing_tags.c.tag_id)
+            .where(Tag.normalized_name.ilike(like_contains(filters.q.strip().lower()), escape=LIKE_ESCAPE))
+        )
         query = query.where(
             Listing.title.ilike(like, escape=LIKE_ESCAPE)
             | Listing.description.ilike(like, escape=LIKE_ESCAPE)
+            | tag_match
         )
     if filters.tags:
         normalized = [t.strip().lower() for t in filters.tags]
