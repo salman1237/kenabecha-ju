@@ -455,12 +455,14 @@ export default function MyShopsPage() {
             ) : (
               <Card key={shop.id} className="overflow-hidden">
                 <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <ShopLogoPicker
-                    shop={shop}
-                    onUpdated={(updated) =>
-                      setShops((prev) => prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)))
-                    }
-                  />
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-semibold text-muted-foreground">
+                    <SmartImage
+                      src={shop.logo_url}
+                      alt=""
+                      sizes="48px"
+                      fallback={<span className="text-sm font-semibold">{shop.shop_name.charAt(0).toUpperCase()}</span>}
+                    />
+                  </div>
                   <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex flex-col gap-0.5">
                       <Link href={`/shops/${shop.slug}`} className="font-semibold hover:underline">
