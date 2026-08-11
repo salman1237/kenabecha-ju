@@ -78,10 +78,17 @@ export async function generateMetadata(): Promise<Metadata> {
       "জাহাঙ্গীরনগর বিশ্ববিদ্যালয়",
     ],
     alternates: { canonical: "/" },
-    // Falls back to the static app/favicon.ico when no admin logo is set.
-    icons: site_info.logo_url
-      ? { icon: site_info.logo_url, shortcut: site_info.logo_url, apple: site_info.logo_url }
-      : undefined,
+    // Exactly one icon source, never both: app/favicon.ico is a reserved
+    // Next.js filename that gets auto-injected as an extra <link rel="icon">
+    // whenever it exists, so a real file there would keep competing with
+    // this one for which icon the tab actually shows (the static one won
+    // in practice). The un-reserved filename opts out of that, so the
+    // logo — or this default when none is configured — is unambiguous.
+    icons: {
+      icon: site_info.logo_url ?? "/favicon-default.ico",
+      shortcut: site_info.logo_url ?? "/favicon-default.ico",
+      apple: site_info.logo_url ?? "/favicon-default.ico",
+    },
     openGraph: {
       type: "website",
       siteName: SITE_NAME,
