@@ -1,7 +1,7 @@
-name: CI / Deploy
+name: CI
 
-# Pull requests get the checks but never the deploy. Only a push to main can
-# reach the VPS, and only after every check has passed.
+# Dokploy watches the repo directly and redeploys on its own after every
+# push to main — this workflow is checks only, no deploy step.
 on:
   push:
     branches: [main]
@@ -9,8 +9,7 @@ on:
     branches: [main]
 
 concurrency:
-  # A newer push supersedes an in-flight run: without this, two deploys can
-  # race and the older commit can land last.
+  # A newer push supersedes an in-flight run rather than queuing behind it.
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
@@ -109,54 +108,3 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:8000
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
         run: npm run build
-
-  deploy:
-    name: Deploy to VPS (Dokploy)
-    runs-on: ubuntu-latest
-    needs: [backend, frontend]
-    # Both gates: never on a pull request, and never on a red build. `needs`
-    # already implies success, but being explicit means a later edit to this
-    # file cannot loosen it by accident.
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - name: Trigger Dokploy redeploy
-        env:
-          WEBHOOK: ${{ secrets.DOKPLOY_DEPLOY_WEBHOOK }}
-        run: |
-          if [ -z "$WEBHOOK" ]; then
-            echo "::error::DOKPLOY_DEPLOY_WEBHOOK is not set. Add it under" \
-                 "Settings → Secrets and variables → Actions."
-            exit 1
-          fi
-          # -f so a non-2xx response fails the job rather than reporting a
-          # green deploy that never happened.
-          code=$(curl -sS -o /tmp/body -w '%{http_code}' -X POST "$WEBHOOK")
-          echo "Dokploy responded $code"
-          cat /tmp/body || true
-          case "$code" in
-            2*) echo "Deploy triggered." ;;
-            *)  echo "::error::Dokploy rejected the deploy (HTTP $code)."; exit 1 ;;
-          esac
-
-      - name: Wait for the new version to answer
-        env:
-          # The API host, not the site host — /health is a backend route.
-          API_URL: ${{ secrets.API_URL }}
-        run: |
-          if [ -z "$API_URL" ]; then
-            echo "API_URL not set — skipping the post-deploy check."
-            exit 0
-          fi
-          # Dokploy returns as soon as the build is queued, so a green job
-          # here would otherwise say nothing about whether the site came
-          # back up. Poll /health until it answers or we give up.
-          for i in $(seq 1 40); do
-            if curl -fsS --max-time 10 "$API_URL/health" >/dev/null 2>&1; then
-              echo "Healthy after ~$((i * 15))s."
-              exit 0
-            fi
-            sleep 15
-          done
-          echo "::error::$API_URL/health did not recover within 10 minutes."
-          exit 1

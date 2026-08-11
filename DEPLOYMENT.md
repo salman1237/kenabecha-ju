@@ -1,26 +1,18 @@
 # Deploying KenaBecha JU to a VPS with Dokploy
 
-Push to `main` → GitHub Actions runs the tests → if they pass, Dokploy rebuilds and restarts on the VPS.
-
-A red build never reaches the server.
+Push to `main` triggers two independent things: GitHub Actions runs the checks (report
+only, doesn't gate anything), and Dokploy's own GitHub integration pulls, rebuilds and
+restarts on the VPS. Either can finish first.
 
 ```
 push to main
     │
-    ▼
-GitHub Actions
-    backend   alembic upgrade head · alembic check · pytest (231)
-    frontend  npm ci · tsc --noEmit · next build
-    │
-    │  (only if every check passed)
-    ▼
-POST $DOKPLOY_DEPLOY_WEBHOOK
-    │
-    ▼
-Dokploy pulls, rebuilds, restarts
-    │
-    ▼
-CI polls $API_URL/health until it answers
+    ├──────────────────────────┐
+    ▼                          ▼
+GitHub Actions            Dokploy (its own GitHub integration)
+    backend   alembic upgrade head · alembic check · pytest
+    frontend  npm ci · tsc --noEmit · next build          pulls, rebuilds, restarts
+    (informational — a red run does not stop the deploy)
 ```
 
 ---
@@ -134,32 +126,15 @@ Deliberate properties:
   deliberate, auditable act rather than a silent side effect of editing an env var.
 - **Empty means nobody.** The default is not read as "match everything".
 
-## 6. Wire up automatic deploys
+## 6. Automatic deploys
 
-### a. Get the deploy webhook from Dokploy
+Dokploy's own GitHub integration (application → **General** tab → **Source**) watches
+`main` directly and redeploys on every push — no webhook or GitHub secret required.
+Enable it there once and it's done.
 
-In the application → **Deployments** tab → copy the **Webhook URL**. It looks like
-`https://<your-dokploy-host>/api/deploy/<token>`. Treat it as a secret: anyone holding
-it can trigger a deploy.
-
-### b. Add two GitHub secrets
-
-Repository → **Settings → Secrets and variables → Actions → New repository secret**:
-
-| Secret | Value |
-|---|---|
-| `DOKPLOY_DEPLOY_WEBHOOK` | the webhook URL from step (a) |
-| `API_URL` | `https://api.kenabechaju.deshlet.com` — optional; enables the post-deploy health check |
-
-Set these in GitHub's UI only. Never commit them, and never paste them into chat or an issue.
-
-### c. Disable Dokploy's own auto-deploy
-
-If Dokploy's GitHub auto-deploy is enabled, **turn it off**. Otherwise it redeploys on
-push *in parallel with* CI, and an untested commit reaches production anyway — which
-defeats the point of gating.
-
-That's it. The next push to `main` runs the checks and deploys itself.
+GitHub Actions (`.github/workflows/ci.yml`) runs the backend and frontend checks on the
+same push, purely as a signal — it does not gate or trigger the deploy. A red run there
+means go fix the commit, not that production is protected from it.
 
 ---
 
