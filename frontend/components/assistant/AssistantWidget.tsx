@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { AssistantFab } from "@/components/assistant/AssistantFab";
 import { AssistantPanel, type AssistantMessage } from "@/components/assistant/AssistantPanel";
 import { useLanguage } from "@/context/LanguageContext";
-import { streamAssistantChat } from "@/lib/api/assistant";
+import { AssistantApiError, streamAssistantChat } from "@/lib/api/assistant";
 
 const STORAGE_KEY = "assistant:messages";
 // A soft, client-side backstop against one runaway tab — the server rate
@@ -96,15 +96,17 @@ export function AssistantWidget() {
           );
         }
       }
-    } catch {
+    } catch (err) {
+      const message =
+        err instanceof AssistantApiError && err.status === 503
+          ? t.assistant.unavailable
+          : err instanceof AssistantApiError && err.status === 429
+            ? t.assistant.rateLimited
+            : t.assistant.errorGeneric;
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantMessage.id
-            ? {
-                ...m,
-                content: m.content || t.assistant.errorGeneric,
-                error: m.content ? m.error : true,
-              }
+            ? { ...m, content: m.content || message, error: m.content ? m.error : true }
             : m
         )
       );

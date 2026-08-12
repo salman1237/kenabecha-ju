@@ -5,6 +5,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export type AssistantTurn = { role: "user" | "assistant"; content: string };
 
+export class AssistantApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 export type AssistantEvent =
   | { type: "delta"; text: string }
   | { type: "listings"; listings: Listing[] }
@@ -39,7 +47,7 @@ export async function* streamAssistantChat(
     } catch {
       // no JSON body
     }
-    throw new Error(detail);
+    throw new AssistantApiError(res.status, detail);
   }
 
   const reader = res.body.getReader();

@@ -473,6 +473,7 @@ export const en = {
     thinking: "Thinking…",
     errorGeneric: "Something went wrong. Please try again.",
     unavailable: "The assistant is currently unavailable.",
+    rateLimited: "You've sent a lot of messages — please wait a bit before trying again.",
     capReached: "You've reached the message limit for this conversation. Start a new tab to keep chatting.",
     clearConversation: "Clear conversation",
     clearConfirm: "Clear this conversation?",
