@@ -332,7 +332,7 @@ async def test_a_regional_synonym_search_finds_the_real_listing(db, monkeypatch)
     assert [item["id"] for item in listings_events[0]["listings"]] == [str(listing.id)]
 
 
-# --- the endpoint: kill switch + rate limit ----------------------------------
+# --- the endpoint: kill switch -----------------------------------------------
 
 
 async def test_chat_endpoint_503s_without_calling_openai_when_disabled(client, db, monkeypatch):
@@ -348,22 +348,6 @@ async def test_chat_endpoint_503s_without_calling_openai_when_disabled(client, d
     res = await client.post("/assistant/chat", json={"message": "hi", "history": [], "locale": "en"})
     assert res.status_code == 503
     assert called is False
-
-
-async def test_chat_endpoint_rate_limits_by_ip(client, db, monkeypatch):
-    from app.routers import assistant as assistant_router
-
-    await _enable_assistant(db)
-    _use_fake_client(monkeypatch, [[_chunk(content="ok", finish_reason="stop")]])
-
-    payload = {"message": "hi", "history": [], "locale": "en"}
-    for _ in range(assistant_router.CHAT_RATE_LIMIT_TIMES):
-        res = await client.post("/assistant/chat", json=payload)
-        assert res.status_code == 200
-
-    res = await client.post("/assistant/chat", json=payload)
-    assert res.status_code == 429
-    assert "Retry-After" in res.headers
 
 
 # --- admin settings CRUD -----------------------------------------------------

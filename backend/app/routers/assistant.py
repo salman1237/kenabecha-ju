@@ -4,25 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.rate_limit import rate_limit
 from app.db.session import get_db
 from app.schemas.assistant import AssistantChatIn
 from app.services import assistant_service, assistant_settings_service
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
-#: Generous enough for real browsing use, tight enough to bound OpenAI spend
-#: from one anonymous caller. IP-based like every other rate-limited route.
-CHAT_RATE_LIMIT_TIMES = 20
-CHAT_RATE_LIMIT_SECONDS = 3600
 
-
-@router.post(
-    "/chat",
-    dependencies=[
-        Depends(rate_limit("assistant_chat", times=CHAT_RATE_LIMIT_TIMES, seconds=CHAT_RATE_LIMIT_SECONDS))
-    ],
-)
+@router.post("/chat")
 async def chat(
     payload: AssistantChatIn,
     db: AsyncSession = Depends(get_db),
