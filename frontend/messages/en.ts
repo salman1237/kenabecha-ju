@@ -463,6 +463,22 @@ export const en = {
     expired: "Expired",
     paused: "Paused",
   },
+  assistant: {
+    fabLabel: "Ask the assistant",
+    title: "Shopping Assistant",
+    subtitle: "Ask about anything on KenaBecha JU",
+    placeholder: "Ask about textbooks, electronics, hostel furniture…",
+    send: "Send",
+    greeting: "Hi! I can help you find listings — what are you looking for?",
+    thinking: "Thinking…",
+    errorGeneric: "Something went wrong. Please try again.",
+    unavailable: "The assistant is currently unavailable.",
+    capReached: "You've reached the message limit for this conversation. Start a new tab to keep chatting.",
+    clearConversation: "Clear conversation",
+    clearConfirm: "Clear this conversation?",
+    noListingsFound: "I couldn't find a matching listing.",
+    viewListing: "View listing",
+  },
   /**
    * Keyed by the `code` the API returns alongside its English `detail`.
    * When a code has no entry here the UI falls back to the server's own

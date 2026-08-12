@@ -19,6 +19,7 @@ from app.routers import (
     admin,
     admin_categories,
     navigation,
+    assistant,
     auth,
     categories,
     page_sections,
@@ -85,6 +86,7 @@ app.include_router(auth.router)
 app.include_router(public.router)
 app.include_router(reference.router)
 app.include_router(categories.router)
+app.include_router(assistant.router)
 app.include_router(page_sections.public_router)
 app.include_router(page_sections.admin_router)
 app.include_router(shops.router)

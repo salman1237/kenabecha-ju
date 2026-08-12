@@ -18,6 +18,7 @@ dependencies = [
     "google-auth>=2.35",
     "requests>=2.32",
     "redis>=5.2",
+    "openai>=1.54",
 ]
 
 # An optional-dependency extra rather than a PEP 735 dependency-group:

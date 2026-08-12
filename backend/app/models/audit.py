@@ -49,6 +49,7 @@ class AuditAction:
     NAVBAR_CONTROLS_CHANGED = "navbar_controls.changed"
     ANNOUNCEMENT_CHANGED = "announcement.changed"
     SITE_INFO_CHANGED = "site_info.changed"
+    ASSISTANT_SETTINGS_CHANGED = "assistant.settings_changed"
 
 
 class AuditLog(UUIDPKMixin, CreatedAtMixin, Base):

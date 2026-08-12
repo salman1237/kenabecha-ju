@@ -110,6 +110,30 @@ async def get_listing(db: AsyncSession, listing_id: uuid.UUID) -> Listing:
     return listing
 
 
+async def get_by_ids(db: AsyncSession, listing_ids: list[uuid.UUID]) -> list[Listing]:
+    """Real, currently-browsable listings among the given ids, order not
+    guaranteed to match the input — callers that care about order (e.g. the
+    AI assistant preserving the model's own ranking) re-sort by the input
+    list themselves. Applies the same status/active/seller guards as
+    `browse_listings`, so a listing that sold or was removed between being
+    found and being resolved here can't leak through."""
+    if not listing_ids:
+        return []
+    result = await db.execute(
+        select(Listing)
+        .join(User, Listing.seller_id == User.id)
+        .where(
+            Listing.id.in_(listing_ids),
+            Listing.status == ListingStatus.active,
+            Listing.deleted_at.is_(None),
+            Listing.is_active.is_(True),
+            User.is_active.is_(True),
+            User.deleted_at.is_(None),
+        )
+    )
+    return list(result.scalars().unique().all())
+
+
 async def get_owned_listing(db: AsyncSession, listing_id: uuid.UUID, seller: User) -> Listing:
     listing = await get_listing(db, listing_id)
     if listing.seller_id != seller.id:

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ActivityChart } from "@/components/admin/ActivityChart";
 import { AnnouncementEditor } from "@/components/admin/AnnouncementEditor";
+import { AssistantEditor } from "@/components/admin/AssistantEditor";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAdminDashboard } from "@/lib/api/dashboard-admin";
@@ -181,6 +182,8 @@ export default function AdminDashboardPage() {
           )}
         </div>
       </div>
+
+      <AssistantEditor />
     </div>
   );
 }

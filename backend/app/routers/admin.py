@@ -12,6 +12,8 @@ from app.schemas.admin import (
     AdminUserOut,
     AnnouncementAdminOut,
     AnnouncementIn,
+    AssistantSettingsIn,
+    AssistantSettingsOut,
     AuditLogOut,
     BulkIdsIn,
     BulkResultOut,
@@ -26,6 +28,7 @@ from app.schemas.shop import ShopOut
 from app.services import (
     admin_service,
     announcement_service,
+    assistant_settings_service,
     audit_service,
     metrics_service,
     report_service,
@@ -266,3 +269,29 @@ async def set_announcement(
         db, payload.model_dump(exclude_unset=True), actor=actor
     )
     return AnnouncementAdminOut.model_validate(updated)
+
+
+# --- AI assistant --------------------------------------------------------
+
+
+@router.get(
+    "/assistant", response_model=AssistantSettingsOut, dependencies=[Depends(get_current_admin)]
+)
+async def get_assistant_config(db: AsyncSession = Depends(get_db)) -> AssistantSettingsOut:
+    return AssistantSettingsOut.model_validate(
+        await assistant_settings_service.get_assistant_settings(db)
+    )
+
+
+@router.put(
+    "/assistant", response_model=AssistantSettingsOut, dependencies=[Depends(get_current_admin)]
+)
+async def set_assistant_config(
+    payload: AssistantSettingsIn,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_admin),
+) -> AssistantSettingsOut:
+    updated = await assistant_settings_service.set_assistant_settings(
+        db, payload.model_dump(exclude_unset=True), actor=actor
+    )
+    return AssistantSettingsOut.model_validate(updated)

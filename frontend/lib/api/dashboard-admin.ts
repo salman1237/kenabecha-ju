@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
-import type { AdminAnnouncement, AdminDashboard, BulkResult } from "@/types/api";
+import type { AdminAnnouncement, AdminDashboard, AssistantSettings, BulkResult } from "@/types/api";
 
 export function getAdminDashboard(days: number) {
   return apiFetch<AdminDashboard>(`/admin/dashboard?days=${days}`);
@@ -33,6 +33,17 @@ export function getAnnouncement() {
 /** Only the keys sent are changed. */
 export function setAnnouncement(payload: Partial<AdminAnnouncement>) {
   return apiFetch<AdminAnnouncement>("/admin/announcement", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getAssistantSettings() {
+  return apiFetch<AssistantSettings>("/admin/assistant");
+}
+
+export function setAssistantSettings(payload: Partial<AssistantSettings>) {
+  return apiFetch<AssistantSettings>("/admin/assistant", {
     method: "PUT",
     body: JSON.stringify(payload),
   });

@@ -2,7 +2,7 @@ import uuid
 from datetime import date as datetime_date
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.user import UserRole
 
@@ -129,3 +129,13 @@ class AnnouncementIn(BaseModel):
     starts_at: str | None = None
     ends_at: str | None = None
     dismissible: bool | None = None
+
+
+class AssistantSettingsOut(BaseModel):
+    enabled: bool
+    system_prompt: str
+
+
+class AssistantSettingsIn(BaseModel):
+    enabled: bool | None = None
+    system_prompt: str | None = Field(default=None, max_length=4000)

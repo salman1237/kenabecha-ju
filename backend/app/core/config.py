@@ -56,6 +56,12 @@ class Settings(BaseSettings):
 
     GOOGLE_CLIENT_ID: str = ""
 
+    # Configurable rather than hardcoded so a different OpenAI-compatible
+    # endpoint/model can be swapped in later without a code change.
+    OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    OPENAI_MODEL: str = "gpt-4o-mini"
+
 
 @lru_cache
 def get_settings() -> Settings:

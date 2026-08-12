@@ -499,3 +499,8 @@ export interface AdminAnnouncement extends Announcement {
   starts_at: string | null;
   ends_at: string | null;
 }
+
+export interface AssistantSettings {
+  enabled: boolean;
+  system_prompt: string;
+}

@@ -3,6 +3,7 @@ import { Inter, Noto_Sans_Bengali } from "next/font/google";
 import { cookies } from "next/headers";
 import "./globals.css";
 import { AnnouncementBanner } from "@/components/layout/AnnouncementBanner";
+import { AssistantWidget } from "@/components/assistant/AssistantWidget";
 import { Footer } from "@/components/layout/Footer";
 import { MotionProvider } from "@/components/layout/MotionProvider";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
@@ -154,6 +155,7 @@ export default async function RootLayout({
                 <div aria-hidden className="h-14 md:hidden" />
                 <MobileBottomNav />
                 <Toaster />
+                <AssistantWidget />
               </AuthProvider>
               </NavigationProvider>
             </LanguageProvider>
