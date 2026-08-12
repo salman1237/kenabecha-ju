@@ -284,6 +284,54 @@ async def test_system_prompt_locale_and_history_are_passed_through(db, monkeypat
     assert sent_messages[3] == {"role": "user", "content": "new question"}
 
 
+async def test_a_regional_synonym_search_finds_the_real_listing(db, monkeypatch):
+    """Regression: a visitor searching "khashi" (Bangla for goat) got nothing
+    against a real "Deshi Mutton" listing, even after the model was told in
+    the prompt that mutton means goat meat here — instruction-following
+    wasn't reliable for this specific, well-known regional mapping, so it's
+    now enforced deterministically in the search tool itself."""
+    seller = await make_user(db)
+    listing = await make_listing(db, seller, title="Deshi Mutton")
+
+    scripts = [
+        [
+            _chunk(
+                tool_calls=[
+                    _tool_call_delta(
+                        0, id="call_1", name="search_listings", arguments='{"q": "khashi"}'
+                    )
+                ]
+            ),
+            _chunk(finish_reason="tool_calls"),
+        ],
+        [
+            _chunk(
+                tool_calls=[
+                    _tool_call_delta(
+                        0,
+                        id="call_2",
+                        name="recommend_listings",
+                        arguments=f'{{"listing_ids": ["{listing.id}"]}}',
+                    )
+                ]
+            ),
+            _chunk(finish_reason="tool_calls"),
+        ],
+        [_chunk(finish_reason="stop")],
+    ]
+    _use_fake_client(monkeypatch, scripts)
+
+    events = [
+        event
+        async for event in assistant_service.run_assistant(
+            db, message="khashi ache?", history=[], locale="en", system_prompt="be helpful"
+        )
+    ]
+
+    listings_events = [e for e in events if e["type"] == "listings"]
+    assert [item["id"] for item in listings_events[0]["listings"]] == [str(listing.id)]
+
+
 # --- the endpoint: kill switch + rate limit ----------------------------------
 
 

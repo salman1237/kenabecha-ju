@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.llm import get_openai_client
 from app.core.config import get_settings
-from app.models.listing import Condition
+from app.models.listing import Condition, Listing
 from app.schemas.assistant import AssistantTurnIn
 from app.schemas.listing import ListingOut
 from app.services import category_service, listing_service
@@ -114,6 +114,24 @@ def _system_message(system_prompt: str, locale: str) -> dict:
     }
 
 
+#: Regional-vocabulary groups where a literal search term would miss a
+#: real match a JU visitor obviously means. Most notably: in Bangladeshi
+#: usage "mutton" on a listing means goat meat, not sheep — the kind of
+#: fact a model won't reliably recall from a prompt every time, so it's
+#: enforced here instead of left to instruction-following.
+SYNONYM_GROUPS: list[set[str]] = [
+    {"mutton", "khashi", "chagol", "goat"},
+]
+
+
+def _expand_query_terms(q: str) -> list[str]:
+    q_lower = q.lower()
+    for group in SYNONYM_GROUPS:
+        if any(term in q_lower for term in group):
+            return sorted(group)
+    return [q]
+
+
 async def _run_search_listings(db: AsyncSession, args: dict) -> tuple[list[dict], list[str]]:
     limit = min(int(args.get("limit") or MAX_SEARCH_RESULTS), MAX_SEARCH_RESULTS)
     condition = None
@@ -129,16 +147,27 @@ async def _run_search_listings(db: AsyncSession, args: dict) -> tuple[list[dict]
         except InvalidOperation:
             return None
 
-    filters = listing_service.BrowseFilters(
-        q=args.get("q") or None,
-        category_slug=args.get("category_slug") or None,
-        min_price=_price("min_price"),
-        max_price=_price("max_price"),
-        condition=condition,
-        sort=args.get("sort") or "newest",
-        limit=limit,
-    )
-    listings, _total = await listing_service.browse_listings(db, filters)
+    raw_q = args.get("q") or None
+    query_terms = _expand_query_terms(raw_q) if raw_q else [None]
+
+    listings_by_id: dict[str, Listing] = {}
+    for term in query_terms:
+        if len(listings_by_id) >= limit:
+            break
+        filters = listing_service.BrowseFilters(
+            q=term,
+            category_slug=args.get("category_slug") or None,
+            min_price=_price("min_price"),
+            max_price=_price("max_price"),
+            condition=condition,
+            sort=args.get("sort") or "newest",
+            limit=limit,
+        )
+        found, _total = await listing_service.browse_listings(db, filters)
+        for listing in found:
+            listings_by_id.setdefault(str(listing.id), listing)
+
+    listings = list(listings_by_id.values())[:limit]
     ids = [str(listing.id) for listing in listings]
     # A trimmed shape for the model's own reasoning — it recommends by id via
     # recommend_listings, it doesn't need the full ListingOut payload.
