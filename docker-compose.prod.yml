@@ -57,6 +57,13 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS}
       FRONTEND_URL: ${FRONTEND_URL}
       ENV: production
+      # This compose file is only ever run behind Traefik (Dokploy's proxy),
+      # so defaulting true here is safe — unlike the app's own False default,
+      # which exists for the case (dev, or a bare `docker run`) where nothing
+      # guarantees X-Forwarded-For is set authoritatively. Without this every
+      # rate-limited endpoint (login, signup, the AI assistant) bucketed all
+      # visitors together under Traefik's own container IP.
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-true}
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER}
