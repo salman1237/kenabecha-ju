@@ -206,6 +206,27 @@ async def test_no_recommend_listings_call_yields_one_empty_listings_event(db, mo
     assert listings_events == [{"type": "listings", "listings": []}]
 
 
+async def test_a_broken_openai_client_yields_an_error_event_not_a_dead_stream(db, monkeypatch):
+    """Regression: constructing the client (e.g. a blank OPENAI_API_KEY) can
+    itself raise, before any chunk is ever streamed. That has to become a
+    graceful `error` event like any other failure — not an exception that
+    escapes the generator and leaves the client with a 200 and no body."""
+
+    def _raise():
+        raise RuntimeError("Missing credentials")
+
+    monkeypatch.setattr(assistant_service, "get_openai_client", _raise)
+
+    events = [
+        event
+        async for event in assistant_service.run_assistant(
+            db, message="hi", history=[], locale="en", system_prompt="be helpful"
+        )
+    ]
+
+    assert events == [{"type": "error", "message": "Missing credentials"}]
+
+
 async def test_a_runaway_tool_call_loop_terminates_at_the_hard_cap(db, monkeypatch):
     # Every call keeps returning another tool call, never "stop" — a single
     # scripted entry is replayed by FakeCompletions for every iteration.

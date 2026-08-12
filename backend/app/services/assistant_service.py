@@ -158,7 +158,6 @@ async def run_assistant(
     system_prompt: str,
 ) -> AsyncIterator[dict]:
     settings = get_settings()
-    client = get_openai_client()
 
     messages: list[dict] = [_system_message(system_prompt, locale)]
     messages.extend({"role": turn.role, "content": turn.content} for turn in history)
@@ -168,6 +167,11 @@ async def run_assistant(
     recommended_ids: list[str] = []
 
     try:
+        # Constructing the client can itself raise (e.g. a missing/blank
+        # OPENAI_API_KEY fails fast here rather than at the first request) —
+        # kept inside the try so that failure becomes a graceful `error`
+        # event too, not a response that silently ends with no body.
+        client = get_openai_client()
         for _ in range(MAX_TOOL_ITERATIONS):
             stream = await client.chat.completions.create(
                 model=settings.OPENAI_MODEL,
