@@ -94,7 +94,16 @@ def _system_message(system_prompt: str, locale: str) -> dict:
             "describes specific listings from a search, call recommend_listings "
             "with their ids in that same turn — do not ask the visitor for "
             "permission first, they can't see anything until you do. If you "
-            "genuinely have nothing to recommend, call it with an empty list."
+            "genuinely have nothing to recommend, call it with an empty list.\n\n"
+            "Visitors search in English, Bangla, Banglish, or a mix, and often "
+            "use colloquial or regional names for things (e.g. \"gorur mangso\" "
+            "or \"গরুর মাংস\" for beef, \"morog\"/\"মুরগি\" for chicken). The "
+            "catalog itself is only ever searched in whatever text sellers typed "
+            "— it will not match a Bangla or Banglish query against an English "
+            "listing title by itself. If your first search_listings call comes "
+            "back empty, do not immediately conclude nothing exists: try again "
+            "with the likely English translation or a shorter/broader keyword "
+            "before telling the visitor there's nothing available."
         ),
     }
 
