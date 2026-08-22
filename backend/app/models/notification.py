@@ -11,6 +11,7 @@ from app.models.mixins import CreatedAtMixin, UUIDPKMixin
 if TYPE_CHECKING:
     from app.models.conversation import Conversation
     from app.models.listing import Listing
+    from app.models.post import ShopPost
     from app.models.shop import Shop
     from app.models.user import User
 
@@ -23,6 +24,8 @@ class NotificationType(str, enum.Enum):
     shop_reported = "shop_reported"
     shop_removed = "shop_removed"
     restock_available = "restock_available"
+    shop_new_post = "shop_new_post"
+    post_rejected = "post_rejected"
 
 
 class Notification(UUIDPKMixin, CreatedAtMixin, Base):
@@ -48,9 +51,13 @@ class Notification(UUIDPKMixin, CreatedAtMixin, Base):
     related_conversation_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("conversations.id", ondelete="CASCADE")
     )
+    related_post_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("shop_posts.id", ondelete="CASCADE")
+    )
     is_read: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     user: Mapped["User"] = relationship()
     related_listing: Mapped["Listing | None"] = relationship()
     related_shop: Mapped["Shop | None"] = relationship()
     related_conversation: Mapped["Conversation | None"] = relationship()
+    related_post: Mapped["ShopPost | None"] = relationship()

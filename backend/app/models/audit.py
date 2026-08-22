@@ -50,6 +50,10 @@ class AuditAction:
     ANNOUNCEMENT_CHANGED = "announcement.changed"
     SITE_INFO_CHANGED = "site_info.changed"
     ASSISTANT_SETTINGS_CHANGED = "assistant.settings_changed"
+    POST_APPROVED = "post.approved"
+    POST_REJECTED = "post.rejected"
+    POST_UNPUBLISHED = "post.unpublished"
+    POST_DELETED = "post.deleted"
 
 
 class AuditLog(UUIDPKMixin, CreatedAtMixin, Base):

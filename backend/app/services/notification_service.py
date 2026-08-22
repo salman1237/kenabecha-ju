@@ -21,6 +21,7 @@ async def _create(
     related_listing_id: uuid.UUID | None = None,
     related_shop_id: uuid.UUID | None = None,
     related_conversation_id: uuid.UUID | None = None,
+    related_post_id: uuid.UUID | None = None,
 ) -> Notification:
     notification = Notification(
         user_id=user_id,
@@ -31,6 +32,7 @@ async def _create(
         related_listing_id=related_listing_id,
         related_shop_id=related_shop_id,
         related_conversation_id=related_conversation_id,
+        related_post_id=related_post_id,
     )
     db.add(notification)
     await db.commit()
@@ -53,6 +55,7 @@ async def notify(
     related_listing_id: uuid.UUID | None = None,
     related_shop_id: uuid.UUID | None = None,
     related_conversation_id: uuid.UUID | None = None,
+    related_post_id: uuid.UUID | None = None,
 ) -> Notification:
     """Creates the in-app notification row, pushes it live over the recipient's
     WebSocket connection if they have one open, and queues an email unless this is
@@ -69,6 +72,7 @@ async def notify(
         related_listing_id,
         related_shop_id,
         related_conversation_id,
+        related_post_id,
     )
 
     is_online = manager.is_online(user_id)

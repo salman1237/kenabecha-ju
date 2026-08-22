@@ -9,8 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.models.conversation import Message
 from app.core.search import LIKE_ESCAPE, like_contains
+from app.models.follow import ShopFollow
 from app.models.listing import Listing, ListingStatus
 from app.models.notification import NotificationType
+from app.models.post import PostStatus, ShopPost
 from app.models.report import Report, ReportStatus
 from app.models.shop import Shop
 from app.models.user import User, UserRole
@@ -376,3 +378,168 @@ async def bulk_remove_shops(
     return await _run_each(
         ids, lambda shop_id: admin_remove_shop(db, shop_id, background_tasks, actor=actor)
     )
+
+
+# --- post moderation ----------------------------------------------------------
+
+
+async def list_all_posts(
+    db: AsyncSession, status_filter: PostStatus | None = None, limit: int = 50, offset: int = 0
+) -> tuple[list[ShopPost], int]:
+    query = select(ShopPost).where(ShopPost.deleted_at.is_(None))
+    if status_filter is not None:
+        query = query.where(ShopPost.status == status_filter)
+    count = (
+        await db.execute(select(func.count()).select_from(query.with_only_columns(ShopPost.id).subquery()))
+    ).scalar_one()
+    query = query.order_by(ShopPost.created_at.desc()).limit(limit).offset(offset)
+    posts = list((await db.execute(query)).scalars().unique().all())
+    return posts, count
+
+
+async def admin_approve_post(
+    db: AsyncSession, post_id: uuid.UUID, background_tasks: BackgroundTasks, *, actor: User
+) -> ShopPost:
+    post = await db.get(ShopPost, post_id)
+    if post is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Post not found")
+    if post.status != PostStatus.published:
+        post.status = PostStatus.published
+        post.published_at = datetime.now(UTC)
+        post.rejection_reason = None
+
+        followers = (
+            await db.execute(select(ShopFollow.user_id).where(ShopFollow.shop_id == post.shop_id))
+        ).scalars().all()
+        for follower_id in followers:
+            await notification_service.notify(
+                db,
+                background_tasks,
+                follower_id,
+                NotificationType.shop_new_post,
+                title=f"{post.shop.shop_name} posted something new",
+                body=post.title,
+                link_url=f"/posts/{post.slug}",
+                email_subject=f'{post.shop.shop_name} just posted: "{post.title}"',
+                email_body=(
+                    f'{post.shop.shop_name}, a shop you follow, just posted "{post.title}".\n\n'
+                    f"View it: {settings.FRONTEND_URL}/posts/{post.slug}"
+                ),
+                related_post_id=post.id,
+                related_shop_id=post.shop_id,
+            )
+
+        audit_service.record(
+            db,
+            actor=actor,
+            action=AuditAction.POST_APPROVED,
+            target_type="post",
+            target_id=post.id,
+            target_label=post.title,
+            detail={"shop_id": str(post.shop_id), "notified_followers": len(followers)},
+        )
+        await db.commit()
+        await db.refresh(post)
+    return post
+
+
+async def admin_reject_post(
+    db: AsyncSession, post_id: uuid.UUID, reason: str, background_tasks: BackgroundTasks, *, actor: User
+) -> ShopPost:
+    post = await db.get(ShopPost, post_id)
+    if post is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Post not found")
+    post.status = PostStatus.rejected
+    post.rejection_reason = reason
+    audit_service.record(
+        db,
+        actor=actor,
+        action=AuditAction.POST_REJECTED,
+        target_type="post",
+        target_id=post.id,
+        target_label=post.title,
+        detail={"reason": reason},
+    )
+    await db.commit()
+    await db.refresh(post)
+
+    await notification_service.notify(
+        db,
+        background_tasks,
+        post.shop.owner_id,
+        NotificationType.post_rejected,
+        title="Your post needs changes",
+        body=f'"{post.title}" was not approved: {reason}',
+        link_url="/shops/dashboard",
+        email_subject="Your post on KenaBecha JU wasn't approved",
+        email_body=f'Your post "{post.title}" was not approved by a moderator.\n\nReason: {reason}',
+        related_post_id=post.id,
+        related_shop_id=post.shop_id,
+    )
+    return post
+
+
+async def admin_unpublish_post(db: AsyncSession, post_id: uuid.UUID, *, actor: User) -> ShopPost:
+    post = await db.get(ShopPost, post_id)
+    if post is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Post not found")
+    post.status = PostStatus.pending
+    audit_service.record(
+        db,
+        actor=actor,
+        action=AuditAction.POST_UNPUBLISHED,
+        target_type="post",
+        target_id=post.id,
+        target_label=post.title,
+    )
+    await db.commit()
+    await db.refresh(post)
+    return post
+
+
+async def admin_delete_post(db: AsyncSession, post_id: uuid.UUID, *, actor: User) -> ShopPost:
+    post = await db.get(ShopPost, post_id)
+    if post is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Post not found")
+    if post.deleted_at is None:
+        post.deleted_at = datetime.now(UTC)
+        post.is_active = False
+        audit_service.record(
+            db,
+            actor=actor,
+            action=AuditAction.POST_DELETED,
+            target_type="post",
+            target_id=post.id,
+            target_label=post.title,
+        )
+        await db.commit()
+        await db.refresh(post)
+    return post
+
+
+async def bulk_approve_posts(
+    db: AsyncSession, ids: list[uuid.UUID], background_tasks: BackgroundTasks, *, actor: User
+) -> BulkResult:
+    _check_size(ids)
+    return await _run_each(
+        ids, lambda post_id: admin_approve_post(db, post_id, background_tasks, actor=actor)
+    )
+
+
+async def bulk_reject_posts(
+    db: AsyncSession, ids: list[uuid.UUID], reason: str, background_tasks: BackgroundTasks, *, actor: User
+) -> BulkResult:
+    _check_size(ids)
+    return await _run_each(
+        ids, lambda post_id: admin_reject_post(db, post_id, reason, background_tasks, actor=actor)
+    )
+
+
+async def bulk_unpublish_posts(db: AsyncSession, ids: list[uuid.UUID], *, actor: User) -> BulkResult:
+    _check_size(ids)
+    return await _run_each(ids, lambda post_id: admin_unpublish_post(db, post_id, actor=actor))
+
+
+async def bulk_delete_posts(db: AsyncSession, ids: list[uuid.UUID], *, actor: User) -> BulkResult:
+    _check_size(ids)
+    return await _run_each(ids, lambda post_id: admin_delete_post(db, post_id, actor=actor))

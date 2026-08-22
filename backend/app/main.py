@@ -27,6 +27,7 @@ from app.routers import (
     dashboard,
     listings,
     notifications,
+    posts,
     public,
     ratings,
     reference,
@@ -103,6 +104,7 @@ app.include_router(navigation.public_router)
 app.include_router(navigation.admin_router)
 app.include_router(notifications.router)
 app.include_router(dashboard.router)
+app.include_router(posts.router)
 
 
 @app.get("/health", tags=["meta"])

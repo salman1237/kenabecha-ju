@@ -7,6 +7,7 @@ from app.models.newsletter import NewsletterSubscriber
 from app.models.notification import Notification
 from app.models.navigation import NavLink, NavLocation, NavMenu, NavVisibility, SiteSetting
 from app.models.page_section import PageSection, SectionType
+from app.models.post import PostStatus, ShopPost, ShopPostImage, post_listings
 from app.models.rate_limit import RateLimitHit
 from app.models.rating import Rating
 from app.models.reference import Department, Hall
@@ -46,4 +47,8 @@ __all__ = [
     "ShopFollow",
     "RefreshToken",
     "AuthToken",
+    "ShopPost",
+    "ShopPostImage",
+    "PostStatus",
+    "post_listings",
 ]

@@ -19,6 +19,7 @@ dependencies = [
     "requests>=2.32",
     "redis>=5.2",
     "openai>=1.54",
+    "nh3>=0.2",
 ]
 
 # An optional-dependency extra rather than a PEP 735 dependency-group:

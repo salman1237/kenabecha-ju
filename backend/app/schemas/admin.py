@@ -94,6 +94,10 @@ class BulkTopIn(BulkIdsIn):
     is_top: bool
 
 
+class BulkRejectIn(BulkIdsIn):
+    reason: str
+
+
 class BulkResultOut(BaseModel):
     """Per-item outcome rather than all-or-nothing.
 

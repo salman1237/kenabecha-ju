@@ -7,6 +7,7 @@ from app.core.dependencies import get_current_admin, get_current_staff
 from app.db.session import get_db
 from app.models.report import ReportStatus
 from app.models.user import User
+from app.models.post import PostStatus
 from app.schemas.admin import (
     AdminStatsOut,
     AdminUserOut,
@@ -16,6 +17,7 @@ from app.schemas.admin import (
     AssistantSettingsOut,
     AuditLogOut,
     BulkIdsIn,
+    BulkRejectIn,
     BulkResultOut,
     BulkTopIn,
     DashboardOut,
@@ -23,6 +25,7 @@ from app.schemas.admin import (
 )
 from app.schemas.common import Page
 from app.schemas.listing import ListingOut
+from app.schemas.post import PostOut, PostRejectIn
 from app.schemas.report import ReportOut, ResolveReportRequest
 from app.schemas.shop import ShopOut
 from app.services import (
@@ -241,6 +244,101 @@ async def bulk_remove_shops(
     return BulkResultOut.model_validate(
         await admin_service.bulk_remove_shops(db, payload.ids, background_tasks, actor=actor)
     )
+
+
+# --- post moderation ----------------------------------------------------------
+
+
+@router.get("/posts", response_model=Page[PostOut])
+async def list_posts(
+    status_filter: PostStatus | None = Query(default=None, alias="status"),
+    limit: int = 50,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+) -> Page[PostOut]:
+    posts, total = await admin_service.list_all_posts(db, status_filter, limit, offset)
+    return Page(items=[PostOut.model_validate(p) for p in posts], total=total, limit=limit, offset=offset)
+
+
+@router.post("/posts/{post_id}/approve", response_model=PostOut)
+async def approve_post(
+    post_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_staff),
+) -> PostOut:
+    post = await admin_service.admin_approve_post(db, post_id, background_tasks, actor=actor)
+    return PostOut.model_validate(post)
+
+
+@router.post("/posts/{post_id}/reject", response_model=PostOut)
+async def reject_post(
+    post_id: uuid.UUID,
+    payload: PostRejectIn,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_staff),
+) -> PostOut:
+    post = await admin_service.admin_reject_post(db, post_id, payload.reason, background_tasks, actor=actor)
+    return PostOut.model_validate(post)
+
+
+@router.post("/posts/{post_id}/unpublish", response_model=PostOut)
+async def unpublish_post(
+    post_id: uuid.UUID, db: AsyncSession = Depends(get_db), actor: User = Depends(get_current_staff),
+) -> PostOut:
+    post = await admin_service.admin_unpublish_post(db, post_id, actor=actor)
+    return PostOut.model_validate(post)
+
+
+@router.delete("/posts/{post_id}", response_model=PostOut)
+async def remove_post(
+    post_id: uuid.UUID, db: AsyncSession = Depends(get_db), actor: User = Depends(get_current_staff),
+) -> PostOut:
+    post = await admin_service.admin_delete_post(db, post_id, actor=actor)
+    return PostOut.model_validate(post)
+
+
+@router.post("/posts/bulk-approve", response_model=BulkResultOut)
+async def bulk_approve_posts(
+    payload: BulkIdsIn,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_staff),
+) -> BulkResultOut:
+    return BulkResultOut.model_validate(
+        await admin_service.bulk_approve_posts(db, payload.ids, background_tasks, actor=actor)
+    )
+
+
+@router.post("/posts/bulk-reject", response_model=BulkResultOut)
+async def bulk_reject_posts(
+    payload: BulkRejectIn,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_staff),
+) -> BulkResultOut:
+    return BulkResultOut.model_validate(
+        await admin_service.bulk_reject_posts(db, payload.ids, payload.reason, background_tasks, actor=actor)
+    )
+
+
+@router.post("/posts/bulk-unpublish", response_model=BulkResultOut)
+async def bulk_unpublish_posts(
+    payload: BulkIdsIn,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_staff),
+) -> BulkResultOut:
+    return BulkResultOut.model_validate(await admin_service.bulk_unpublish_posts(db, payload.ids, actor=actor))
+
+
+@router.post("/posts/bulk-delete", response_model=BulkResultOut)
+async def bulk_delete_posts(
+    payload: BulkIdsIn,
+    db: AsyncSession = Depends(get_db),
+    actor: User = Depends(get_current_staff),
+) -> BulkResultOut:
+    return BulkResultOut.model_validate(await admin_service.bulk_delete_posts(db, payload.ids, actor=actor))
 
 
 # --- announcement ------------------------------------------------------------
