@@ -9,6 +9,7 @@ export const bn: Translations = {
     browse: "পণ্যসমূহ",
     shops: "দোকানসমূহ",
     sell: "পণ্য বিক্রি করুন",
+    posts: "পোস্ট",
     inbox: "ইনবক্স",
     myShops: "আমার দোকান",
     profile: "প্রোফাইল",
@@ -254,6 +255,7 @@ export const bn: Translations = {
     overview: "ওভারভিউ",
     savedItems: "সেভ করা",
     settings: "সেটিংস",
+    myPosts: "আমার পোস্ট",
   },
   auth: {
     loginTitle: "স্বাগতম",

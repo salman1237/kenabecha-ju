@@ -6,6 +6,7 @@ import {
   HelpCircle,
   Link2,
   LayoutDashboard,
+  Megaphone,
   MessageSquare,
   Package,
   PlusCircle,
@@ -39,6 +40,7 @@ export const NAV_ICONS = {
   Shield,
   HelpCircle,
   Link2,
+  Megaphone,
 } as const;
 
 export type NavIconName = keyof typeof NAV_ICONS;

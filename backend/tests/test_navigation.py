@@ -81,12 +81,14 @@ async def test_the_seed_reproduces_the_navigation_as_it_shipped(client, db):
     assert [link["translation_key"] for link in menus["navbar"]["links"]] == [
         "nav.browse",
         "nav.browseShops",
+        "nav.posts",
         "nav.sell",
         "nav.inbox",
         "nav.myShops",
     ]
     # Sign-in rules moved from JSX to the row, and must match what the markup did.
     assert [link["visibility"] for link in menus["navbar"]["links"]] == [
+        "always",
         "always",
         "always",
         "signed_in",

@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, MessageSquare, PlusCircle, Search, User } from "lucide-react";
+import { Home, Megaphone, MessageSquare, PlusCircle, Search, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -13,6 +13,7 @@ const ITEMS = [
   { href: "/", icon: Home, label: (t: Translations) => t.nav.home, exact: true },
   { href: "/listings", icon: Search, label: (t: Translations) => t.common.search, exact: false },
   { href: "/listings/new", icon: PlusCircle, label: (t: Translations) => t.nav.sell, exact: true },
+  { href: "/posts", icon: Megaphone, label: (t: Translations) => t.nav.posts, exact: false },
   { href: "/inbox", icon: MessageSquare, label: (t: Translations) => t.nav.inbox, exact: false },
 ] as const;
 

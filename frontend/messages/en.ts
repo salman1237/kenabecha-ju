@@ -7,6 +7,7 @@ export const en = {
     browse: "Browse Listings",
     shops: "Shops",
     sell: "Sell Item",
+    posts: "Posts",
     inbox: "Inbox",
     myShops: "My Shops",
     profile: "Profile",
@@ -252,6 +253,7 @@ export const en = {
     overview: "Overview",
     savedItems: "Saved",
     settings: "Settings",
+    myPosts: "My Posts",
   },
   auth: {
     loginTitle: "Welcome back",

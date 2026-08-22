@@ -70,9 +70,10 @@ export const FALLBACK_NAVIGATION: Navigation = {
       links: [
         fallbackLink("nav.browse", "/listings", "Store", "always", 0),
         fallbackLink("nav.browseShops", "/shops", "ShoppingBag", "always", 1),
-        fallbackLink("nav.sell", "/listings/new", "PlusCircle", "signed_in", 2),
-        fallbackLink("nav.inbox", "/inbox", "MessageSquare", "signed_in", 3),
-        fallbackLink("nav.myShops", "/shops/dashboard", "ShoppingBag", "signed_in", 4),
+        fallbackLink("nav.posts", "/posts", "Megaphone", "always", 2),
+        fallbackLink("nav.sell", "/listings/new", "PlusCircle", "signed_in", 3),
+        fallbackLink("nav.inbox", "/inbox", "MessageSquare", "signed_in", 4),
+        fallbackLink("nav.myShops", "/shops/dashboard", "ShoppingBag", "signed_in", 5),
       ],
     },
     fallbackMenu("footer-marketplace", "footer.marketplace", 0, [

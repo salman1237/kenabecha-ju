@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, LayoutDashboard, MessageSquare, Package, Settings, ShoppingBag } from "lucide-react";
+import { Bookmark, LayoutDashboard, Megaphone, MessageSquare, Package, Settings, ShoppingBag } from "lucide-react";
 
 import { useLanguage } from "@/context/LanguageContext";
 import type { Translations } from "@/messages/en";
@@ -18,7 +18,10 @@ const NAV = [
   { href: "/dashboard/listings", key: "myListings", icon: Package, exact: false },
   { href: "/dashboard/saved", key: "saved", icon: Bookmark, exact: false },
   { href: "/dashboard/settings", key: "settings", icon: Settings, exact: false },
-  { href: "/shops/dashboard", key: "myShops", icon: ShoppingBag, exact: false },
+  // Exact, not prefix — "/shops/dashboard/posts" would otherwise also match
+  // this tab's startsWith check and light up both rows at once.
+  { href: "/shops/dashboard", key: "myShops", icon: ShoppingBag, exact: true },
+  { href: "/shops/dashboard/posts", key: "myPosts", icon: Megaphone, exact: false },
   { href: "/inbox", key: "inbox", icon: MessageSquare, exact: false },
 ] as const;
 
@@ -28,6 +31,7 @@ const NAV_LABELS = {
   saved: (t: Translations) => t.nav.saved,
   settings: (t: Translations) => t.nav.settings,
   myShops: (t: Translations) => t.nav.myShops,
+  myPosts: (t: Translations) => t.dashboard.myPosts,
   inbox: (t: Translations) => t.nav.inbox,
 } as const;
 
