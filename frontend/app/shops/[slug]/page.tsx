@@ -1,6 +1,6 @@
 "use client";
 
-import { Package, ShoppingBag, Star, Store, UserPlus, Users } from "lucide-react";
+import { Megaphone, Package, ShoppingBag, Star, Store, UserPlus, Users } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useLanguage } from "@/context/LanguageContext";
 
 import { ListingCard } from "@/components/listings/ListingCard";
+import { PostCard } from "@/components/posts/PostCard";
 import { StarRating } from "@/components/ratings/StarRating";
 import { ReportButton } from "@/components/ReportButton";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +22,10 @@ import { SmartImage } from "@/components/ui/SmartImage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
 import { browseListings } from "@/lib/api/listings";
+import { getShopPosts } from "@/lib/api/posts";
 import { getShopBySlug, getShopReviews, getShopStats, toggleFollowShop } from "@/lib/api/shops";
 import { staggerContainer, staggerItem } from "@/lib/motion";
-import type { Listing, Rating, Shop, ShopStats } from "@/types/api";
+import type { Listing, Post, Rating, Shop, ShopStats } from "@/types/api";
 
 function StatTile({
   icon: Icon,
@@ -53,6 +55,7 @@ export default function ShopStorefrontPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [stats, setStats] = useState<ShopStats | null>(null);
   const [reviews, setReviews] = useState<Rating[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [error, setError] = useState(false);
   const [following, setFollowing] = useState(false);
 
@@ -63,9 +66,15 @@ export default function ShopStorefrontPage() {
         // The seller's own manual order (Phase 53) rather than "newest" —
         // this page has no sort control of its own, so there's nothing to
         // override it with; /listings?shop_id=... still offers real sorting.
-        return browseListings({ shop_id: s.id, limit: 50, sort: "manual" });
+        return Promise.all([
+          browseListings({ shop_id: s.id, limit: 50, sort: "manual" }),
+          getShopPosts(s.id),
+        ]);
       })
-      .then((page) => setListings(page.items))
+      .then(([page, shopPosts]) => {
+        setListings(page.items);
+        setPosts(shopPosts);
+      })
       .catch(() => setError(true));
 
     getShopStats(params.slug).then(setStats).catch(() => {});
@@ -213,6 +222,7 @@ export default function ShopStorefrontPage() {
         <Tabs defaultValue="listings">
           <TabsList>
             <TabsTrigger value="listings">{t.shops.listingsTab} ({fmt.number(listings.length)})</TabsTrigger>
+            <TabsTrigger value="posts">{t.shops.postsTab} ({fmt.number(posts.length)})</TabsTrigger>
             <TabsTrigger value="reviews">{t.shops.reviewsTab} ({fmt.number(reviews.length)})</TabsTrigger>
           </TabsList>
 
@@ -227,6 +237,22 @@ export default function ShopStorefrontPage() {
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
                 {listings.map((listing) => (
                   <ListingCard key={listing.id} listing={listing} />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="posts" className="pt-5">
+            {posts.length === 0 ? (
+              <EmptyState
+                icon={Megaphone}
+                title="No posts yet"
+                description={`${shop.shop_name} hasn't posted anything yet.`}
+              />
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {posts.map((post) => (
+                  <PostCard key={post.id} post={post} />
                 ))}
               </div>
             )}

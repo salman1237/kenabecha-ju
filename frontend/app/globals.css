@@ -238,3 +238,14 @@
 .dark .gradient-bg-hero {
   background: radial-gradient(circle at 50% 0%, rgba(20, 184, 166, 0.2) 0%, rgba(16, 185, 129, 0.08) 50%, transparent 80%);
 }
+
+/* The post editor's empty-state hint (Tiptap's Placeholder extension marks
+   the empty node itself rather than rendering a real DOM node, so there's
+   no element for a plain Tailwind class to land on). */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-foreground);
+}

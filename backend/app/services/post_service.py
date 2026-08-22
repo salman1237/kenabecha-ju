@@ -81,16 +81,33 @@ async def get_post(db: AsyncSession, post_id: uuid.UUID) -> ShopPost:
     return post
 
 
-async def get_visible_post(db: AsyncSession, post_id: uuid.UUID, viewer: User | None) -> ShopPost:
+def _check_visible(post: ShopPost, viewer: User | None) -> None:
     """A published post is visible to anyone. A pending/rejected one is only
     visible to the owning shop's owner or staff — a shareable link to an
     unmoderated post shouldn't leak its content to a random visitor."""
-    post = await get_post(db, post_id)
     if post.status != PostStatus.published:
         is_owner = viewer is not None and post.shop.owner_id == viewer.id
         is_staff = viewer is not None and viewer.role in ("moderator", "admin")
         if not (is_owner or is_staff):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Post not found")
+
+
+async def get_visible_post(db: AsyncSession, post_id: uuid.UUID, viewer: User | None) -> ShopPost:
+    post = await get_post(db, post_id)
+    _check_visible(post, viewer)
+    return post
+
+
+async def get_visible_post_by_slug(db: AsyncSession, slug: str, viewer: User | None) -> ShopPost:
+    """The public detail page's own lookup — the shareable URL is the slug,
+    not the id, so this is the one place a post is fetched by it."""
+    result = await db.execute(
+        select(ShopPost).where(ShopPost.slug == slug, ShopPost.deleted_at.is_(None))
+    )
+    post = result.scalar_one_or_none()
+    if post is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Post not found")
+    _check_visible(post, viewer)
     return post
 
 
@@ -109,6 +126,17 @@ async def list_shop_posts(
         query = query.where(ShopPost.status == PostStatus.published)
     query = query.order_by(ShopPost.created_at.desc())
     return list((await db.execute(query)).scalars().unique().all())
+
+
+async def get_shop_posts(db: AsyncSession, shop_id: uuid.UUID, viewer: User | None) -> list[ShopPost]:
+    """The storefront's own posts tab — published-only for everyone except
+    the owning shop's owner or staff, who see the full moderation queue."""
+    shop = await db.get(Shop, shop_id)
+    if shop is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Shop not found")
+    is_owner = viewer is not None and shop.owner_id == viewer.id
+    is_staff = viewer is not None and viewer.role in ("moderator", "admin")
+    return await list_shop_posts(db, shop_id, published_only=not (is_owner or is_staff))
 
 
 async def update_post(db: AsyncSession, post: ShopPost, payload: PostUpdate) -> ShopPost:

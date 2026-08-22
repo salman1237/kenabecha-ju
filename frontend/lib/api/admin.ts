@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
-import type { AdminStats, AdminUser, AuditLogEntry, Listing, Page, Report, ReportStatus, Shop, UserRole } from "@/types/api";
+import type { AdminStats, AdminUser, AuditLogEntry, Listing, Page, Post, PostStatus, Report, ReportStatus, Shop, UserRole } from "@/types/api";
 
 export function getAdminStats() {
   return apiFetch<AdminStats>("/admin/stats");
@@ -63,4 +63,28 @@ export function listAuditLog(params: { actorId?: string; action?: string; limit?
 
 export function listAuditActions() {
   return apiFetch<string[]>("/admin/audit/actions");
+}
+
+export function listAdminPosts(status?: PostStatus) {
+  const qs = status ? `?status=${status}` : "";
+  return apiFetch<Page<Post>>(`/admin/posts${qs}`);
+}
+
+export function approvePost(postId: string) {
+  return apiFetch<Post>(`/admin/posts/${postId}/approve`, { method: "POST" });
+}
+
+export function rejectPost(postId: string, reason: string) {
+  return apiFetch<Post>(`/admin/posts/${postId}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export function unpublishPost(postId: string) {
+  return apiFetch<Post>(`/admin/posts/${postId}/unpublish`, { method: "POST" });
+}
+
+export function removeAdminPost(postId: string) {
+  return apiFetch<Post>(`/admin/posts/${postId}`, { method: "DELETE" });
 }

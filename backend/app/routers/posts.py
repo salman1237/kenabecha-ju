@@ -33,6 +33,14 @@ async def feed(
     return Page(items=[PostOut.model_validate(p) for p in posts], total=total, limit=limit, offset=offset)
 
 
+@router.get("/shop/{shop_id}", response_model=list[PostOut])
+async def list_posts_for_shop(
+    shop_id: uuid.UUID, user: User | None = Depends(get_optional_user), db: AsyncSession = Depends(get_db)
+) -> list[PostOut]:
+    posts = await post_service.get_shop_posts(db, shop_id, user)
+    return [PostOut.model_validate(p) for p in posts]
+
+
 @router.get("/mine", response_model=list[PostOut])
 async def list_mine(
     shop_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
@@ -42,11 +50,11 @@ async def list_mine(
     return [PostOut.model_validate(p) for p in posts]
 
 
-@router.get("/{post_id}", response_model=PostOut)
-async def get_post(
-    post_id: uuid.UUID, user: User | None = Depends(get_optional_user), db: AsyncSession = Depends(get_db)
+@router.get("/{slug}", response_model=PostOut)
+async def get_post_by_slug(
+    slug: str, user: User | None = Depends(get_optional_user), db: AsyncSession = Depends(get_db)
 ) -> PostOut:
-    post = await post_service.get_visible_post(db, post_id, user)
+    post = await post_service.get_visible_post_by_slug(db, slug, user)
     return PostOut.model_validate(post)
 
 

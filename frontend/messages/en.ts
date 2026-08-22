@@ -305,6 +305,7 @@ export const en = {
     sold: "Sold",
     reviewsCount: "reviews",
     listingsTab: "Listings",
+    postsTab: "Posts",
     reviewsTab: "Reviews",
     noRatingsYet: "No ratings yet",
     activeListings: "Active listings",

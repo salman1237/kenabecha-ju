@@ -358,19 +358,47 @@ async def test_pending_post_is_invisible_to_a_random_user_but_visible_to_owner_a
     staff = await make_user(db, role="moderator")
 
     await login(client, seller)
-    post_id = (await _create_post(client, shop)).json()["id"]
+    slug = (await _create_post(client, shop)).json()["slug"]
 
     await login(client, stranger)
-    assert (await client.get(f"/posts/{post_id}")).status_code == 404
+    assert (await client.get(f"/posts/{slug}")).status_code == 404
 
     client.cookies.clear()
-    assert (await client.get(f"/posts/{post_id}")).status_code == 404
+    assert (await client.get(f"/posts/{slug}")).status_code == 404
 
     await login(client, seller)
-    assert (await client.get(f"/posts/{post_id}")).status_code == 200
+    assert (await client.get(f"/posts/{slug}")).status_code == 200
 
     await login(client, staff)
-    assert (await client.get(f"/posts/{post_id}")).status_code == 200
+    assert (await client.get(f"/posts/{slug}")).status_code == 200
+
+
+# --- shop storefront tab ---------------------------------------------------
+
+
+async def test_shop_posts_endpoint_shows_published_only_to_strangers_but_all_to_the_owner(client, db):
+    seller = await make_user(db)
+    shop = await _shop(db, seller)
+    moderator = await make_user(db, role="moderator")
+    stranger = await make_user(db)
+
+    await login(client, seller)
+    published_id = (await _create_post(client, shop, title="Published one")).json()["id"]
+    pending_id = (await _create_post(client, shop, title="Pending one")).json()["id"]
+
+    await login(client, moderator)
+    await client.post(f"/admin/posts/{published_id}/approve")
+
+    await login(client, stranger)
+    res = await client.get(f"/posts/shop/{shop.id}")
+    assert res.status_code == 200
+    ids = {p["id"] for p in res.json()}
+    assert ids == {published_id}
+
+    await login(client, seller)
+    res = await client.get(f"/posts/shop/{shop.id}")
+    ids = {p["id"] for p in res.json()}
+    assert ids == {published_id, pending_id}
 
 
 async def test_only_the_owner_can_edit_or_delete_a_post(client, db):

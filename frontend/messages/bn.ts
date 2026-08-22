@@ -307,6 +307,7 @@ export const bn: Translations = {
     sold: "বিক্রিত",
     reviewsCount: "রিভিউ",
     listingsTab: "পণ্য",
+    postsTab: "পোস্ট",
     reviewsTab: "রিভিউ",
     noRatingsYet: "এখনো কোনো রেটিং নেই",
     activeListings: "সক্রিয় পণ্য",

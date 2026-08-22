@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Camera, Pencil, PlusCircle, Trash2 } from "lucide-react";
+import { Camera, Megaphone, Pencil, PlusCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useLanguage } from "@/context/LanguageContext";
@@ -481,6 +481,12 @@ export default function MyShopsPage() {
                         className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
                       >
                         <PlusCircle /> {t.shops.addListing}
+                      </Link>
+                      <Link
+                        href={`/shops/dashboard/posts?shop_id=${shop.id}`}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      >
+                        <Megaphone /> Posts
                       </Link>
                       <Button variant="ghost" size="sm" onClick={() => setEditingShopId(shop.id)}>
                         <Pencil /> {t.common.edit}

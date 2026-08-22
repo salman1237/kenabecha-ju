@@ -26,6 +26,34 @@ export function bulkRemoveShops(ids: string[]) {
   });
 }
 
+export function bulkApprovePosts(ids: string[]) {
+  return apiFetch<BulkResult>("/admin/posts/bulk-approve", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export function bulkRejectPosts(ids: string[], reason: string) {
+  return apiFetch<BulkResult>("/admin/posts/bulk-reject", {
+    method: "POST",
+    body: JSON.stringify({ ids, reason }),
+  });
+}
+
+export function bulkUnpublishPosts(ids: string[]) {
+  return apiFetch<BulkResult>("/admin/posts/bulk-unpublish", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export function bulkDeletePosts(ids: string[]) {
+  return apiFetch<BulkResult>("/admin/posts/bulk-delete", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
+}
+
 export function getAnnouncement() {
   return apiFetch<AdminAnnouncement>("/admin/announcement");
 }

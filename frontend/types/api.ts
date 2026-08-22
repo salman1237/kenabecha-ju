@@ -338,7 +338,9 @@ export type NotificationType =
   | "listing_reported"
   | "listing_removed"
   | "shop_reported"
-  | "shop_removed";
+  | "shop_removed"
+  | "shop_new_post"
+  | "post_rejected";
 
 export interface Notification {
   id: string;
@@ -503,4 +505,27 @@ export interface AdminAnnouncement extends Announcement {
 export interface AssistantSettings {
   enabled: boolean;
   system_prompt: string;
+}
+
+export type PostStatus = "pending" | "published" | "rejected";
+
+export interface PostImage {
+  id: string;
+  image_url: string;
+  sort_order: number;
+}
+
+export interface Post {
+  id: string;
+  shop: { id: string; shop_name: string; slug: string; logo_url: string | null };
+  title: string;
+  description_html: string;
+  slug: string;
+  status: PostStatus;
+  rejection_reason: string | null;
+  images: PostImage[];
+  listings: Listing[];
+  created_at: string;
+  updated_at: string;
+  published_at: string | null;
 }
