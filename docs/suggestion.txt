@@ -1,0 +1,1026 @@
+প্রস্তাবনা
+
+Jahangirnagar University Student & Alumni Business and Service Directory
+
+প্রস্তাবিত ওয়েবসাইটের ধারণা
+
+জাহাঙ্গীরনগর বিশ্ববিদ্যালয়ের বর্তমান ও প্রাক্তন শিক্ষার্থীদের মধ্যে অনেকেই বিভিন্ন ধরনের ব্যবসা, পেশা ও সেবা কার্যক্রমের সঙ্গে যুক্ত। কেউ গাড়ি ভাড়া দেন, কেউ ট্রাভেল ও ভিসা প্রসেসিং করেন, কেউ ইমপোর্ট-এক্সপোর্ট করেন, কেউ খেজুর/খাদ্যপণ্য বিক্রি করেন, কেউ আইটি সার্ভিস দেন, কেউ কনসালটেন্সি করেন, আবার কেউ বিভিন্ন পণ্য ও সেবা প্রদান করেন।
+
+বর্তমানে এসব তথ্য বিভিন্ন Facebook Group, Messenger Group, WhatsApp Group এবং ব্যক্তিগত যোগাযোগের মধ্যে ছড়িয়ে আছে। ফলে প্রয়োজনের সময় নির্দিষ্ট ব্যবসা বা সেবা প্রদানকারী ব্যক্তিকে খুঁজে বের করা কঠিন হয়ে পড়ে।
+
+এই সমস্যা সমাধানের জন্য একটি কেন্দ্রীয় ওয়েব প্ল্যাটফর্ম তৈরি করার প্রস্তাব করা হচ্ছে, যেখানে জাহাঙ্গীরনগর বিশ্ববিদ্যালয়ের ছাত্রছাত্রী ও অ্যালামনাইদের ব্যবসা, পেশা ও সেবা সম্পর্কিত তথ্য একটি নির্দিষ্ট কাঠামোর মধ্যে সংরক্ষণ করা হবে।
+
+১. প্রকল্পের মূল উদ্দেশ্য
+
+এই ওয়েবসাইটের প্রধান উদ্দেশ্য হলো—
+
+জাহাঙ্গীরনগর বিশ্ববিদ্যালয়ের শিক্ষার্থী ও অ্যালামনাইদের ব্যবসা ও সেবা সম্পর্কে একটি কেন্দ্রীয় ডাটাবেস তৈরি করা।
+
+প্রয়োজনের সময় নির্দিষ্ট ব্যবসা বা সেবা খুব দ্রুত খুঁজে বের করার সুযোগ তৈরি করা।
+
+বিশ্ববিদ্যালয়ের সদস্যদের মধ্যে ব্যবসায়িক যোগাযোগ বৃদ্ধি করা।
+
+নিজেদের বিশ্ববিদ্যালয়ের সদস্যদের কাছ থেকে পণ্য ও সেবা গ্রহণের সুযোগ তৈরি করা।
+
+শিক্ষার্থী ও অ্যালামনাইদের উদ্যোক্তা কার্যক্রমকে উৎসাহিত করা।
+
+বিশ্ববিদ্যালয়ভিত্তিক একটি শক্তিশালী Business & Professional Network তৈরি করা।
+
+২. ওয়েবসাইটের মূল ধারণা
+
+ওয়েবসাইটে একজন ব্যবহারকারী Search Box-এ তার প্রয়োজনীয় পণ্য বা সেবার নাম লিখবেন।
+
+উদাহরণ:
+
+ধরা যাক, একজন ব্যবহারকারী গাড়ি ভাড়া নিতে চান।
+
+তিনি Search করবেন:
+
+Car Rental / গাড়ি ভাড়া
+
+তখন সিস্টেম তাকে দেখাবে—
+
+ব্যবসার নাম
+
+ব্যক্তির নাম
+
+বিভাগ
+
+ব্যাচ
+
+বিশ্ববিদ্যালয়ের সঙ্গে সম্পর্ক
+
+ব্যবসার ধরন
+
+ব্যবসার সংক্ষিপ্ত বিবরণ
+
+মোবাইল নম্বর
+
+SMS/WhatsApp যোগাযোগ
+
+ব্যবসার Facebook Page/Website
+
+ব্যবসার অবস্থান
+
+প্রয়োজনীয় অন্যান্য তথ্য
+
+ফলে Facebook বা Messenger-এর বিভিন্ন Group-এ বারবার পোস্ট না করে কয়েক সেকেন্ডের মধ্যেই প্রয়োজনীয় ব্যক্তিকে খুঁজে পাওয়া যাবে।
+
+৩. কারা এই প্ল্যাটফর্মে যুক্ত হতে পারবেন
+
+প্রাথমিকভাবে প্ল্যাটফর্মটি জাহাঙ্গীরনগর বিশ্ববিদ্যালয়ের—
+
+বর্তমান শিক্ষার্থী
+
+প্রাক্তন শিক্ষার্থী
+
+অ্যালামনাই
+
+শিক্ষক
+
+কর্মকর্তা
+
+কর্মচারী
+
+—এর জন্য উন্মুক্ত করা যেতে পারে।
+
+তবে ব্যবসা/সেবা প্রদানের ক্ষেত্রে ব্যক্তির University Identity যাচাই করার ব্যবস্থা রাখা উচিত।
+
+৪. দুই ধরনের User Profile
+
+ওয়েবসাইটে প্রধানত দুই ধরনের Profile থাকবে।
+
+A. Business / Service Profile
+
+যারা ব্যবসা বা কোনো সেবা প্রদান করেন তারা Business Profile তৈরি করতে পারবেন।
+
+তাদের তথ্য হতে পারে—
+
+নাম
+
+ছবি
+
+বিভাগ
+
+ব্যাচ
+
+বিশ্ববিদ্যালয়ের পরিচয়
+
+ব্যবসার নাম
+
+Business Category
+
+Business Description
+
+Product/Service
+
+মোবাইল নম্বর
+
+SMS Number
+
+WhatsApp
+
+Facebook Page
+
+Website
+
+ব্যবসার Location
+
+Business Logo
+
+Product Images
+
+Working Hours
+
+Delivery Information
+
+৫. Business Category
+
+ব্যবহারকারীরা বিভিন্ন Category-এর মাধ্যমে ব্যবসা খুঁজতে পারবেন।
+
+উদাহরণ:
+
+Transport
+
+Car Rental
+
+Car Sales
+
+Car Parts
+
+Rent-a-Car
+
+Transport Service
+
+Travel & Visa
+
+Visa Processing
+
+Air Ticket
+
+Travel Agency
+
+Hotel Booking
+
+Hajj & Umrah
+
+Import & Export
+
+Importer
+
+Exporter
+
+China Business
+
+Japan Business
+
+Dubai Business
+
+Food
+
+Restaurant
+
+Bakery
+
+Homemade Food
+
+Dates
+
+Grocery
+
+Catering
+
+Technology
+
+Software
+
+Website Development
+
+IT Service
+
+Digital Marketing
+
+Graphic Design
+
+Education
+
+Coaching
+
+Training
+
+Online Course
+
+Consultancy
+
+Professional Services
+
+Lawyer
+
+Doctor
+
+Engineer
+
+Accountant
+
+Consultant
+
+E-commerce
+
+Fashion
+
+Electronics
+
+Gadget
+
+Baby Products
+
+Home Products
+
+Sports Products
+
+এছাড়া Administrator প্রয়োজন অনুযায়ী নতুন Category তৈরি করতে পারবেন।
+
+৬. Non-Business Profile
+
+যারা ব্যবসা করেন না, তারাও ওয়েবসাইটে Member Profile তৈরি করতে পারবেন।
+
+তাদের ক্ষেত্রে ব্যবসার তথ্যের পরিবর্তে থাকতে পারে—
+
+নাম
+
+ছবি
+
+বিভাগ
+
+ব্যাচ
+
+Profession
+
+বর্তমান কর্মস্থল
+
+Skill
+
+Location
+
+Contact Information
+
+Social Profile
+
+তবে Privacy-এর জন্য ব্যবহারকারী নিজেই নির্ধারণ করবেন কোন তথ্য Public থাকবে এবং কোন তথ্য Private থাকবে।
+
+৭. Smart Search System
+
+ওয়েবসাইটের সবচেয়ে গুরুত্বপূর্ণ Feature হবে Advanced Search।
+
+একজন ব্যবহারকারী Search করতে পারবেন—
+
+Keyword দিয়ে
+
+“Car Rental”
+
+“Visa”
+
+“Dates”
+
+“China Import”
+
+“Graphic Design”
+
+“Restaurant”
+
+“Gadget”
+
+ইত্যাদি।
+
+Department দিয়ে
+
+CSE
+
+EEE
+
+IBA
+
+Economics
+
+Law
+
+Physics
+
+Chemistry
+
+ইত্যাদি।
+
+Batch দিয়ে
+
+যেমন:
+
+Batch 30
+
+তাহলে Batch 30-এর Business Owner-দের দেখা যাবে।
+
+Location দিয়ে
+
+যেমন:
+
+Dhaka
+
+Mirpur
+
+Uttara
+
+Dhanmondi
+
+Chattogram
+
+ইত্যাদি।
+
+৮. Advanced Filter
+
+Search Result পাওয়ার পর আরও Filter করার ব্যবস্থা থাকবে।
+
+যেমন—
+
+Category + Department + Batch + Location
+
+উদাহরণ:
+
+Car Rental
+↓
+CSE
+↓
+Batch 35
+↓
+Dhaka
+
+এভাবে খুব নির্দিষ্ট ব্যক্তিকে খুঁজে পাওয়া যাবে।
+
+৯. Member Profile Page
+
+প্রতিটি Business Owner-এর আলাদা Profile Page থাকবে।
+
+উদাহরণ:
+
+Md. Rahim
+
+Department: CSE
+Batch: 35
+
+Business:
+
+Rahim Rent-A-Car
+
+Services:
+
+Private Car Rental
+
+Microbus Rental
+
+Airport Pickup
+
+Corporate Transport
+
+Contact:
+
+📞 Call
+💬 SMS
+🟢 WhatsApp
+
+এছাড়া চাইলে—
+
+Facebook Page
+Website
+Location
+Business Hours
+
+দেখানো যাবে।
+
+১০. Direct Contact System
+
+Search Result থেকে সরাসরি যোগাযোগের ব্যবস্থা থাকবে।
+
+যেমন—
+
+Call
+
+Send SMS
+
+WhatsApp
+
+Email
+
+Visit Website
+
+এতে ব্যবহারকারীকে আলাদা করে নম্বর Copy/Paste করতে হবে না।
+
+১১. Business Verification System
+
+ওয়েবসাইটের বিশ্বাসযোগ্যতা বাড়ানোর জন্য Verification System রাখা অত্যন্ত গুরুত্বপূর্ণ।
+
+যেমন—
+
+Verified JU Member
+
+যাদের University identity যাচাই করা হয়েছে তাদের Profile-এর পাশে একটি Verified Badge থাকবে।
+
+উদাহরণ:
+
+Rahim Ahmed ✓ Verified
+
+এতে ভুয়া পরিচয় ব্যবহার করার সুযোগ কমবে।
+
+১২. University Identity Verification
+
+Verification কয়েকভাবে করা যেতে পারে—
+
+University ID
+
+Alumni ID
+
+Institutional Email
+
+Department/Batch verification
+
+Admin approval
+
+প্রাথমিক পর্যায়ে Admin Verification ব্যবহার করা যেতে পারে।
+
+১৩. Review & Rating System
+
+ব্যবহারকারীরা কোনো ব্যবসা থেকে সেবা নেওয়ার পর Review দিতে পারবেন।
+
+উদাহরণ:
+
+★★★★★
+
+“সময়মতো গাড়ি দিয়েছে এবং সার্ভিস ভালো ছিল।”
+
+তবে Review System চালুর আগে Fake Review প্রতিরোধের ব্যবস্থা করতে হবে।
+
+১৪. Report System
+
+কোনো Business Profile ভুল, প্রতারণামূলক বা বিভ্রান্তিকর হলে ব্যবহারকারী—
+
+Report Profile
+
+অপশন ব্যবহার করতে পারবেন।
+
+Admin অভিযোগ যাচাই করে—
+
+Warning
+
+Temporary Suspension
+
+Permanent Removal
+
+করতে পারবেন।
+
+১৫. Business Listing
+
+প্রতিটি Business Owner নিজের Business Listing তৈরি করতে পারবেন।
+
+Listing-এ থাকবে—
+
+Business Name
+
+Owner Name
+
+Category
+
+Products/Services
+
+Description
+
+Contact
+
+Location
+
+Social Media
+
+Website
+
+Photos
+
+১৬. Featured Business
+
+ভবিষ্যতে Revenue Generation-এর জন্য একটি—
+
+Featured Business
+
+সুবিধা রাখা যেতে পারে।
+
+যেমন Homepage-এ কিছু Business Highlight করা হবে।
+
+তবে Paid Listing এবং Organic Listing আলাদা রাখতে হবে যাতে প্ল্যাটফর্মের বিশ্বাসযোগ্যতা বজায় থাকে।
+
+১৭. Homepage Structure
+
+Homepage খুব সহজ রাখা উচিত।
+
+Header
+
+JU Business Directory
+
+Search Box:
+
+আপনি কী খুঁজছেন?
+
+[ Car Rental / Visa / Dates / Restaurant / IT Service ]
+
+Main Categories
+
+🚗 Transport
+✈️ Travel & Visa
+💻 IT
+🍴 Food
+📦 Import & Export
+🛍️ E-commerce
+📚 Education
+⚖️ Professional Services
+
+Featured Businesses
+
+Verified Business Profiles
+
+Latest Members
+
+Recently Joined Members
+
+Call to Action
+
+আপনার ব্যবসা যুক্ত করুন
+
+১৮. User Registration
+
+Registration-এর সময় প্রয়োজনীয় তথ্য নেওয়া হবে।
+
+Basic Information
+
+Name
+
+Email
+
+Mobile
+
+Department
+
+Batch
+
+Student/Alumni Status
+
+Profile
+
+Photo
+
+Profession
+
+Location
+
+Business Information
+
+যদি ব্যবসা থাকে:
+
+Do you own a Business?
+
+YES / NO
+
+YES নির্বাচন করলে Business Information Form আসবে।
+
+১৯. Privacy Control
+
+ব্যক্তিগত তথ্যের নিরাপত্তা অত্যন্ত গুরুত্বপূর্ণ।
+
+প্রতিটি Member নির্ধারণ করতে পারবেন—
+
+Public
+
+Name
+
+Department
+
+Batch
+
+Business
+
+Business Contact
+
+Private
+
+Personal Phone
+
+Personal Email
+
+Home Address
+
+Other Personal Information
+
+ব্যক্তিগত তথ্য Public করার আগে User-এর Consent নেওয়া উচিত।
+
+২০. Admin Dashboard
+
+ওয়েবসাইটের একটি শক্তিশালী Admin Panel থাকবে।
+
+Admin করতে পারবেন—
+
+New User Approve
+
+Business Approve
+
+Profile Edit
+
+Business Category Add/Edit
+
+Fake Profile Remove
+
+Report Review
+
+User Suspend
+
+Featured Business
+
+Search Analytics
+
+User Statistics
+
+Business Statistics
+
+২১. Website-এর সম্ভাব্য Menu
+
+Home
+
+Find a Business
+
+Find a Member
+
+Categories
+
+Departments
+
+Batches
+
+Featured Businesses
+
+Add Your Business
+
+Register
+
+Login
+
+Contact
+
+২২. Mobile Friendly Design
+
+বর্তমানে অধিকাংশ ব্যবহারকারী মোবাইল দিয়ে ওয়েবসাইট ব্যবহার করবেন।
+
+তাই Website অবশ্যই—
+
+Mobile First + Responsive
+
+হতে হবে।
+
+পরবর্তীতে Android/iOS App তৈরি করা যেতে পারে।
+
+২৩. Future Mobile App
+
+ওয়েবসাইট সফল হলে Android এবং iOS App তৈরি করা যাবে।
+
+App থেকে ব্যবহারকারী—
+
+Business Search
+
+Call
+
+SMS
+
+WhatsApp
+
+Profile
+
+Review
+
+Business Add
+
+Notification
+
+করতে পারবেন।
+
+২৪. সম্ভাব্য Technology
+
+প্রথম পর্যায়ে কম খরচে Website তৈরি করতে ব্যবহার করা যেতে পারে—
+
+Frontend
+
+HTML
+
+CSS
+
+JavaScript
+
+React / Next.js
+
+Backend
+
+Laravel / Node.js
+
+Database
+
+MySQL / PostgreSQL
+
+Hosting
+
+Cloud/VPS
+
+ভবিষ্যতে ব্যবহারকারীর সংখ্যা বাড়লে Cloud Infrastructure ব্যবহার করা যাবে।
+
+২৫. প্রথম ধাপে Minimum Viable Product (MVP)
+
+শুরুতেই অনেক Feature তৈরি করার প্রয়োজন নেই।
+
+প্রথম Version-এ শুধু—
+
+Registration
+
+Login
+
+Member Profile
+
+Business Profile
+
+Business Category
+
+Search
+
+Department Filter
+
+Batch Filter
+
+Contact
+
+Admin Approval
+
+Verified Badge
+
+Report Profile
+
+এই Featureগুলো দিয়ে Website Launch করা যেতে পারে।
+
+২৬. দ্বিতীয় ধাপ
+
+Website ব্যবহার শুরু হওয়ার পর যুক্ত করা যেতে পারে—
+
+Review & Rating
+
+WhatsApp Button
+
+Location Map
+
+Featured Business
+
+Business Image Gallery
+
+Advanced Search
+
+Business Analytics
+
+Notifications
+
+২৭. তৃতীয় ধাপ
+
+পরবর্তীতে তৈরি করা যেতে পারে—
+
+Android App
+
+iOS App
+
+Marketplace
+
+Product Listing
+
+Service Booking
+
+Payment Gateway
+
+Business Promotion
+
+Advertisement System
+
+২৮. Revenue Model
+
+ভবিষ্যতে Website থেকে আয় করার বিভিন্ন সুযোগ থাকবে।
+
+Free Listing
+
+সাধারণ Business Listing সম্পূর্ণ Free।
+
+Premium Listing
+
+অতিরিক্ত সুবিধার জন্য Monthly/Yearly Fee।
+
+Featured Business
+
+Homepage-এ Business Promotion।
+
+Advertisement
+
+বিশ্ববিদ্যালয় ও অ্যালামনাই কমিউনিটির জন্য প্রাসঙ্গিক বিজ্ঞাপন।
+
+Sponsored Category
+
+কোনো নির্দিষ্ট Category Sponsor করা।
+
+তবে প্রথম পর্যায়ে Revenue-এর চেয়ে User Base এবং Trust তৈরি করা বেশি গুরুত্বপূর্ণ।
+
+২৯. Marketing Strategy
+
+প্রথমে শুধু জাহাঙ্গীরনগর বিশ্ববিদ্যালয়কে Target করা হবে।
+
+প্রচার করা যেতে পারে—
+
+Department Facebook Groups
+
+Alumni Groups
+
+Batch Groups
+
+Messenger Groups
+
+WhatsApp Groups
+
+University Events
+
+Alumni Events
+
+Student Organizations
+
+একটি প্রচারণার মূল বক্তব্য হতে পারে—
+
+“আপনার বিশ্ববিদ্যালয়ের মানুষ, আপনার ব্যবসার প্রথম পছন্দ।”
+
+৩০. Launch Strategy
+
+Phase 1
+
+১০০–২০০ জন পরিচিত শিক্ষার্থী ও অ্যালামনাইকে দিয়ে Test Profile তৈরি।
+
+Phase 2
+
+প্রতিটি Department থেকে Business Owner সংগ্রহ।
+
+Phase 3
+
+প্রতিটি Batch-এর প্রতিনিধির মাধ্যমে তথ্য সংগ্রহ।
+
+Phase 4
+
+University-wide Launch।
+
+Phase 5
+
+Verified Business Directory তৈরি।
+
+৩১. সম্ভাব্য ব্যবহারিক উদাহরণ
+
+ধরা যাক একজন JU Alumni লিখলেন—
+
+“আমার গাড়ি ভাড়া দরকার।”
+
+তিনি Website-এ গিয়ে Search করবেন:
+
+Car Rental
+
+তখন Website দেখাবে:
+
+Business Name
+
+Owner Name
+
+Department
+
+Batch
+
+Location
+
+Services
+
+Phone
+
+SMS
+
+WhatsApp
+
+Verification Status
+
+তিনি সরাসরি Call/SMS/WhatsApp করতে পারবেন।
+
+একইভাবে কেউ যদি Search করেন—
+
+Visa
+
+তাহলে Visa Service প্রদানকারী JU Members-এর তালিকা পাওয়া যাবে।
+
+কেউ যদি Search করেন—
+
+Dates
+
+তাহলে খেজুর ব্যবসার সঙ্গে যুক্ত Members দেখা যাবে।
+
+এভাবেই বিভিন্ন Facebook Group বা Messenger-এ বারবার “কে গাড়ি ভাড়া দেন?”, “কে ভিসার কাজ করেন?”, “কে খেজুর বিক্রি করেন?”—এ ধরনের পোস্ট করার প্রয়োজন অনেক কমে যাবে।
+
+৩২. এই প্রকল্পের বিশেষত্ব
+
+এই Website সাধারণ Business Directory থেকে আলাদা হবে।
+
+কারণ এটি হবে—
+
+University Identity + Business + Professional Network
+
+একসঙ্গে।
+
+একজন ব্যবহারকারী শুধু ব্যবসা খুঁজবেন না; তিনি জানতে পারবেন—
+
+এই ব্যবসাটি আমাদের বিশ্ববিদ্যালয়ের কোন ভাই/বোনের।
+
+এতে বিশ্বাস, পরিচিতি ও ব্যবসায়িক সম্পর্ক—তিনটিই তৈরি হবে।
+
+৩৩. Long-Term Vision
+
+প্রথমে প্ল্যাটফর্মটি শুধু—
+
+Jahangirnagar University
+
+কে কেন্দ্র করে শুরু করা যেতে পারে।
+
+পরবর্তীতে একই Platform Model ব্যবহার করে—
+
+DU
+
+BUET
+
+RU
+
+CU
+
+BUP
+
+JU
+
+অন্যান্য বিশ্ববিদ্যালয়
+
+এর জন্য আলাদা Community তৈরি করা সম্ভব।
+
+দীর্ঘমেয়াদে এটি একটি—
+
+University-Based Business & Professional Network
+
+হিসেবে পরিণত হতে পারে।
+
+৩৪. প্রস্তাবিত নাম
+
+কিছু সম্ভাব্য নাম:
+
+JU Business Network
+
+JU Business Directory
+
+JU Connect
+
+JU Business Connect
+
+JU Alumni Business Hub
+
+JU Community Network
+
+JU Marketplace
+
+JU Business & Professional Network
+
+এর মধ্যে JU Business Connect বা JU Business Network ধারণাটির সঙ্গে সবচেয়ে বেশি মানানসই।
+
+৩৫. গুরুত্বপূর্ণ নীতি
+
+এই প্ল্যাটফর্মের মূল নীতি হওয়া উচিত—
+
+“Search First, Connect Fast, Support Our Own Community.”
+
+অর্থাৎ প্রয়োজনের সময় দ্রুত খুঁজে বের করা এবং বিশ্ববিদ্যালয়ের নিজস্ব কমিউনিটির মধ্যে ব্যবসা ও সেবা আদান-প্রদান করা।
+
+৩৬. প্রস্তাবের সারসংক্ষেপ
+
+বর্তমানে জাহাঙ্গীরনগর বিশ্ববিদ্যালয়ের শিক্ষার্থী ও অ্যালামনাইদের ব্যবসা ও পেশাগত পরিচিতির তথ্য বিভিন্ন Facebook Group, Messenger, WhatsApp এবং ব্যক্তিগত যোগাযোগের মধ্যে ছড়িয়ে রয়েছে।
+
+এই তথ্যগুলোকে একটি কেন্দ্রীয়, Searchable এবং Verified Digital Platform-এর মাধ্যমে একত্রিত করা হলে বিশ্ববিদ্যালয়ের সদস্যরা খুব সহজে প্রয়োজনীয় পণ্য ও সেবা প্রদানকারী ব্যক্তিকে খুঁজে পাবেন।
+
+এই উদ্যোগের মাধ্যমে—
+
+ব্যবসায়িক যোগাযোগ বৃদ্ধি পাবে
+
+Alumni Networking শক্তিশালী হবে
+
+শিক্ষার্থীরা উদ্যোক্তাদের সঙ্গে যুক্ত হতে পারবে
+
+নিজেদের কমিউনিটির ব্যবসাকে অগ্রাধিকার দেওয়া সম্ভব হবে
+
+প্রয়োজনীয় পণ্য ও সেবা দ্রুত পাওয়া যাবে
+
+একটি দীর্ঘমেয়াদি University Business Network তৈরি হবে
+
+সুতরাং, Jahangirnagar University Student & Alumni Business and Service Directory একটি বাস্তবসম্মত, প্রয়োজনভিত্তিক এবং ভবিষ্যতে বড় পরিসরে সম্প্রসারণযোগ্য Digital Community Platform হিসেবে বিবেচনা করা যেতে পারে।

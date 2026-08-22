@@ -1,0 +1,167 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[table]{xcolor}
+\usepackage{hyperref}
+\usepackage{fontspec}
+\usepackage{fancyhdr}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{booktabs}
+
+\definecolor{brandgreen}{HTML}{059669}
+\definecolor{brandteal}{HTML}{0d9488}
+\definecolor{darktext}{HTML}{1f2937}
+\definecolor{graytext}{HTML}{4b5563}
+\definecolor{covered}{HTML}{059669}
+\definecolor{partial}{HTML}{d97706}
+\definecolor{gap}{HTML}{dc2626}
+\definecolor{rowalt}{HTML}{f4f4f5}
+
+\setmainfont{Segoe UI}[
+  BoldFont = Segoe UI Bold,
+  ItalicFont = Segoe UI Italic
+]
+
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{brandgreen}}
+  {\thesection}{0.6em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{darktext}}
+  {\thesubsection}{0.5em}{}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=brandgreen,
+  urlcolor=brandteal,
+  pdftitle={KenaBecha JU -- Alumni Directory Proposal Review},
+  pdfauthor={KenaBecha JU}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{\small\color{graytext} KenaBecha JU}
+\fancyhead[R]{\small\color{graytext} Alumni Proposal Review}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+
+\setlist[itemize]{leftmargin=1.4em, itemsep=2pt, topsep=2pt}
+
+\newcommand{\feature}[2]{%
+  \item \textbf{#1} --- #2
+}
+\newcommand{\statuscovered}{\textcolor{covered}{\textbf{Covered}}}
+\newcommand{\statuspartial}{\textcolor{partial}{\textbf{Partial}}}
+\newcommand{\statusgap}{\textcolor{gap}{\textbf{Gap}}}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+  {\Huge\bfseries\color{brandgreen} KenaBecha JU}\\[0.4cm]
+  {\Large\color{darktext} Alumni Directory Proposal --- Review \& Gap Analysis}\\[0.3cm]
+  {\large\color{graytext} A comparison against ``Jahangirnagar University Student \& Alumni Business and Service Directory''}\\[2cm]
+  {\normalsize\color{graytext} What the proposal asks for, how much of it KenaBecha JU already does, and what would genuinely be new to build.}
+  \vfill
+  {\small\color{graytext} \today}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Executive Summary}
+
+A senior alumnus proposed a standalone platform --- \emph{JU Business \& Service Directory} --- so students and alumni running a business or offering a service can be found by category, department, and batch instead of scattered across Facebook/Messenger/WhatsApp groups. Read closely, the proposal is not a different product from KenaBecha JU; it is largely a \textbf{restatement of the same core idea} (a JU-verified marketplace of student- and alumni-run businesses, searchable and directly contactable) with a stronger emphasis on three things KenaBecha JU does not yet do: \textbf{treating department/batch/location as first-class search dimensions}, \textbf{a public trust badge for verified members}, and \textbf{a profile type for people offering a service or skill without necessarily selling a physical product}.
+
+The recommendation is to \textbf{extend KenaBecha JU rather than build a second platform}. Roughly three quarters of the proposal --- categorised business profiles, JU-identity verification, admin approval, reporting, reviews, direct contact, an admin dashboard, mobile-first design --- already exists here, generally in a more capable form (real-time chat with history, a follower graph, bulk moderation, an audit log, i18n) than the ground-up MVP the proposal sketches. The genuine, worthwhile net-new work is scoped in Section~\ref{sec:gaps}.
+
+\section{The Proposal, in Brief}
+
+Core mechanic: a visitor searches a keyword (``Car Rental'', ``Visa'', ``Dates'', ``Graphic Design''), optionally narrowed by department, batch, or location, and gets a list of JU-affiliated business/service providers with a name, a short description, and one-tap Call/SMS/WhatsApp/Facebook/Website contact --- no more re-posting ``does anyone know who rents cars?'' in a Facebook group. Two profile types are proposed: a \emph{Business/Service Profile} (shop-like: name, category, description, contact, location, logo, product photos, working hours, delivery info) and a plain \emph{Member Profile} for people who don't run a business but want to be discoverable by profession, skill, and department/batch, with per-field public/private visibility. Trust is built through JU-identity verification (a visible ``Verified'' badge), admin approval of new businesses, reviews after a transaction, and a report/moderation pipeline. The proposal explicitly recommends a small first-version MVP (registration, profiles, category search, department/batch filters, contact, admin approval, verified badge, reporting) with reviews, featured listings, and a mobile app deferred to later phases, and floats a freemium revenue model (free listings, paid ``featured'' placement) once there's a real user base.
+
+\section{Already Covered by KenaBecha JU}
+
+\begin{itemize}
+  \feature{JU-verified identity}{Signup already collects student ID, registration number, hall, department, session, with \texttt{batch} computed server-side --- stronger than the proposal's ``admin approval as a first pass'' suggestion, since it's structural rather than a manual review queue.}
+  \feature{Business profiles}{Shops already carry a name, description, category (\texttt{shop\_type}), logo, and cover photo, and a seller can run more than one.}
+  \feature{Category-based discovery}{An admin-curated, two-level category tree already exists and is exactly as extensible as the proposal's ``Transport / Travel \& Visa / IT / Food / Professional Services'' list --- those are category rows to add, not a feature to build.}
+  \feature{Keyword search}{Full-text search across titles, descriptions, and tags, with typo-tolerant trigram matching and autocomplete --- more capable than the proposal's plain keyword box.}
+  \feature{Direct contact, no copy-paste}{A listing's contact panel already renders one-tap \texttt{tel:} Call and WhatsApp deep links straight from the seller's stored numbers, alongside the in-app Contact Seller flow. Only a plain SMS (\texttt{sms:}) link and a Facebook/website field are genuinely absent.}
+  \feature{Reviews \& trust}{Post-transaction star ratings with written reviews, gated to buyers who actually messaged about a completed listing --- a real-transaction gate the proposal only says is ``needed'' without specifying how.}
+  \feature{Report \& moderation pipeline}{Users can report a listing, shop, or user; staff resolve as dismissed/removed/warned/banned, every action audit-logged --- the proposal's Section 14 essentially describes what Phase 41/45 already built.}
+  \feature{Admin dashboard}{Headline metrics, activity charts, bulk moderation, category/navigation management, scheduled announcements --- broader than the proposal's Section 20 wishlist.}
+  \feature{Following \& notifications}{A follower graph per shop, with in-app and email notifications on new posts/restocks --- something the proposal doesn't have an equivalent of at all.}
+  \feature{Promotional placement}{Per-listing ``Top'' picks and time-boxed ``Featured'' promotion already exist, covering the proposal's Section 16/28 revenue idea at the listing level.}
+  \feature{Mobile-first, bilingual}{Responsive design with a dedicated mobile bottom nav, full English/Bangla i18n --- the proposal treats both as later-phase concerns; KenaBecha JU shipped them from the start.}
+\end{itemize}
+
+\section{Comparison at a Glance}
+
+\rowcolors{2}{white}{rowalt}
+\begin{longtable}{@{}p{5.6cm}p{1.7cm}p{7.6cm}@{}}
+\toprule
+\textbf{Proposal feature} & \textbf{Status} & \textbf{Notes} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Proposal feature} & \textbf{Status} & \textbf{Notes} \\
+\midrule
+\endhead
+Business/Service profile & \statuscovered & Shops, with logo/cover/description/category. \\
+Category taxonomy, admin-extensible & \statuscovered & Existing two-level category tree. \\
+Keyword search & \statuscovered & Full-text + trigram + autocomplete. \\
+Call / WhatsApp direct contact & \statuscovered & Already on every listing detail page. \\
+Reviews \& ratings & \statuscovered & Real-transaction-gated, already shipped. \\
+Report system & \statuscovered & Full pipeline with audit trail. \\
+Admin approval / verification & \statuscovered & Structural (JU fields + OTP), not a manual queue. \\
+Admin dashboard & \statuscovered & Broader than proposed. \\
+Featured/paid placement & \statuscovered & At listing level; shop-level is a gap (below). \\
+Multiple businesses per person & \statuscovered & A seller can run several shops today. \\
+SMS contact button & \statuspartial & Call/WhatsApp exist; \texttt{sms:} link does not. \\
+Facebook Page / external website field & \statuspartial & Not a stored shop field today. \\
+Department / batch as a search filter & \statusgap & Fields exist on the user; not exposed as a discovery filter anywhere. \\
+Location (city/area) search filter & \statusgap & Only free-text \texttt{pickup\_address}; no structured area field or filter. \\
+Public ``Verified'' trust badge & \statusgap & \texttt{is\_verified} is an internal login gate, never shown publicly. \\
+Non-business ``Member'' / professional profile & \statusgap & No profession/workplace/skills fields; a profile today is only ``buyer or shop owner.'' \\
+Per-field privacy control (public/private) & \statusgap & No visibility settings; profile fields are shown or not shown by fixed code, not by user choice. \\
+Working hours / delivery info (structured) & \statusgap & Only free-text description; not queryable or displayed consistently. \\
+Shop-level (not just listing-level) featuring & \statusgap & Today's promotion boosts one listing, not a whole business's placement. \\
+Alumni-specific onboarding (batch reps, phased rollout) & n/a & A go-to-market strategy, not a product feature. \\
+\bottomrule
+\end{longtable}
+
+\section{Genuine Gaps --- Unique Features Worth Building}
+\label{sec:gaps}
+
+These are the parts of the proposal that don't already exist here in some form. Ordered by how directly they serve the proposal's actual point --- ``find a JU person for X, fast'' --- rather than by how easy each is to build.
+
+\begin{itemize}
+  \feature{Department \& batch as real discovery filters}{The single most distinctive idea in the proposal, and currently the biggest gap: \texttt{department\_id}/\texttt{batch} already live on every user, but \texttt{browse\_listings} and shop search never touch them. Surfacing ``show me CSE batch 35's businesses'' turns the existing catalogue into an actual alumni network, not just a marketplace that happens to require a JU email.}
+  \feature{A structured location field, with search}{A normalized area/city field on the shop (not just a free-text pickup address) plus a location filter alongside category/department/batch --- the proposal's own worked example (\emph{Car Rental $\to$ CSE $\to$ Batch 35 $\to$ Dhaka}) needs all four dimensions to actually combine.}
+  \feature{A public ``Verified JU Member'' badge}{The verification data already exists (JU email OTP, structural profile fields); what's missing is surfacing it as a visible trust signal on shop and profile pages, the way the proposal's Section 11 describes --- currently it only gates login, invisibly.}
+  \feature{A non-commerce Member/Professional profile}{A profile type for someone discoverable by profession, current workplace, and skills without owning a shop or listing a product --- a lawyer, doctor, or consultant who wants to be found, not to sell items with a price. This is a genuinely different data shape from a \texttt{Listing}, closer to a lightweight directory card than a product.}
+  \feature{Per-field privacy controls}{Let a member choose which profile fields are public versus visible only to signed-in members --- phone and address in particular. Real privacy surface area, not a checkbox: needs a settled default (private-by-default is the safer choice) and consistent enforcement everywhere a profile renders, not just the main profile page.}
+  \feature{Structured business hours \& delivery info}{Small, concrete fields on \texttt{Shop} (open/close per day, delivery radius or note) that render consistently rather than living inside a free-text description, which is what the proposal's Section 4 asks for.}
+  \feature{Shop-level featured placement}{A homepage/category-page promotional slot for a whole shop (not one listing), separate from the existing per-listing ``Top''/``Featured'' mechanism --- the natural home for the proposal's Section 16/28 monetisation idea if a paid tier is ever pursued.}
+  \feature{A plain SMS contact link}{Trivial, but genuinely absent: an \texttt{sms:} deep link alongside the existing Call/WhatsApp buttons.}
+\end{itemize}
+
+\section{What Not to Build}
+
+The proposal's own MVP list (registration, login, profiles, category search, department/batch filter, contact, admin approval, verified badge, report) is, item for item, close to what KenaBecha JU already has \emph{plus} chat, follower-driven notifications, bulk moderation, and an audit trail the proposal doesn't ask for at all. Re-building any of that as a separate ``JU Business Connect'' site would mean re-earning trust, re-verifying every member's JU identity a second time, and splitting one community's activity across two platforms with no data in common --- the opposite of the proposal's own stated goal (\emph{one} central place instead of scattered groups). The proposal's \emph{Long-Term Vision} of eventually replicating the model for other universities is worth keeping in mind architecturally (nothing above is JU-specific in a way that would block it), but is not a reason to start over now.
+
+\section{Suggested Phasing}
+
+If this direction is pursued, it fits the project's existing phase-by-phase pattern cleanly:
+
+\begin{itemize}
+  \feature{Phase A --- Directory search dimensions}{Department, batch, and a structured location field, wired into \texttt{browse\_listings}/shop search and their filter UI. This alone delivers the proposal's central promise.}
+  \feature{Phase B --- Trust \& structure}{Public verified badge, structured business hours/delivery fields, an \texttt{sms:} link.}
+  \feature{Phase C --- Member/Professional profiles}{The non-commerce profile type, with its own privacy controls designed alongside it from the start rather than retrofitted.}
+  \feature{Phase D --- Shop-level featured placement}{Only once there's a real reason to monetise it --- matching the proposal's own advice to prioritise trust and user base over revenue at first.}
+\end{itemize}
+
+\end{document}
