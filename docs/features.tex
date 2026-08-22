@@ -1,0 +1,171 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fontspec}
+\usepackage{fancyhdr}
+
+\definecolor{brandgreen}{HTML}{059669}
+\definecolor{brandteal}{HTML}{0d9488}
+\definecolor{darktext}{HTML}{1f2937}
+\definecolor{graytext}{HTML}{4b5563}
+
+\setmainfont{Segoe UI}[
+  BoldFont = Segoe UI Bold,
+  ItalicFont = Segoe UI Italic
+]
+
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{brandgreen}}
+  {\thesection}{0.6em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{darktext}}
+  {\thesubsection}{0.5em}{}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=brandgreen,
+  urlcolor=brandteal,
+  pdftitle={KenaBecha JU — Core Features},
+  pdfauthor={KenaBecha JU}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{\small\color{graytext} KenaBecha JU}
+\fancyhead[R]{\small\color{graytext} Core Features}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+
+\setlist[itemize]{leftmargin=1.4em, itemsep=2pt, topsep=2pt}
+
+\newcommand{\feature}[2]{%
+  \item \textbf{#1} --- #2
+}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{3cm}
+  {\Huge\bfseries\color{brandgreen} KenaBecha JU}\\[0.4cm]
+  {\Large\color{darktext} Core Features}\\[0.3cm]
+  {\large\color{graytext} The Jahangirnagar University student marketplace}\\[2cm]
+  {\normalsize\color{graytext} A buy/sell/shop platform for JU students: personal listings, seller-run shops, real-time chat, ratings, an AI shopping assistant, and a full admin/moderation layer.}
+  \vfill
+  {\small\color{graytext} \today}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Accounts \& Authentication}
+\begin{itemize}
+  \feature{JU-verified signup}{Email/password signup collects real student-verification fields --- student ID, registration number, hall, department, session --- with \texttt{batch} computed server-side and non-editable.}
+  \feature{OTP email verification}{6-digit one-time code, 10-minute expiry, attempt-limited; login is blocked until the account is verified.}
+  \feature{Google one-click sign-in}{Identity Services ID-token flow, verified server-side with no client secret. Signing in with an email that already has a local account links the Google identity rather than creating a duplicate.}
+  \feature{Profile completion gate}{Selling (creating a shop or listing) requires a complete JU profile; an incomplete one is routed to a re-submittable completion form instead of a one-time block.}
+  \feature{Session security}{Short-lived JWT access tokens with rotating refresh tokens (httpOnly cookies); reuse of an already-rotated refresh token revokes the whole session family. Password reset and email-verification tokens are single-use.}
+  \feature{Roles}{User, moderator, and admin, with moderators reaching moderation surfaces and admins additionally controlling users, roles, and site content. First-admin bootstrap via an \texttt{ADMIN\_EMAILS} allowlist, no database shell required.}
+\end{itemize}
+
+\section{Listings}
+\begin{itemize}
+  \feature{Personal and shop-based listings}{Any student can list an item personally, or attach it to their own shop.}
+  \feature{Rich listing data}{Title, description, price (fixed, negotiable, or free), condition, category, tags, up to several photos with drag-and-drop reordering, pickup and/or delivery fulfillment.}
+  \feature{Seller-controlled status}{Mark sold, mark out-of-stock / available again (works for personal listings too, not just shop inventory), pause/reactivate, and relist a sold or paused item with a refreshed expiry.}
+  \feature{Manual shop ordering}{A shop owner can set the display order of their own listings via drag-and-drop; a shop's storefront defaults to that order.}
+  \feature{Restock requests}{A buyer can ask to be notified when an out-of-stock shop listing comes back; the seller sees a count (not a name list), and every requester is notified automatically the moment the seller marks it available again.}
+  \feature{Automatic lifecycle}{Listings expire and get swept automatically; a seller can renew one, and admins can feature a listing for a time-boxed promotional boost or mark one as a permanent, curated ``Top'' pick.}
+  \feature{Related listings}{A detail page surfaces other items from the same shop, then shared tags, then recent listings --- never an empty rail.}
+\end{itemize}
+
+\section{Shops}
+\begin{itemize}
+  \feature{Shop storefronts}{Public shop pages with branding (logo, cover photo, description, category), listings, reviews, and post-purchase review prompts.}
+  \feature{Shop dashboard}{Sellers manage their own shop's branding, details, and inventory --- including a shop-scoped, reorderable listing view --- from one screen.}
+  \feature{Following}{Buyers can follow a shop; the shop sees a follower count.}
+  \feature{Multiple shops per seller}{A student can run more than one shop, and choose which shop (or ``personal'') a new listing belongs to when creating it.}
+\end{itemize}
+
+\section{Shop Posts}
+\begin{itemize}
+  \feature{Product-anchored posts}{A shop composes a title and a formatted description --- bold, italic, underline, font, and colour on selected text --- and links any number of its own listings, so a shop can announce or re-announce the same product to grab attention as often as it likes.}
+  \feature{Rich text, safely stored}{Formatting is authored in a real WYSIWYG editor and sanitized server-side against a strict tag/attribute allow-list before it's ever stored, with a client-side pass as a second layer right before display.}
+  \feature{Follow-ranked feed}{A site-wide feed of published posts, shops a visitor follows shown first; posts also appear on the shop's own storefront under a dedicated tab.}
+  \feature{Moderation \& notifications}{Every post goes through the same pending/published/rejected queue --- and the same bulk-moderation and audit-log machinery --- as listings and shops; publishing notifies the shop's followers, rejection tells the owner why.}
+  \feature{Edits are re-reviewed}{Changing an already-published or rejected post resubmits it to pending, so a moderation decision can never be silently invalidated by a later edit.}
+\end{itemize}
+
+\section{Search \& Discovery}
+\begin{itemize}
+  \feature{Full-text search}{Matches listing titles, descriptions, and tags; safe against SQL wildcard injection and resilient to typos via trigram matching.}
+  \feature{Autocomplete}{Live search suggestions as a visitor types, feeding straight into the browse page's filtered results.}
+  \feature{Filters and sort}{Category (hierarchical, two-level taxonomy), price range, condition, tags, and sort by newest, price, or popularity.}
+  \feature{Categories}{Admin-curated category tree with icons, browsable from the navigation and homepage, and reflected in listing counts.}
+  \feature{View counts \& trending}{Per-listing view tracking (de-duplicated per viewer) powers a ``most viewed'' rail and admin analytics.}
+\end{itemize}
+
+\section{Chat \& Communication}
+\begin{itemize}
+  \feature{Real-time messaging}{WebSocket-pushed live delivery with REST-persisted history, reliable across multiple backend worker processes via Redis pub/sub fan-out.}
+  \feature{Per-listing conversations}{Each conversation is anchored to a specific listing between a buyer and seller; re-contacting reuses the same thread.}
+  \feature{Owner inbox}{Unified inbox with shop filter tabs and unread badges, so a seller running several shops sees everything in one place.}
+  \feature{Offline notification}{A message sent while the recipient is offline triggers an email, so nothing gets missed.}
+\end{itemize}
+
+\section{Ratings \& Trust}
+\begin{itemize}
+  \feature{Post-sale reviews}{A buyer can rate a shop or a seller once a listing is sold or out-of-stock, they messaged about it, and they haven't already rated it --- a real-transaction gate, not a free-for-all.}
+  \feature{Discoverable from either side}{The shop page's Reviews tab points a buyer straight at anything of theirs still eligible to rate, instead of requiring them to already know which listing to revisit.}
+  \feature{Star ratings with review text}{1--5 stars plus an optional written review, rolled up into an average shown on shop and profile pages.}
+\end{itemize}
+
+\section{AI Shopping Assistant}
+\begin{itemize}
+  \feature{Floating chat widget}{Available site-wide, bilingual, asks a visitor what they're looking for and finds real matches.}
+  \feature{Grounded in the real catalog}{Answers are produced via live tool calls against the actual listings database --- the assistant can never recommend a listing a human browsing the site wouldn't also see, and nothing is ever invented.}
+  \feature{Structural safety guarantee}{Only listing ids that genuinely came back from a real search during that conversation are ever shown, enforced in code rather than left to the model's own restraint.}
+  \feature{Real-time streaming}{Replies stream token-by-token; the frontend renders prose as it arrives and resolves recommended listing cards once the model has finished searching.}
+  \feature{Bilingual, colloquial-aware search}{Understands Bangla, Banglish, and regional food-market vocabulary (e.g. that ``mutton'' means goat meat locally), retrying with alternate terms rather than giving up on a literal miss.}
+  \feature{Admin-tunable}{An admin can turn the assistant on/off and edit its system prompt from the dashboard, without a deploy.}
+  \feature{Session-only history}{Conversation history lives in the browser's session storage only --- never tied to an account or persisted server-side.}
+\end{itemize}
+
+\section{Notifications}
+\begin{itemize}
+  \feature{In-app notifications}{Live-pushed via WebSocket plus a REST-backed list with read/unread state and an unread-count badge.}
+  \feature{Email notifications}{New messages (when offline), new ratings, listing/shop moderation outcomes, restock availability, password reset, and welcome emails --- all through one notification service.}
+\end{itemize}
+
+\section{Admin \& Moderation}
+\begin{itemize}
+  \feature{Reporting queue}{Any user, listing, or shop can be reported; reports feed a single admin queue resolvable as dismissed, removed, warned, or banned --- with real side effects (soft-deleting content, deactivating and revoking sessions on a ban).}
+  \feature{Bulk moderation}{Select many items and act on all of them at once, routed through the exact same per-item logic (and audit trail, and notifications) as acting on one --- never a shortcut bulk \texttt{UPDATE}.}
+  \feature{Admin dashboard}{Headline metrics with a switchable time window, a daily activity chart, and a most-viewed-listings rail.}
+  \feature{Append-only audit log}{Every privileged action --- role changes, removals, category/navigation edits, bans --- is recorded with who, what, and when.}
+  \feature{Navigation \& content management}{Navbar and footer links, category taxonomy, modular landing-page sections, and site branding (logo, contact info, socials) are all admin-editable without a deploy.}
+  \feature{Scheduled announcements}{A site-wide banner with a scheduling window, tone (info/warning/critical), and per-wording dismissal so a reader isn't re-nagged by an unrelated edit.}
+  \feature{Moderator role}{A lighter-weight role for day-to-day moderation, distinct from full admin control over users, roles, and site configuration.}
+\end{itemize}
+
+\section{Localization \& Accessibility}
+\begin{itemize}
+  \feature{Full English/Bangla i18n}{Every user-facing string, including number and price formatting, in both languages with a persistent locale switch.}
+  \feature{Responsive, accessible design}{A cohesive glass/emerald visual system with dark/light themes, keyboard navigation, skip links, and reduced-motion support; verified and fixed for real phone-width layouts (navbar, notification panel, mobile bottom navigation).}
+  \feature{SEO}{Canonical URLs, Open Graph tags, sitemap, and proper error boundaries/404 handling.}
+\end{itemize}
+
+\section{Platform \& Reliability}
+\begin{itemize}
+  \feature{Rate limiting}{Sliding-window, IP-based limits (correctly identifying real visitor IPs behind the production proxy) on every abuse-prone endpoint --- auth flows, messaging, and more.}
+  \feature{Automated backups}{Nightly database backups retained on a rolling window, independent of the application containers.}
+  \feature{CI/CD}{Automated backend and frontend test suites and type-checks on every push, with production deploys handled by the hosting platform's own pull-based pipeline.}
+  \feature{Test coverage}{A real-Postgres backend test suite (hundreds of tests) and frontend test coverage, exercising eligibility rules, guards, and edge cases directly rather than mocking them away.}
+  \feature{Soft deletion everywhere it matters}{Users, shops, and listings are soft-deleted, keeping ratings, reports, and chat history displayable after removal instead of leaving broken references.}
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,162 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fontspec}
+\usepackage{fancyhdr}
+\usepackage{multicol}
+
+\definecolor{brandgreen}{HTML}{059669}
+\definecolor{darktext}{HTML}{1f2937}
+\definecolor{graytext}{HTML}{4b5563}
+
+\setmainfont{Segoe UI}[
+  BoldFont = Segoe UI Bold,
+  ItalicFont = Segoe UI Italic
+]
+
+\titleformat{\section}
+  {\normalfont\normalsize\bfseries\color{brandgreen}}
+  {\thesection}{0.5em}{}
+\titlespacing*{\section}{0pt}{6pt}{3pt}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=brandgreen,
+  pdftitle={KenaBecha JU — Core Features (Brief)},
+  pdfauthor={KenaBecha JU}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{\small\color{graytext} KenaBecha JU}
+\fancyhead[R]{\small\color{graytext} Core Features}
+\fancyfoot[C]{\small\color{graytext} \thepage}
+
+\setlist[itemize]{leftmargin=1.1em, itemsep=0pt, topsep=0pt, parsep=0pt}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE\bfseries\color{brandgreen} KenaBecha JU}\\[0.15cm]
+  {\large\color{darktext} Core Features}\\[0.1cm]
+  {\small\color{graytext} The Jahangirnagar University student marketplace}
+\end{center}
+\vspace{0.4cm}
+
+\begin{multicols}{2}
+\small
+
+\section{Accounts \& Authentication}
+\begin{itemize}
+  \item JU-verified signup
+  \item OTP email verification
+  \item Google one-click sign-in
+  \item Profile completion gate
+  \item Secure sessions \& password reset
+  \item Roles: user, moderator, admin
+\end{itemize}
+
+\section{Listings}
+\begin{itemize}
+  \item Personal and shop-based listings
+  \item Rich listing data \& photos
+  \item Seller-controlled status (sold, out-of-stock, pause, relist)
+  \item Manual shop ordering
+  \item Restock requests
+  \item Automatic expiry, renewal, featuring \& top picks
+  \item Related listings
+\end{itemize}
+
+\section{Shops}
+\begin{itemize}
+  \item Public shop storefronts
+  \item Shop dashboard \& branding
+  \item Follow a shop
+  \item Multiple shops per seller
+\end{itemize}
+
+\section{Shop Posts}
+\begin{itemize}
+  \item Product-anchored posts, re-postable anytime
+  \item Rich text (bold/italic/underline, font, colour)
+  \item Follow-ranked public feed
+  \item Same moderation \& notifications as listings
+  \item Edits resubmit for review
+\end{itemize}
+
+\section{Search \& Discovery}
+\begin{itemize}
+  \item Full-text search
+  \item Autocomplete suggestions
+  \item Filters \& sort
+  \item Category taxonomy
+  \item View counts \& trending
+\end{itemize}
+
+\section{Chat}
+\begin{itemize}
+  \item Real-time messaging
+  \item Per-listing conversations
+  \item Owner inbox with shop filters
+  \item Offline message email alerts
+\end{itemize}
+
+\section{Ratings \& Trust}
+\begin{itemize}
+  \item Post-sale reviews
+  \item Discoverable from shop or listing
+  \item Star ratings with review text
+\end{itemize}
+
+\section{AI Shopping Assistant}
+\begin{itemize}
+  \item Floating chat widget
+  \item Grounded in the real catalog
+  \item Never-invent-a-listing guarantee
+  \item Real-time streaming replies
+  \item Bilingual, colloquial-aware search
+  \item Admin-tunable, no deploy needed
+  \item Session-only history
+\end{itemize}
+
+\section{Notifications}
+\begin{itemize}
+  \item In-app live notifications
+  \item Email notifications
+\end{itemize}
+
+\section{Admin \& Moderation}
+\begin{itemize}
+  \item Reporting queue
+  \item Bulk moderation
+  \item Admin dashboard \& analytics
+  \item Append-only audit log
+  \item Navigation \& content management
+  \item Scheduled announcements
+  \item Moderator role
+\end{itemize}
+
+\section{Localization \& Accessibility}
+\begin{itemize}
+  \item Full English/Bangla i18n
+  \item Responsive, accessible design
+  \item SEO
+\end{itemize}
+
+\section{Platform \& Reliability}
+\begin{itemize}
+  \item Rate limiting
+  \item Automated backups
+  \item CI/CD
+  \item Test coverage
+  \item Soft deletion everywhere it matters
+\end{itemize}
+
+\end{multicols}
+
+\end{document}
