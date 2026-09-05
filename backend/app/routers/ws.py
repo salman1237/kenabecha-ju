@@ -1,8 +1,8 @@
 import uuid
 
-from fastapi import APIRouter, Cookie, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Cookie, Header, WebSocket, WebSocketDisconnect
 
-from app.core.dependencies import ACCESS_TOKEN_COOKIE, get_current_user_ws
+from app.core.dependencies import ACCESS_TOKEN_COOKIE, get_current_user_ws, resolve_access_token
 from app.db.session import async_session_maker
 from app.models.conversation import Conversation
 from app.websocket.manager import manager
@@ -49,9 +49,15 @@ async def _relay_typing(user_id: uuid.UUID, payload: dict) -> None:
 async def websocket_endpoint(
     websocket: WebSocket,
     access_token: str | None = Cookie(default=None, alias=ACCESS_TOKEN_COOKIE),
+    authorization: str | None = Header(default=None),
 ) -> None:
+    # A browser's native WebSocket constructor can't set custom headers,
+    # which is exactly why the web app authenticates this handshake via
+    # cookie — but OkHttp (and most native WebSocket clients) can, so a
+    # mobile client sends `Authorization: Bearer <token>` here instead.
+    token = resolve_access_token(access_token, authorization)
     async with async_session_maker() as db:
-        user = await get_current_user_ws(access_token, db)
+        user = await get_current_user_ws(token, db)
         # Copy the id out while the session is still open. The ORM object is
         # detached once this block exits, so touching any lazy attribute on
         # it later would raise DetachedInstanceError — holding a plain UUID

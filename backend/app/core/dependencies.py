@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_access_token
@@ -11,17 +11,31 @@ ACCESS_TOKEN_COOKIE = "access_token"
 REFRESH_TOKEN_COOKIE = "refresh_token"
 
 
+def resolve_access_token(cookie_token: str | None, authorization: str | None) -> str | None:
+    """The cookie is checked first — byte-for-byte the web app's own behavior,
+    unchanged — with `Authorization: Bearer <token>` as a fallback for native
+    clients, which have no browser cookie jar to rely on. A request carrying
+    both (shouldn't normally happen) trusts the cookie, same reasoning."""
+    if cookie_token is not None:
+        return cookie_token
+    if authorization is not None and authorization.lower().startswith("bearer "):
+        return authorization[7:].strip() or None
+    return None
+
+
 async def get_current_user(
     access_token: str | None = Cookie(default=None, alias=ACCESS_TOKEN_COOKIE),
+    authorization: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> User:
     credentials_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
     )
-    if access_token is None:
+    token = resolve_access_token(access_token, authorization)
+    if token is None:
         raise credentials_error
 
-    user_id = decode_access_token(access_token)
+    user_id = decode_access_token(token)
     if user_id is None:
         raise credentials_error
 
@@ -33,15 +47,17 @@ async def get_current_user(
 
 async def get_optional_user(
     access_token: str | None = Cookie(default=None, alias=ACCESS_TOKEN_COOKIE),
+    authorization: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> User | None:
     """For public endpoints that personalise when a viewer happens to be
     logged in (e.g. "are you following this shop?") but must still serve
     anonymous callers. Never raises — an invalid token is just `None`."""
-    if access_token is None:
+    token = resolve_access_token(access_token, authorization)
+    if token is None:
         return None
 
-    user_id = decode_access_token(access_token)
+    user_id = decode_access_token(token)
     if user_id is None:
         return None
 

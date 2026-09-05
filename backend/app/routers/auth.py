@@ -15,6 +15,7 @@ from app.schemas.auth import (
     ResendOtpRequest,
     ResetPasswordRequest,
     SignupRequest,
+    TokenResponse,
     UpdateProfileRequest,
     UpdateWhatsAppRequest,
     VerifyOtpRequest,
@@ -53,6 +54,18 @@ def _set_auth_cookies(response: Response, access_token: str, refresh_token: str)
 def _clear_auth_cookies(response: Response) -> None:
     response.delete_cookie(ACCESS_TOKEN_COOKIE, path="/")
     response.delete_cookie(REFRESH_TOKEN_COOKIE, path=REFRESH_COOKIE_PATH)
+
+
+def _token_response(user: User, access_token: str, refresh_token: str) -> TokenResponse:
+    """The web app never reads these two fields — it relies on the cookies
+    `_set_auth_cookies` already set — but a native client has no cookie jar
+    to fall back on, so every session-establishing endpoint carries them in
+    the body too."""
+    return TokenResponse(
+        **UserPublic.model_validate(user).model_dump(),
+        access_token=access_token,
+        refresh_token=refresh_token,
+    )
 
 
 @router.post(
@@ -98,38 +111,38 @@ async def resend_otp(
 
 @router.post(
     "/login",
-    response_model=UserPublic,
+    response_model=TokenResponse,
     # Credential brute force. Generous enough for a genuine user fumbling
     # their password, far too tight to sweep a password list.
     dependencies=[Depends(rate_limit("login", times=10, seconds=300))],
 )
 async def login(
     payload: LoginRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)
-) -> User:
+) -> TokenResponse:
     user = await auth_service.authenticate(db, payload)
     access_token = create_access_token(str(user.id))
     refresh_token = await auth_service.issue_refresh_token(
         db, user, request.headers.get("user-agent"), request.client.host if request.client else None
     )
     _set_auth_cookies(response, access_token, refresh_token)
-    return user
+    return _token_response(user, access_token, refresh_token)
 
 
 @router.post(
     "/google",
-    response_model=UserPublic,
+    response_model=TokenResponse,
     dependencies=[Depends(rate_limit("google", times=20, seconds=300))],
 )
 async def google_login(
     payload: GoogleLoginRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)
-) -> User:
+) -> TokenResponse:
     user = await auth_service.google_login(db, payload.credential)
     access_token = create_access_token(str(user.id))
     refresh_token = await auth_service.issue_refresh_token(
         db, user, request.headers.get("user-agent"), request.client.host if request.client else None
     )
     _set_auth_cookies(response, access_token, refresh_token)
-    return user
+    return _token_response(user, access_token, refresh_token)
 
 
 @router.patch("/complete-profile", response_model=UserPublic)
@@ -141,11 +154,18 @@ async def complete_profile(
     return await auth_service.complete_profile(db, user, payload)
 
 
-@router.post("/refresh", response_model=UserPublic)
+@router.post("/refresh", response_model=TokenResponse)
 async def refresh(
     request: Request, response: Response, db: AsyncSession = Depends(get_db)
-) -> User:
+) -> TokenResponse:
+    # Cookie first (the web app's only path), Authorization header as the
+    # native-client fallback — same precedence as every other endpoint,
+    # since refresh has no cookie-vs-header dependency of its own to reuse.
     raw_refresh_token = request.cookies.get(REFRESH_TOKEN_COOKIE)
+    if raw_refresh_token is None:
+        auth_header = request.headers.get("authorization")
+        if auth_header is not None and auth_header.lower().startswith("bearer "):
+            raw_refresh_token = auth_header[7:].strip() or None
     if raw_refresh_token is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
 
@@ -154,12 +174,16 @@ async def refresh(
     )
     access_token = create_access_token(str(user.id))
     _set_auth_cookies(response, access_token, new_refresh_token)
-    return user
+    return _token_response(user, access_token, new_refresh_token)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(request: Request, response: Response, db: AsyncSession = Depends(get_db)) -> None:
     raw_refresh_token = request.cookies.get(REFRESH_TOKEN_COOKIE)
+    if raw_refresh_token is None:
+        auth_header = request.headers.get("authorization")
+        if auth_header is not None and auth_header.lower().startswith("bearer "):
+            raw_refresh_token = auth_header[7:].strip() or None
     if raw_refresh_token is not None:
         await auth_service.revoke_refresh_token(db, raw_refresh_token)
     _clear_auth_cookies(response)

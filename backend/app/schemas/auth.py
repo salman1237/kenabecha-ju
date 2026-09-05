@@ -2,6 +2,7 @@ import uuid
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from app.schemas.user import UserPublic
 from app.services.reference_service import parse_session_start_year
 
 PHONE_PATTERN = r"^(?:\+?880|0)1[3-9]\d{8}$"
@@ -67,3 +68,14 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str = Field(min_length=8, max_length=128)
+
+
+class TokenResponse(UserPublic):
+    """Returned by every endpoint that establishes a session (login, Google
+    sign-in, refresh) alongside the existing httpOnly cookies — a native
+    client has no browser cookie jar to lean on, so it reads these two
+    fields and sends `Authorization: Bearer <access_token>` itself.
+    Harmless for the web client, which never reads them from the body."""
+
+    access_token: str
+    refresh_token: str
