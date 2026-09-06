@@ -64,8 +64,13 @@ class Settings(BaseSettings):
 
     # Path to the Firebase Admin SDK service-account JSON (see
     # push_service.py). Empty means push is a no-op — same "safe default
-    # until configured" pattern as SMTP_HOST above.
+    # until configured" pattern as SMTP_HOST above. Local dev only: the
+    # file sits on disk there, but production has no shared/persistent
+    # place to put a secret file (the image is rebuilt from a fresh git
+    # checkout on every deploy), so it uses the base64 variable below
+    # instead, resolved first if both are set.
     FIREBASE_SERVICE_ACCOUNT_PATH: str = ""
+    FIREBASE_SERVICE_ACCOUNT_JSON_BASE64: str = ""
 
 
 @lru_cache

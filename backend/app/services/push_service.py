@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import json
 import logging
 
 import firebase_admin
@@ -19,14 +21,27 @@ def _get_app() -> firebase_admin.App | None:
     """Mirrors `email_service`'s dev-mode fallback: no configured credential
     means push is silently a no-op (logged, not sent) rather than a startup
     failure — a fresh deployment, or one without Firebase set up, never
-    calls out to it until the service-account file actually exists."""
+    calls out to it until a real credential is provided.
+
+    Two ways to provide one, checked in order: the base64 env var (what
+    production actually uses — the image is rebuilt from a fresh git
+    checkout on every deploy, so there's nowhere persistent to put a secret
+    *file*), then the local-dev file path. Never both configured in the
+    same environment, but the base64 form wins if they somehow are."""
     global _firebase_app
+    if _firebase_app is not None:
+        return _firebase_app
+
     settings = get_settings()
-    if not settings.FIREBASE_SERVICE_ACCOUNT_PATH:
-        return None
-    if _firebase_app is None:
+    if settings.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64:
+        info = json.loads(base64.b64decode(settings.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64))
+        cred = credentials.Certificate(info)
+    elif settings.FIREBASE_SERVICE_ACCOUNT_PATH:
         cred = credentials.Certificate(settings.FIREBASE_SERVICE_ACCOUNT_PATH)
-        _firebase_app = firebase_admin.initialize_app(cred)
+    else:
+        return None
+
+    _firebase_app = firebase_admin.initialize_app(cred)
     return _firebase_app
 
 
