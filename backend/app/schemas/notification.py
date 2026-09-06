@@ -21,3 +21,8 @@ class NotificationOut(BaseModel):
 class NotificationList(BaseModel):
     items: list[NotificationOut]
     unread_count: int
+
+
+class DeviceTokenIn(BaseModel):
+    fcm_token: str
+    platform: str = "android"

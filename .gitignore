@@ -15,6 +15,10 @@ backend/.venv/
 backend/.pytest_cache/
 *.pyc
 
+# Firebase Admin SDK service-account credential — full admin access to the
+# Firebase project, never committed.
+backend/firebase-service-account.json
+
 # frontend
 frontend/node_modules/
 frontend/.next/

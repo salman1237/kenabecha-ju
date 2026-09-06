@@ -1,12 +1,14 @@
 import uuid
 
 from fastapi import BackgroundTasks, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.device_token import DeviceToken
 from app.models.notification import Notification, NotificationType
 from app.models.user import User
 from app.schemas.notification import NotificationOut
+from app.services import push_service
 from app.services.email_service import send_email
 from app.websocket.manager import manager
 
@@ -86,7 +88,34 @@ async def notify(
         if recipient is not None:
             background_tasks.add_task(send_email, recipient.email, email_subject, email_body)
 
+    device_tokens = (
+        await db.execute(select(DeviceToken.fcm_token).where(DeviceToken.user_id == user_id))
+    ).scalars().all()
+    if device_tokens:
+        background_tasks.add_task(push_service.send_push_to_tokens, list(device_tokens), title, body, link_url)
+
     return notification
+
+
+async def register_device_token(db: AsyncSession, user: User, fcm_token: str, platform: str) -> None:
+    # Upsert by token, not by (user, token): the same physical device can be
+    # re-registered under a different account after a logout/login, and the
+    # old row must move to the new owner rather than sit around double-
+    # pushing to both accounts.
+    existing = (
+        await db.execute(select(DeviceToken).where(DeviceToken.fcm_token == fcm_token))
+    ).scalar_one_or_none()
+    if existing is not None:
+        existing.user_id = user.id
+        existing.platform = platform
+    else:
+        db.add(DeviceToken(user_id=user.id, fcm_token=fcm_token, platform=platform))
+    await db.commit()
+
+
+async def unregister_device_token(db: AsyncSession, user: User, fcm_token: str) -> None:
+    await db.execute(delete(DeviceToken).where(DeviceToken.fcm_token == fcm_token, DeviceToken.user_id == user.id))
+    await db.commit()
 
 
 async def list_notifications(db: AsyncSession, user: User, limit: int = 30) -> tuple[list[Notification], int]:

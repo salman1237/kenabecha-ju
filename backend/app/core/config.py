@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
     OPENAI_MODEL: str = "gpt-4o-mini"
 
+    # Path to the Firebase Admin SDK service-account JSON (see
+    # push_service.py). Empty means push is a no-op — same "safe default
+    # until configured" pattern as SMTP_HOST above.
+    FIREBASE_SERVICE_ACCOUNT_PATH: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:
