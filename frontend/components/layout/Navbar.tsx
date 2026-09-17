@@ -4,6 +4,7 @@ import { Globe, LayoutDashboard, LogOut, Menu, MessageSquare, PlusCircle, Shield
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { NavbarSearch } from "@/components/layout/NavbarSearch";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
@@ -28,7 +29,10 @@ import { NavIcon } from "@/components/layout/NavIcon";
 import { menusAt, navLabel, visibleLinks } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
-/** A single nav destination, with its own active state. */
+/** A single nav destination. Active links share one `layoutId`, so the pill
+ *  behind them glides from the old destination to the new one on navigation
+ *  instead of just popping — the one animation that makes a row of six
+ *  links read as a single, considered control instead of loose text. */
 function NavLink({
   href,
   active,
@@ -43,12 +47,19 @@ function NavLink({
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "rounded-lg px-3 py-1.5 transition-colors",
+        "relative z-0 rounded-full px-3.5 py-1.5 transition-colors",
         active
-          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-          : "text-muted-foreground hover:bg-emerald-500/5 hover:text-emerald-600 dark:hover:text-emerald-400"
+          ? "text-emerald-700 dark:text-emerald-300"
+          : "text-muted-foreground hover:text-foreground"
       )}
     >
+      {active && (
+        <motion.span
+          layoutId="navbar-active-pill"
+          className="absolute inset-0 -z-10 rounded-full bg-background shadow-sm shadow-emerald-950/10 dark:shadow-black/20"
+          transition={{ type: "spring", stiffness: 500, damping: 35 }}
+        />
+      )}
       {children}
     </Link>
   );
@@ -80,15 +91,33 @@ export function Navbar() {
     setLocale(locale === "en" ? "bn" : "en");
   };
 
+  // A flat header reads the same at the top of the page and three screens
+  // down, which is part of what made this row feel like plain browser
+  // chrome. Tightening it and adding real elevation once the page has
+  // scrolled gives the same six links and controls a sense of depth
+  // without moving or hiding anything.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <motion.header
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-emerald-500/10 bg-background/75 px-3 py-3 shadow-xs backdrop-blur-md sm:px-6 lg:px-8"
+      className={cn(
+        "sticky top-0 z-40 flex items-center justify-between gap-2 border-b bg-background/80 px-3 backdrop-blur-lg transition-[padding,box-shadow,border-color] duration-300 sm:px-6 lg:px-8",
+        scrolled
+          ? "border-border py-2 shadow-md shadow-emerald-950/5 dark:shadow-black/20"
+          : "border-emerald-500/10 py-3.5 shadow-none"
+      )}
     >
-      <div className="flex min-w-0 items-center gap-4 lg:gap-6">
-        <Link href="/" className="group flex min-w-0 items-center gap-2 text-lg font-bold tracking-tight">
+      <div className="flex min-w-0 items-center gap-3 lg:gap-4">
+        <Link href="/" className="group flex min-w-0 shrink-0 items-center gap-2 text-lg font-bold tracking-tight">
           {navigation.site_info.logo_url ? (
             <div className="h-8 w-8 shrink-0 overflow-hidden rounded-xl shadow-md shadow-emerald-500/20 transition-transform group-hover:scale-105">
               <SmartImage src={navigation.site_info.logo_url} alt="" sizes="32px" />
@@ -103,16 +132,25 @@ export function Navbar() {
               notification bell, avatar, menu) — this is the graceful-shrink
               fallback so the wordmark ellipsizes instead of visually
               overlapping its neighbours when it can't fit. */}
-          <span className="gradient-text truncate whitespace-nowrap text-lg font-extrabold sm:text-xl">
+          <span className="gradient-text hidden truncate whitespace-nowrap text-lg font-extrabold sm:inline sm:text-xl">
             KenaBecha JU
           </span>
         </Link>
 
+        <div className="hidden h-6 w-px shrink-0 rounded-full bg-border lg:block" />
+
         {/* The primary destinations, not just Browse. These used to live only
             inside the avatar dropdown, which put the app's main actions two
             clicks deep and invisible until you knew to look. Sell, Inbox and
-            My Shops appear only when signed in, since all three need an account. */}
-        <nav className="hidden items-center gap-1 text-sm font-medium lg:flex">
+            My Shops appear only when signed in, since all three need an account.
+            Grouped in one pill instead of loose text so six links read as a
+            single control, with the active one riding a sliding highlight.
+            A brand-tinted (not neutral-gray) fill: against a near-white page
+            a plain muted/40 chip washed out to nothing — this is the one
+            piece of chrome that should visibly read as "the app's nav",
+            so it gets the emerald tint the rest of the utility controls
+            deliberately don't. */}
+        <nav className="hidden items-center gap-0.5 rounded-full border border-emerald-500/15 bg-emerald-500/8 p-1 text-sm font-medium dark:border-emerald-400/15 dark:bg-emerald-400/8 lg:flex">
           {primaryLinks.map((link) => (
             <NavLink key={link.id} href={link.href} active={isActive(link.href)}>
               {navLabel(link, locale, t)}
@@ -128,26 +166,35 @@ export function Navbar() {
         </div>
       )}
 
-      <div className="flex items-center gap-2 sm:gap-3">
-        {/* Language Switcher */}
-        {controls.language !== false && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={toggleLanguage}
-          // Text label only from `sm` up — on a phone this row is already
-          // crowded (logo, theme toggle, bell, avatar, menu), and the label
-          // is the one control here that's pure convenience, not identity.
-          className="h-8 shrink-0 gap-1.5 rounded-full px-2 sm:px-2.5 text-xs font-semibold hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400"
-          title="Toggle Language"
-        >
-          <Globe className="size-3.5" />
-          <span className="hidden sm:inline">{locale === "en" ? "বাংলা" : "EN"}</span>
-        </Button>
-        )}
+      <div className="flex items-center gap-1.5 sm:gap-2.5">
+        {/* Language + theme are pure convenience controls, not identity or
+            content — grouped into one quiet pill so they read as a single
+            utility cluster instead of two more buttons competing with the
+            bell and avatar for attention. Neutral gray on purpose, so it
+            reads as "settings" next to the branded emerald nav pill rather
+            than competing with it. */}
+        {(controls.language !== false || controls.theme !== false) && (
+          <div className="flex items-center gap-0.5 rounded-full border border-border bg-muted p-1">
+            {controls.language !== false && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleLanguage}
+                // Text label only from `sm` up — on a phone this row is already
+                // crowded (logo, theme toggle, bell, avatar, menu), and the label
+                // is the one control here that's pure convenience, not identity.
+                className="h-7 shrink-0 gap-1.5 rounded-full px-2 text-xs font-semibold hover:bg-background hover:text-emerald-600 dark:hover:text-emerald-400"
+                title="Toggle Language"
+              >
+                <Globe className="size-3.5" />
+                <span className="hidden sm:inline">{locale === "en" ? "বাংলা" : "EN"}</span>
+              </Button>
+            )}
 
-        {/* Theme Toggle */}
-        {controls.theme !== false && <ThemeToggle />}
+            {/* Theme Toggle */}
+            {controls.theme !== false && <ThemeToggle />}
+          </div>
+        )}
 
         {!isLoading &&
           (user ? (

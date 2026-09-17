@@ -536,6 +536,20 @@ The user flagged four areas as having mobile issues: browse/listing pages, shop 
 
 ---
 
+## Phase 61 — Desktop navbar redesign & hero animation polish (implemented)
+
+Triggered by a screenshot the day before launch: six nav links, the search bar, and four utility controls were all sitting directly on the header background as loose text/icons with no visual grouping — functionally fine, but reading as cluttered ("massy") rather than designed.
+
+**Navbar** (`components/layout/Navbar.tsx`): the primary nav links now live inside one rounded pill (brand-tinted `emerald-500/8` fill, not neutral gray — this is deliberately the one piece of chrome that should read as "the app's nav") with a `layoutId`-based sliding highlight behind whichever link is active, gliding between destinations on navigation instead of just swapping a background color. Language + theme toggle got their own smaller neutral-gray pill, visually separating "settings" from "where to go" and from the bell/avatar cluster. The header itself now responds to scroll: flat and borderless at the top of the page, tighter padding with real elevation (shadow + solid border) once scrolled past 8px — a depth cue the previous flat bar never had. The wordmark now hides below `sm` (icon-only on phones) instead of truncating.
+
+**Hero** (`components/home/sections/HeroSection.tsx`): the single fade-in was replaced with a staggered reveal (badge → headline → subtitle → search → CTAs → trending tags, ~90ms apart) via a shared `motion` container/item variant pair. Two slow-drifting blurred gradient orbs were added behind the headline for ambient motion (decorative, `aria-hidden`, and — like every other animation in this codebase — off under `prefers-reduced-motion` via the existing global media query in `globals.css`). The search bar gets a focus glow (`focus-within:shadow-xl`) and the "Browse all" button picked up the same hover/tap spring the primary CTA already had.
+
+**Everything below the hero was deliberately left alone.** A full-page audit (Playwright screenshots, light/dark/mobile) confirmed `SectionShell` already wraps every section in a scroll-triggered reveal, `StatsSection` already has a count-up animation respecting reduced motion, and every card component (`ListingCard`, `ShopCard`, category tiles) already has hover-lift + shadow-grow micro-interactions. The reported problem was specifically the navbar; rewriting sections that were already meeting the bar would have been scope creep the night before launch.
+
+**One environment note, not a code change**: verifying this required noticing that `localhost:3000` was serving the `kenabecha-ju-frontend-1` Docker container (a static prod-mode build from a stale image), not a live dev server — every edit was invisible there until the container was stopped and `npm run dev` bound to port 3000 directly, matching the backend's `CORS_ORIGINS`. The Docker frontend container is left stopped; restart it with `docker compose up -d frontend` if a prod-parity check is ever needed again alongside local dev.
+
+---
+
 ## Notable deviations & judgment calls not covered above
 
 A handful of decisions that don't map to a single phase above, or that add context the phase entries didn't have room for:
