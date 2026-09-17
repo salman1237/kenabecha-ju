@@ -483,6 +483,7 @@ export const bn: Translations = {
     clearConversation: "কথোপকথন মুছুন",
     clearConfirm: "এই কথোপকথন মুছে ফেলবেন?",
     noListingsFound: "মিলে যাওয়া কোনো পণ্য খুঁজে পাইনি।",
+    noShopsFound: "মিলে যাওয়া কোনো দোকান খুঁজে পাইনি।",
     viewListing: "পণ্য দেখুন",
   },
   errors: {

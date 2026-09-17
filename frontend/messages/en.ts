@@ -481,6 +481,7 @@ export const en = {
     clearConversation: "Clear conversation",
     clearConfirm: "Clear this conversation?",
     noListingsFound: "I couldn't find a matching listing.",
+    noShopsFound: "I couldn't find a matching shop.",
     viewListing: "View listing",
   },
   /**

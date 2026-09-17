@@ -86,6 +86,10 @@ export function AssistantWidget() {
           setMessages((prev) =>
             prev.map((m) => (m.id === assistantMessage.id ? { ...m, listings: event.listings } : m))
           );
+        } else if (event.type === "shops") {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantMessage.id ? { ...m, shops: event.shops } : m))
+          );
         } else if (event.type === "error") {
           setMessages((prev) =>
             prev.map((m) =>

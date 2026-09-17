@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/i18n/config";
-import type { Listing } from "@/types/api";
+import type { Listing, Shop } from "@/types/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -16,6 +16,7 @@ export class AssistantApiError extends Error {
 export type AssistantEvent =
   | { type: "delta"; text: string }
   | { type: "listings"; listings: Listing[] }
+  | { type: "shops"; shops: Shop[] }
   | { type: "error"; message: string }
   | { type: "done" };
 

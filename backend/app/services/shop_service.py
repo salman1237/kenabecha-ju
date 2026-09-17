@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.search import LIKE_ESCAPE, like_contains
 from app.models.follow import ShopFollow
 from app.models.listing import Listing, ListingStatus
 from app.models.rating import Rating
@@ -57,10 +58,16 @@ async def _listing_counts(db: AsyncSession, shop_ids: list[uuid.UUID]) -> dict[u
     return dict(result.all())
 
 
-async def list_shops(db: AsyncSession, skip: int = 0, limit: int = 50) -> list[tuple[Shop, int]]:
-    result = await db.execute(
-        select(Shop).where(Shop.is_active.is_(True)).order_by(Shop.created_at.desc()).offset(skip).limit(limit)
-    )
+async def list_shops(
+    db: AsyncSession, skip: int = 0, limit: int = 50, q: str | None = None
+) -> list[tuple[Shop, int]]:
+    query = select(Shop).where(Shop.is_active.is_(True))
+    if q:
+        like = like_contains(q)
+        query = query.where(
+            Shop.shop_name.ilike(like, escape=LIKE_ESCAPE) | Shop.description.ilike(like, escape=LIKE_ESCAPE)
+        )
+    result = await db.execute(query.order_by(Shop.created_at.desc()).offset(skip).limit(limit))
     shops = list(result.scalars().all())
     counts = await _listing_counts(db, [s.id for s in shops])
     return [(shop, counts.get(shop.id, 0)) for shop in shops]

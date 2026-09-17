@@ -40,8 +40,10 @@ async def create_shop(
 
 
 @router.get("", response_model=list[ShopOut])
-async def list_shops(skip: int = 0, limit: int = 50, db: AsyncSession = Depends(get_db)) -> list[ShopOut]:
-    shops = await shop_service.list_shops(db, skip, limit)
+async def list_shops(
+    skip: int = 0, limit: int = 50, q: str | None = None, db: AsyncSession = Depends(get_db)
+) -> list[ShopOut]:
+    shops = await shop_service.list_shops(db, skip, limit, q)
     result = []
     shop_ids = [shop.id for shop, _ in shops]
     ratings = await rating_service.get_shops_rating_summaries(db, shop_ids)

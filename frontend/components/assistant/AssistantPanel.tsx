@@ -5,16 +5,18 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
 import { ListingCard } from "@/components/listings/ListingCard";
+import { ShopCard } from "@/components/shops/ShopCard";
 import { useLanguage } from "@/context/LanguageContext";
 import { scaleIn } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-import type { Listing } from "@/types/api";
+import type { Listing, Shop } from "@/types/api";
 
 export type AssistantMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   listings?: Listing[];
+  shops?: Shop[];
   error?: boolean;
   /** A locally-seeded greeting, never sent to the API as history. */
   synthetic?: boolean;
@@ -128,6 +130,16 @@ export function AssistantPanel({
                 )}
                 {message.listings && message.listings.length === 0 && !message.error && (
                   <p className="max-w-[85%] text-xs text-muted-foreground">{t.assistant.noListingsFound}</p>
+                )}
+                {message.shops && message.shops.length > 0 && (
+                  <div className="flex w-full max-w-[92%] flex-col gap-2">
+                    {message.shops.map((shop) => (
+                      <ShopCard key={shop.id} shop={shop} />
+                    ))}
+                  </div>
+                )}
+                {message.shops && message.shops.length === 0 && !message.error && (
+                  <p className="max-w-[85%] text-xs text-muted-foreground">{t.assistant.noShopsFound}</p>
                 )}
               </motion.div>
             ))}

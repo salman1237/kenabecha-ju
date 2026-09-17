@@ -550,6 +550,20 @@ Triggered by a screenshot the day before launch: six nav links, the search bar, 
 
 ---
 
+## Phase 62 — AI assistant can now find shops, not just listings (implemented)
+
+Found live: asking the assistant about "deshlet" (a real shop name) got "I couldn't find any listings for deshlet." The assistant (Phase 51) was built with exactly one domain of knowledge — `search_listings` — so a query naming a shop rather than a product had literally no tool that could ever answer it, structurally, regardless of prompting.
+
+**Backend** (`assistant_service.py`): two new tools, `search_shops` and `recommend_shops`, mirroring `search_listings`/`recommend_listings` exactly — same trimmed-dict shape for the model's own reasoning, same structural guarantee (only ids that actually came back from a real `search_shops` call in this conversation are ever shown, regardless of what the model claims). The system prompt gained a rule for when to prefer shop search over listing search ("a bare name like 'deshlet' is almost always someone looking for that shop, not a product called that"). One asymmetry from listings, deliberate: the `shops` SSE event only fires on a turn that actually called `search_shops` (tracked via a `shop_search_attempted` flag), not on every turn the way `listings` does — most conversations never touch shops at all, and an unconditional empty event would have put a spurious "no shop found" line under every ordinary product query.
+
+**A real gap this closed in passing**: `shop_service.list_shops` (and `GET /shops`) had no text-search parameter at all before this — only pagination. Added `q` (ilike over `shop_name`/`description`, same `LIKE_ESCAPE` pattern used everywhere else user input reaches a `LIKE`), which the assistant's `search_shops` tool now uses — and which the public Browse Shops page could also pick up later for free, though its UI wasn't touched here.
+
+**Frontend**: a `shops` SSE event type alongside the existing `listings` one; `AssistantWidget` stores it on the message the same way; `AssistantPanel` renders it with the existing `ShopCard` component (no new card built) plus a `noShopsFound` string in both locales for the empty case.
+
+Verified live end-to-end, not just against the test suite: a real Playwright-driven browser session asked the assistant "deshlet" and got back the actual `DeshLet-The Meat Codex` shop card (cover image, category badge, follower count) instead of the wrong "no listings" answer. Full backend suite (305 tests) and `tsc --noEmit` both clean after the change.
+
+---
+
 ## Notable deviations & judgment calls not covered above
 
 A handful of decisions that don't map to a single phase above, or that add context the phase entries didn't have room for:
