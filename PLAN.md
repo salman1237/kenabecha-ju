@@ -564,6 +564,21 @@ Verified live end-to-end, not just against the test suite: a real Playwright-dri
 
 ---
 
+## Phase 63 — Custom domain cutover, and a real SMTP bug found setting up production mail
+
+Launch-eve infrastructure work: moving off the shared `*.salmandev.io` subdomain onto the real `kenabechaju.com` domain, and standing up the first real mailbox for transactional email (password reset, OTP).
+
+**Domain cutover.** Both Dokploy domain records switched (frontend `kenabechaju.salmandev.io` → `kenabechaju.com`, backend `api.kenabechaju.salmandev.io` → `api.kenabechaju.com`), plus `APP_DOMAIN`/`API_DOMAIN`/`CORS_ORIGINS`/`NEXT_PUBLIC_API_URL`/`NEXT_PUBLIC_SITE_URL`/`FRONTEND_URL` all repointed and a full rebuild triggered (`NEXT_PUBLIC_*` values are baked in at build time, a plain restart wouldn't have picked them up). Verified with a real headless-browser load of the live site confirming it actually calls `api.kenabechaju.com` from the client, not just that DNS resolves. **Still manual, outside anything this session can reach**: Google OAuth's authorized JavaScript origins need `https://kenabechaju.com` added in Google Cloud Console, or Google sign-in breaks on the new domain until someone does.
+
+**SMTP: two real, independent bugs found getting `support@kenabechaju.com` working, neither of them DNS records being wrong.**
+
+1. `mail.kenabechaju.com` had the correct DNS record, but the VPS's own network transparently intercepts and caches outbound port-53 traffic — confirmed by DNS-over-HTTPS to Cloudflare returning the correct, fresh answer while every local resolver path (including after reconfiguring `systemd-resolved` to prefer Cloudflare/Google, later reverted since it didn't help) kept serving a stale pre-change answer. Not fixable from the resolver side since the interception happens before the query leaves the host. Fixed with a static `extra_hosts` entry on the backend service in `docker-compose.prod.yml`, pinned to the mail host's real IP — survives redeploys, scoped to just the one hostname that matters at runtime.
+2. Once resolvable, sending still hung indefinitely. `email_service.send_email` unconditionally used plain `smtplib.SMTP` + `starttls()` — the port-587 protocol — against port 465, which is implicit TLS from the first byte (SMTPS). A plaintext SMTP command sent to a port-465 server that's waiting inside a TLS handshake just hangs; there was also no connection timeout, so this blocked forever instead of failing fast. This is a genuine pre-existing bug, not something introduced tonight — it was simply never exercised before, since nothing had configured real SMTP credentials against a real server until now. Fixed by branching on port (`SMTP_SSL` for 465, `SMTP`+`starttls()` otherwise) and adding a 15s timeout. The test suite forces `SMTP_HOST` empty by design (`tests/conftest.py`) specifically so it never dials out, so this branch was never covered there — verified instead with real sends against the actual mailbox, both from local dev and from the redeployed production container (0.49s and 0.95s respectively, vs. an indefinite hang before).
+
+**Still open, flagged twice and deliberately not blocked on**: the mailbox's password is identical to its own address (`support@kenabechaju.com` / `support@kenabechaju.com`) — about as weak as credentials get for a box that sends password-reset email. Worth changing in cPanel soon after launch.
+
+---
+
 ## Notable deviations & judgment calls not covered above
 
 A handful of decisions that don't map to a single phase above, or that add context the phase entries didn't have room for:
