@@ -40,3 +40,10 @@ __pycache__/
 # Dokploy API key. Kept in a file rather than pasted into a chat or a command
 # line, so it never lands in a transcript or shell history.
 .dokploy.key
+
+# LaTeX build artifacts from docs/*.tex -- only the .tex source and the
+# compiled .pdf are meant to be committed.
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc

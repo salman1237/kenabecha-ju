@@ -127,8 +127,8 @@
 \section{AI Shopping Assistant}
 \begin{itemize}
   \feature{Floating chat widget}{Available site-wide, bilingual, asks a visitor what they're looking for and finds real matches.}
-  \feature{Grounded in the real catalog}{Answers are produced via live tool calls against the actual listings database --- the assistant can never recommend a listing a human browsing the site wouldn't also see, and nothing is ever invented.}
-  \feature{Structural safety guarantee}{Only listing ids that genuinely came back from a real search during that conversation are ever shown, enforced in code rather than left to the model's own restraint.}
+  \feature{Grounded in the real catalog and shop directory}{Answers are produced via live tool calls against the actual listings and shops --- a query naming a shop (``deshlet'') searches the shop directory rather than coming back empty, and the assistant can never recommend a listing or shop a human browsing the site wouldn't also see.}
+  \feature{Structural safety guarantee}{Only listing and shop ids that genuinely came back from a real search during that conversation are ever shown, enforced in code rather than left to the model's own restraint.}
   \feature{Real-time streaming}{Replies stream token-by-token; the frontend renders prose as it arrives and resolves recommended listing cards once the model has finished searching.}
   \feature{Bilingual, colloquial-aware search}{Understands Bangla, Banglish, and regional food-market vocabulary (e.g. that ``mutton'' means goat meat locally), retrying with alternate terms rather than giving up on a literal miss.}
   \feature{Admin-tunable}{An admin can turn the assistant on/off and edit its system prompt from the dashboard, without a deploy.}
