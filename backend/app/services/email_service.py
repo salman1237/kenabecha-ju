@@ -19,8 +19,17 @@ def send_email(to: str, subject: str, body: str) -> None:
     message["Subject"] = subject
     message.set_content(body)
 
-    with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
-        server.starttls()
+    # Port 465 is implicit TLS from the first byte (SMTPS) — a plain SMTP
+    # connection followed by starttls() sends plaintext commands a port-465
+    # server is waiting to see inside a TLS handshake, and it just hangs
+    # rather than erroring. 587 (and 25) are the opposite: plaintext first,
+    # upgraded via STARTTLS. No timeout previously either, so a
+    # misconfigured port hung the request indefinitely instead of failing
+    # fast.
+    smtp_cls = smtplib.SMTP_SSL if settings.SMTP_PORT == 465 else smtplib.SMTP
+    with smtp_cls(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
+        if smtp_cls is smtplib.SMTP:
+            server.starttls()
         if settings.SMTP_USER:
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
         server.send_message(message)
