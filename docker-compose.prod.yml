@@ -49,6 +49,17 @@ services:
       context: ./backend
       target: prod
     restart: unless-stopped
+    # The VPS's own network transparently intercepts/caches outbound port-53
+    # DNS traffic (confirmed via DNS-over-HTTPS returning a different, correct
+    # answer than every local resolver path) — a provider-level quirk outside
+    # anything this container or Dokploy configures, and not something a local
+    # resolver change can fix since the interception happens before the
+    # packet leaves the host. A static mapping for the mail relay sidesteps
+    # it entirely for the one hostname that actually matters at runtime
+    # (SMTP_HOST). Update this IP if the mail host (bdix.skoder.co) ever
+    # changes; it won't change with an ordinary DNS record edit.
+    extra_hosts:
+      - "mail.kenabechaju.com:103.112.62.102"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-kenabecha}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-kenabecha}
       REDIS_URL: redis://redis:6379/0
