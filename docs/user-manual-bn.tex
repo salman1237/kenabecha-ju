@@ -24,18 +24,21 @@
 % shaper mis-forms Bangla conjuncts (jukto borno) with this font -- "ব্য"
 % and "র্দ" broke apart into bare vowel signs. LuaHBTeX shapes through
 % HarfBuzz, which handles the Bengali complex-script rules correctly.
-% Noto Sans Bengali (bundled under fonts/, OFL licensed) supplies real
-% Regular and Bold weights; no dedicated italic file ships for this
-% family, so the italic shape is a slanted synthesis of the regular
-% weight rather than a true italic design.
-\setmainfont{NotoSansBengali}[
-  Path = fonts/,
+% Kalpurush (Windows system font), same family already used in this
+% project's other two PDFs (features.tex, features-brief.tex) --
+% consistent house style. Renderer=HarfBuzz + Script=Bengali get the
+% correct OpenType shaping rules; Scale brings its x-height in line with
+% the rest of the document. Only one weight ships for this family, so
+% bold/italic silently fall back to the regular glyphs rather than a
+% true bold or italic design -- the same tradeoff already accepted in
+% this project's other Kalpurush-set documents.
+\setmainfont{Kalpurush}[
+  Path = C:/Windows/Fonts/,
   Extension = .ttf,
-  UprightFont = *-Regular,
-  BoldFont = *-Bold,
-  ItalicFont = *-Regular,
-  ItalicFeatures = {FakeSlant=0.2},
+  UprightFont = kalpurush,
   Renderer = HarfBuzz,
+  Script = Bengali,
+  Scale = 1.05,
 ]
 
 \titleformat{\section}
