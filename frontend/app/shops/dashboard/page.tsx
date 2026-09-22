@@ -471,10 +471,6 @@ export default function MyShopsPage() {
     );
   }
 
-  if (!authLoading && user && !user.profile_complete) {
-    return <CompleteProfilePrompt next="/shops/dashboard" action="open a shop" />;
-  }
-
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6 sm:py-12">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -487,7 +483,9 @@ export default function MyShopsPage() {
         </Button>
       </div>
 
-      {showForm && (
+      {showForm && user && !user.profile_complete ? (
+        <CompleteProfilePrompt next="/shops/dashboard" action="open a shop" />
+      ) : showForm ? (
         <Card>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
@@ -544,7 +542,7 @@ export default function MyShopsPage() {
             </form>
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       {loading ? (
         <div className="flex flex-col gap-3">
