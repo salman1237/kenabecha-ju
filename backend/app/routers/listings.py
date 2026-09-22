@@ -8,7 +8,6 @@ from app.core.dependencies import (
     get_current_admin,
     get_current_user,
     get_optional_user,
-    get_seller,
 )
 from app.core.rate_limit import client_identifier
 from app.db.session import get_db
@@ -33,7 +32,7 @@ router = APIRouter(prefix="/listings", tags=["listings"])
 
 @router.post("", response_model=ListingOut, status_code=status.HTTP_201_CREATED)
 async def create_listing(
-    payload: ListingCreate, user: User = Depends(get_seller), db: AsyncSession = Depends(get_db)
+    payload: ListingCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ) -> ListingOut:
     listing = await listing_service.create_listing(db, user, payload)
     return ListingOut.model_validate(listing)

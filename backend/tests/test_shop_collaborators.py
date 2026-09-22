@@ -4,9 +4,13 @@ without becoming a second owner. Deleting the shop and managing who else
 has access stay owner-only.
 """
 
+import uuid
+
+from app.core.security import hash_password
 from app.models.shop import Shop
 from app.models.shop_collaborator import ShopCollaborator, ShopCollaboratorStatus
-from tests.conftest import login, make_listing, make_user
+from app.models.user import User
+from tests.conftest import TEST_PASSWORD, login, make_user
 
 
 async def _shop(db, owner, name: str = "Test Shop") -> Shop:
@@ -14,6 +18,22 @@ async def _shop(db, owner, name: str = "Test Shop") -> Shop:
     db.add(shop)
     await db.flush()
     return shop
+
+
+async def _unverified_user(db) -> User:
+    """A Google-lite buyer: signed up, but never completed JU verification
+    (no student_id/hall/department/session/batch), so profile_complete is
+    False -- must not be inviteable as a shop collaborator."""
+    suffix = uuid.uuid4().hex[:8]
+    user = User(
+        email=f"unverified-{suffix}@example.com",
+        hashed_password=hash_password(TEST_PASSWORD),
+        full_name=f"Unverified {suffix}",
+        is_verified=True,
+    )
+    db.add(user)
+    await db.flush()
+    return user
 
 
 async def _accept_collaborator(db, shop, user) -> ShopCollaborator:
@@ -221,6 +241,68 @@ async def test_owner_can_manage_a_listing_a_collaborator_created(client, db):
 
     assert edit_res.status_code == 200, edit_res.text
     assert edit_res.json()["title"] == "Edited by owner"
+
+
+async def test_an_unverified_employee_can_be_invited_and_list_for_the_shop(client, db):
+    """A shop owner should be able to bring on a non-JU employee to run the
+    shop day to day -- the shop's legitimacy rests on the verified owner,
+    not on every individual who helps manage it."""
+    owner = await make_user(db)
+    employee = await _unverified_user(db)
+    assert not employee.profile_complete
+    shop = await _shop(db, owner)
+
+    await login(client, owner)
+    invite_res = await client.post(f"/shops/{shop.id}/collaborators", json={"email": employee.email})
+    assert invite_res.status_code == 201, invite_res.text
+    invite_id = invite_res.json()["id"]
+
+    await login(client, employee)
+    respond_res = await client.post(f"/shop-invites/{invite_id}/respond", json={"accept": True})
+    assert respond_res.status_code == 204
+
+    listing_res = await client.post(
+        "/listings",
+        json={
+            "title": "Added by an unverified employee",
+            "description": "A description long enough to be realistic.",
+            "price": "500",
+            "shop_id": str(shop.id),
+            "fulfillment_type": "pickup",
+            "pickup_address": "Shop counter",
+        },
+    )
+    assert listing_res.status_code == 201, listing_res.text
+
+    post_res = await client.post(
+        "/posts",
+        json={"shop_id": str(shop.id), "title": "Fresh stock today", "description_html": "<p>Come get it</p>"},
+    )
+    assert post_res.status_code == 201, post_res.text
+
+
+async def test_an_unverified_employee_still_cannot_list_personally(client, db):
+    """Shop access is scoped to the shop -- it isn't a backdoor around the
+    JU-verification requirement for that employee's own personal listings."""
+    owner = await make_user(db)
+    employee = await _unverified_user(db)
+    shop = await _shop(db, owner)
+    await _accept_collaborator(db, shop, employee)
+
+    await login(client, employee)
+    res = await client.post(
+        "/listings",
+        json={
+            "title": "Personal item, not the shop's",
+            "description": "A description long enough to be realistic.",
+            "price": "500",
+            "condition": "new",
+            "fulfillment_type": "pickup",
+            "pickup_address": "Dorm room",
+        },
+    )
+
+    assert res.status_code == 403
 
 
 async def test_collaborator_can_edit_shop_but_not_delete_it(client, db):

@@ -64,10 +64,19 @@ async def _attach_tags(db: AsyncSession, listing: Listing, tag_names: list[str],
 
 async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate) -> Listing:
     if payload.shop_id is not None:
+        # A collaborator invited onto a shop (see shop_collaborators) can list
+        # for it without being JU-verified themselves -- the shop's legitimacy
+        # already rests on its owner, who had to verify to open it. Personal
+        # listings below have no such backing, so they keep the full check.
         shop = await shop_service.get_shop_with_access(db, payload.shop_id, seller)
         condition = Condition.new
         next_sort_order = await _next_shop_sort_order(db, shop.id)
     else:
+        if not seller.profile_complete:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Complete your JU profile before opening a shop or listing an item",
+            )
         condition = payload.condition
         next_sort_order = 0
 

@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_current_user, get_optional_user, get_seller
+from app.core.dependencies import get_current_user, get_optional_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.common import Page
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/posts", tags=["posts"])
 
 @router.post("", response_model=PostOut, status_code=status.HTTP_201_CREATED)
 async def create_post(
-    payload: PostCreate, user: User = Depends(get_seller), db: AsyncSession = Depends(get_db)
+    payload: PostCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ) -> PostOut:
     shop = await shop_service.get_shop_with_access(db, payload.shop_id, user)
     post = await post_service.create_post(db, shop, payload)
