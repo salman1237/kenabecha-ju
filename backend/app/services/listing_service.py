@@ -64,7 +64,7 @@ async def _attach_tags(db: AsyncSession, listing: Listing, tag_names: list[str],
 
 async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate) -> Listing:
     if payload.shop_id is not None:
-        shop = await shop_service.get_owned_shop(db, payload.shop_id, seller)
+        shop = await shop_service.get_shop_with_access(db, payload.shop_id, seller)
         condition = Condition.new
         next_sort_order = await _next_shop_sort_order(db, shop.id)
     else:
@@ -135,10 +135,16 @@ async def get_by_ids(db: AsyncSession, listing_ids: list[uuid.UUID]) -> list[Lis
 
 
 async def get_owned_listing(db: AsyncSession, listing_id: uuid.UUID, seller: User) -> Listing:
+    """The original creator can always manage their own listing. For a shop
+    listing, so can the shop's owner or any accepted collaborator -- not
+    just whichever one of them happened to create it, since day-to-day
+    shop operation is meant to be shared."""
     listing = await get_listing(db, listing_id)
-    if listing.seller_id != seller.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "You don't own this listing")
-    return listing
+    if listing.seller_id == seller.id:
+        return listing
+    if listing.shop_id is not None and await shop_service.has_shop_access(db, listing.shop_id, seller.id):
+        return listing
+    raise HTTPException(status.HTTP_403_FORBIDDEN, "You don't own this listing")
 
 
 async def _next_shop_sort_order(db: AsyncSession, shop_id: uuid.UUID) -> int:

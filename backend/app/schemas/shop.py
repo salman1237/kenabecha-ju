@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class ShopCreate(BaseModel):
@@ -54,3 +54,41 @@ class ShopOut(BaseModel):
     follower_count: int = 0
     average_rating: float | None = None
     rating_count: int = 0
+
+
+class ShopCollaboratorInviteIn(BaseModel):
+    # Exact match only, deliberately -- see shop_service.invite_collaborator.
+    # A fuzzy/partial search would turn this into a general user-directory
+    # lookup tool, which is a real privacy leak.
+    email: EmailStr
+
+
+class ShopCollaboratorOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    shop_id: uuid.UUID
+    user_id: uuid.UUID
+    status: str
+    created_at: datetime
+    responded_at: datetime | None
+    user_full_name: str
+    user_email: str
+    user_avatar_url: str | None
+
+
+class ShopInviteOut(BaseModel):
+    """A pending invite as seen by the invited user -- shop context, not
+    the shop's full management data, since this person isn't a member yet."""
+
+    id: uuid.UUID
+    shop_id: uuid.UUID
+    shop_name: str
+    shop_slug: str
+    shop_logo_url: str | None
+    invited_by_name: str
+    created_at: datetime
+
+
+class ShopCollaboratorRespondIn(BaseModel):
+    accept: bool

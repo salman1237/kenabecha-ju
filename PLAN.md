@@ -579,6 +579,22 @@ Launch-eve infrastructure work: moving off the shared `*.salmandev.io` subdomain
 
 ---
 
+## Phase 64 — Shop collaborators: invite another user to co-manage a shop (implemented)
+
+Requested post-launch: a shop owner can invite another registered user, by exact email, to help run the shop day-to-day, without handing over ownership.
+
+**Permission model.** Two tiers replace the old single owner-only chokepoint: `get_owned_shop` (strict owner, unchanged, still gates delete-shop and who's-on-the-team decisions) and a new `get_shop_with_access` (owner OR an *accepted* collaborator, now gating shop edits, logo/cover uploads, and listing/post creation). A single reusable `has_shop_access()` boolean backs both — checked first by `shop_id` ownership, then falls back to an accepted `ShopCollaborator` row — and the same helper was threaded into `listing_service.get_owned_listing` and `post_service.get_owned_post`/`_check_visible`/`get_shop_posts`, so a collaborator's listings and posts are manageable by the owner too, not just by whoever created them (and vice versa). Caught before it shipped: an early version of `has_shop_access` checked only the collaborator table, which would have locked the *owner* out of editing a listing a collaborator had created.
+
+**Invite lifecycle.** New `shop_collaborators` table (migration `7a2e91f4c8b3`) with a `pending`/`accepted`/`declined` status and a `(shop_id, user_id)` unique constraint. Invite is by exact email only — deliberately no fuzzy/partial search, so the feature can't double as a user-directory lookup. Re-inviting someone who previously declined resets their existing row to `pending` rather than erroring or duplicating. Both directions notify (invite → invitee, accept/decline → owner) through the existing `notification_service.notify()` fan-out, reusing the same in-app + email pattern as ratings.
+
+**Routing note.** The invited-user-facing endpoints (`GET /shop-invites`, `POST /shop-invites/{id}/respond`) live in their own router at a distinct `/shop-invites` prefix rather than under `/shops/`, since `GET /shops/{slug}` is already a registered single-segment route and `/shops/invites` would have been ambiguous with it at the routing layer.
+
+**Frontend.** `/shops/dashboard`'s edit panel gains a "Team" section (invite-by-email form + collaborator list with a pending badge and remove button), visible only to the owner. The collapsed shop card now checks `shop.owner_id === user?.id`: owners keep the Delete button, collaborators see "You help manage this shop" in its place. A new `/shops/invites` page (matching the notification's `link_url`) lists a user's pending invites with Accept/Decline.
+
+**Verified live**, not just by the 16-test suite (321 total, zero regressions): two throwaway accounts seeded directly in the dev DB, full lifecycle driven first through the real HTTP API (invite → accept → collaborator creates a listing → owner edits that same listing), then re-driven through the actual browser with Playwright — owner's Team section, the invitee's `/shops/invites` page, clicking Accept, and the resulting shared-shop dashboard view with no Delete button, all screenshotted against the running dev stack.
+
+---
+
 ## Notable deviations & judgment calls not covered above
 
 A handful of decisions that don't map to a single phase above, or that add context the phase entries didn't have room for:

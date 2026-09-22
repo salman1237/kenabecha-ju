@@ -5,12 +5,14 @@ from datetime import UTC, datetime
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.search import LIKE_ESCAPE, like_contains
 from app.models.follow import ShopFollow
 from app.models.listing import Listing, ListingStatus
 from app.models.rating import Rating
 from app.models.shop import Shop
+from app.models.shop_collaborator import ShopCollaborator, ShopCollaboratorStatus
 from app.models.user import User
 from app.schemas.shop import ShopCreate, ShopUpdate
 from app.services import media_service
@@ -73,9 +75,21 @@ async def list_shops(
     return [(shop, counts.get(shop.id, 0)) for shop in shops]
 
 
-async def list_my_shops(db: AsyncSession, owner_id: uuid.UUID) -> list[tuple[Shop, int]]:
+async def list_my_shops(db: AsyncSession, user_id: uuid.UUID) -> list[tuple[Shop, int]]:
+    """A user's own dashboard: shops they own, plus shops they've been
+    accepted onto as a collaborator -- both belong on "my shops", just
+    with different actions available once there (enforced by
+    get_owned_shop/get_shop_with_access, not by this listing)."""
+    collaborator_shop_ids = select(ShopCollaborator.shop_id).where(
+        ShopCollaborator.user_id == user_id, ShopCollaborator.status == ShopCollaboratorStatus.accepted
+    )
     result = await db.execute(
-        select(Shop).where(Shop.owner_id == owner_id, Shop.is_active.is_(True)).order_by(Shop.created_at)
+        select(Shop)
+        .where(
+            Shop.is_active.is_(True),
+            (Shop.owner_id == user_id) | (Shop.id.in_(collaborator_shop_ids)),
+        )
+        .order_by(Shop.created_at)
     )
     shops = list(result.scalars().all())
     counts = await _listing_counts(db, [s.id for s in shops])
@@ -184,12 +198,138 @@ async def is_following(db: AsyncSession, user_id: uuid.UUID, shop_id: uuid.UUID)
 
 
 async def get_owned_shop(db: AsyncSession, shop_id: uuid.UUID, owner: User) -> Shop:
+    """Strictly the owner -- deleting the shop and managing its
+    collaborators stay owner-only, unlike day-to-day operation."""
     shop = await db.get(Shop, shop_id)
     if shop is None or not shop.is_active:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Shop not found")
     if shop.owner_id != owner.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "You don't own this shop")
     return shop
+
+
+async def has_shop_access(db: AsyncSession, shop_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    """Owner or accepted collaborator. Pending/declined invites grant nothing.
+    Checks ownership too (not just the collaborator table) so callers like
+    get_owned_listing can use this as the one true "can this person operate
+    on this shop" check -- including for content a *different* collaborator
+    created, which is the whole point of sharing shop management."""
+    result = await db.execute(select(Shop.owner_id).where(Shop.id == shop_id))
+    owner_id = result.scalar_one_or_none()
+    if owner_id is None:
+        return False
+    if owner_id == user_id:
+        return True
+    result = await db.execute(
+        select(ShopCollaborator.id).where(
+            ShopCollaborator.shop_id == shop_id,
+            ShopCollaborator.user_id == user_id,
+            ShopCollaborator.status == ShopCollaboratorStatus.accepted,
+        )
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def get_shop_with_access(db: AsyncSession, shop_id: uuid.UUID, user: User) -> Shop:
+    """Owner or accepted collaborator -- day-to-day shop operation (editing
+    the shop, its listings, its posts). Everything a collaborator does
+    routes through this instead of get_owned_shop."""
+    shop = await db.get(Shop, shop_id)
+    if shop is None or not shop.is_active:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Shop not found")
+    if shop.owner_id == user.id or await has_shop_access(db, shop_id, user.id):
+        return shop
+    raise HTTPException(status.HTTP_403_FORBIDDEN, "You don't have access to this shop")
+
+
+async def invite_collaborator(db: AsyncSession, shop: Shop, inviter: User, email: str) -> tuple[ShopCollaborator, User]:
+    """Invite by exact email match only -- see ShopCollaboratorInviteIn for
+    why this isn't a fuzzy search. Re-inviting someone who previously
+    declined resets their row to pending rather than creating a second one,
+    since (shop_id, user_id) is unique."""
+    result = await db.execute(select(User).where(User.email == email))
+    target = result.scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No user found with that email")
+    if target.id == shop.owner_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "That's already the shop owner")
+
+    existing = (
+        await db.execute(
+            select(ShopCollaborator).where(
+                ShopCollaborator.shop_id == shop.id, ShopCollaborator.user_id == target.id
+            )
+        )
+    ).scalar_one_or_none()
+
+    if existing is not None:
+        if existing.status == ShopCollaboratorStatus.accepted:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "This person already manages the shop")
+        if existing.status == ShopCollaboratorStatus.pending:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "An invite is already pending for this person")
+        existing.status = ShopCollaboratorStatus.pending
+        existing.invited_by = inviter.id
+        existing.responded_at = None
+        collaborator = existing
+    else:
+        collaborator = ShopCollaborator(shop_id=shop.id, user_id=target.id, invited_by=inviter.id)
+        db.add(collaborator)
+
+    await db.commit()
+    await db.refresh(collaborator)
+    return collaborator, target
+
+
+async def list_collaborators(db: AsyncSession, shop_id: uuid.UUID) -> list[ShopCollaborator]:
+    result = await db.execute(
+        select(ShopCollaborator)
+        .where(ShopCollaborator.shop_id == shop_id, ShopCollaborator.status != ShopCollaboratorStatus.declined)
+        .order_by(ShopCollaborator.created_at)
+    )
+    return list(result.scalars().all())
+
+
+async def list_pending_invites_for_user(db: AsyncSession, user_id: uuid.UUID) -> list[ShopCollaborator]:
+    # ShopCollaborator.shop is selectin-eager by default, but that doesn't
+    # cascade to shop.owner -- the router needs the inviting shop's owner
+    # name, so that hop is loaded explicitly here rather than lazily
+    # (which would raise outside an active sync context under asyncpg).
+    result = await db.execute(
+        select(ShopCollaborator)
+        .where(ShopCollaborator.user_id == user_id, ShopCollaborator.status == ShopCollaboratorStatus.pending)
+        .options(selectinload(ShopCollaborator.shop).selectinload(Shop.owner))
+        .order_by(ShopCollaborator.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def get_own_invite(db: AsyncSession, invite_id: uuid.UUID, user: User) -> ShopCollaborator:
+    invite = await db.get(ShopCollaborator, invite_id)
+    if invite is None or invite.user_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Invite not found")
+    if invite.status != ShopCollaboratorStatus.pending:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This invite has already been responded to")
+    return invite
+
+
+async def respond_to_invite(db: AsyncSession, invite: ShopCollaborator, accept: bool) -> ShopCollaborator:
+    invite.status = ShopCollaboratorStatus.accepted if accept else ShopCollaboratorStatus.declined
+    invite.responded_at = datetime.now(UTC)
+    await db.commit()
+    await db.refresh(invite)
+    return invite
+
+
+async def get_shop_collaborator(db: AsyncSession, shop_id: uuid.UUID, collaborator_id: uuid.UUID) -> ShopCollaborator:
+    collaborator = await db.get(ShopCollaborator, collaborator_id)
+    if collaborator is None or collaborator.shop_id != shop_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Collaborator not found")
+    return collaborator
+
+
+async def remove_collaborator(db: AsyncSession, collaborator: ShopCollaborator) -> None:
+    await db.delete(collaborator)
+    await db.commit()
 
 
 async def update_shop(db: AsyncSession, shop: Shop, payload: ShopUpdate) -> Shop:

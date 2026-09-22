@@ -32,6 +32,7 @@ from app.routers import (
     ratings,
     reference,
     reports,
+    shop_invites,
     shops,
     tags,
     users,
@@ -91,6 +92,7 @@ app.include_router(assistant.router)
 app.include_router(page_sections.public_router)
 app.include_router(page_sections.admin_router)
 app.include_router(shops.router)
+app.include_router(shop_invites.router)
 app.include_router(tags.router)
 app.include_router(listings.router)
 app.include_router(chat.router)

@@ -12,6 +12,7 @@ from app.models.post import PostStatus, ShopPost, ShopPostImage
 from app.models.shop import Shop
 from app.models.user import User
 from app.schemas.post import PostCreate, PostUpdate
+from app.services import shop_service
 from app.services.sanitize import sanitize_post_html
 
 MAX_IMAGES_PER_POST = 6
@@ -81,20 +82,21 @@ async def get_post(db: AsyncSession, post_id: uuid.UUID) -> ShopPost:
     return post
 
 
-def _check_visible(post: ShopPost, viewer: User | None) -> None:
+async def _check_visible(db: AsyncSession, post: ShopPost, viewer: User | None) -> None:
     """A published post is visible to anyone. A pending/rejected one is only
-    visible to the owning shop's owner or staff — a shareable link to an
-    unmoderated post shouldn't leak its content to a random visitor."""
+    visible to the owning shop's owner or an accepted collaborator, or
+    staff — a shareable link to an unmoderated post shouldn't leak its
+    content to a random visitor."""
     if post.status != PostStatus.published:
-        is_owner = viewer is not None and post.shop.owner_id == viewer.id
+        has_access = viewer is not None and await shop_service.has_shop_access(db, post.shop_id, viewer.id)
         is_staff = viewer is not None and viewer.role in ("moderator", "admin")
-        if not (is_owner or is_staff):
+        if not (has_access or is_staff):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Post not found")
 
 
 async def get_visible_post(db: AsyncSession, post_id: uuid.UUID, viewer: User | None) -> ShopPost:
     post = await get_post(db, post_id)
-    _check_visible(post, viewer)
+    await _check_visible(db, post, viewer)
     return post
 
 
@@ -107,13 +109,13 @@ async def get_visible_post_by_slug(db: AsyncSession, slug: str, viewer: User | N
     post = result.scalar_one_or_none()
     if post is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Post not found")
-    _check_visible(post, viewer)
+    await _check_visible(db, post, viewer)
     return post
 
 
 async def get_owned_post(db: AsyncSession, post_id: uuid.UUID, owner: User) -> ShopPost:
     post = await get_post(db, post_id)
-    if post.shop.owner_id != owner.id:
+    if not await shop_service.has_shop_access(db, post.shop_id, owner.id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "You don't own this post")
     return post
 
@@ -134,9 +136,9 @@ async def get_shop_posts(db: AsyncSession, shop_id: uuid.UUID, viewer: User | No
     shop = await db.get(Shop, shop_id)
     if shop is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Shop not found")
-    is_owner = viewer is not None and shop.owner_id == viewer.id
+    has_access = viewer is not None and await shop_service.has_shop_access(db, shop_id, viewer.id)
     is_staff = viewer is not None and viewer.role in ("moderator", "admin")
-    return await list_shop_posts(db, shop_id, published_only=not (is_owner or is_staff))
+    return await list_shop_posts(db, shop_id, published_only=not (has_access or is_staff))
 
 
 async def update_post(db: AsyncSession, post: ShopPost, payload: PostUpdate) -> ShopPost:

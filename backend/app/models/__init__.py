@@ -15,6 +15,7 @@ from app.models.reference import Department, Hall
 from app.models.report import Report
 from app.models.saved import SavedListing
 from app.models.shop import Shop
+from app.models.shop_collaborator import ShopCollaborator, ShopCollaboratorStatus
 from app.models.token import AuthToken, RefreshToken
 from app.models.user import User
 
@@ -53,4 +54,6 @@ __all__ = [
     "ShopPostImage",
     "PostStatus",
     "post_listings",
+    "ShopCollaborator",
+    "ShopCollaboratorStatus",
 ]

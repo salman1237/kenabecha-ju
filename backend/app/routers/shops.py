@@ -1,17 +1,44 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.dependencies import get_current_user, get_optional_user, get_seller
 from app.db.session import get_db
+from app.models.notification import NotificationType
 from app.models.shop import Shop
 from app.models.user import User
 from app.schemas.rating import RatingOut
-from app.schemas.shop import RateableListingOut, ShopCreate, ShopOut, ShopStatsOut, ShopUpdate
-from app.services import media_service, rating_service, shop_service
+from app.schemas.shop import (
+    RateableListingOut,
+    ShopCollaboratorInviteIn,
+    ShopCollaboratorOut,
+    ShopCollaboratorRespondIn,
+    ShopCreate,
+    ShopInviteOut,
+    ShopOut,
+    ShopStatsOut,
+    ShopUpdate,
+)
+from app.services import media_service, notification_service, rating_service, shop_service
 
 router = APIRouter(prefix="/shops", tags=["shops"])
+settings = get_settings()
+
+
+def _collaborator_to_out(collaborator) -> ShopCollaboratorOut:
+    return ShopCollaboratorOut(
+        id=collaborator.id,
+        shop_id=collaborator.shop_id,
+        user_id=collaborator.user_id,
+        status=collaborator.status.value,
+        created_at=collaborator.created_at,
+        responded_at=collaborator.responded_at,
+        user_full_name=collaborator.user.full_name,
+        user_email=collaborator.user.email,
+        user_avatar_url=collaborator.user.avatar_url,
+    )
 
 
 def _to_out(
@@ -128,7 +155,7 @@ async def update_shop(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ShopOut:
-    shop = await shop_service.get_owned_shop(db, shop_id, user)
+    shop = await shop_service.get_shop_with_access(db, shop_id, user)
     shop = await shop_service.update_shop(db, shop, payload)
     return _to_out(shop)
 
@@ -140,7 +167,7 @@ async def upload_shop_logo(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ShopOut:
-    shop = await shop_service.get_owned_shop(db, shop_id, user)
+    shop = await shop_service.get_shop_with_access(db, shop_id, user)
     image_url = await media_service.save_image(file, "shops")
     shop = await shop_service.set_logo(db, shop, image_url)
     return _to_out(shop)
@@ -153,7 +180,7 @@ async def upload_shop_cover(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ShopOut:
-    shop = await shop_service.get_owned_shop(db, shop_id, user)
+    shop = await shop_service.get_shop_with_access(db, shop_id, user)
     image_url = await media_service.save_image(file, "shops")
     shop = await shop_service.set_cover(db, shop, image_url)
     return _to_out(shop)
@@ -165,3 +192,61 @@ async def delete_shop(
 ) -> None:
     shop = await shop_service.get_owned_shop(db, shop_id, user)
     await shop_service.delete_shop(db, shop)
+
+
+# --- Collaborators: inviting other registered users to co-manage a shop ---
+# Owner-only (matching get_owned_shop, not get_shop_with_access): a
+# collaborator can run the shop day to day, but can't decide who else gets
+# that same access, and can't invite themselves a permanent seat.
+
+
+@router.get("/{shop_id}/collaborators", response_model=list[ShopCollaboratorOut])
+async def list_collaborators(
+    shop_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> list[ShopCollaboratorOut]:
+    await shop_service.get_shop_with_access(db, shop_id, user)
+    collaborators = await shop_service.list_collaborators(db, shop_id)
+    return [_collaborator_to_out(c) for c in collaborators]
+
+
+@router.post(
+    "/{shop_id}/collaborators", response_model=ShopCollaboratorOut, status_code=status.HTTP_201_CREATED
+)
+async def invite_collaborator(
+    shop_id: uuid.UUID,
+    payload: ShopCollaboratorInviteIn,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ShopCollaboratorOut:
+    shop = await shop_service.get_owned_shop(db, shop_id, user)
+    collaborator, target = await shop_service.invite_collaborator(db, shop, user, payload.email)
+
+    await notification_service.notify(
+        db,
+        background_tasks,
+        target.id,
+        NotificationType.shop_collaborator_invite,
+        title=f"{user.full_name} invited you to help manage {shop.shop_name}",
+        body="Open your invites to accept or decline.",
+        link_url="/shops/invites",
+        related_shop_id=shop.id,
+        email_subject=f"You've been invited to help manage {shop.shop_name} on KenaBecha JU",
+        email_body=(
+            f"{user.full_name} invited you to help manage their shop \"{shop.shop_name}\" on KenaBecha JU.\n\n"
+            f"Accept or decline at: {settings.FRONTEND_URL}/shops/invites"
+        ),
+    )
+    return _collaborator_to_out(collaborator)
+
+
+@router.delete("/{shop_id}/collaborators/{collaborator_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_collaborator(
+    shop_id: uuid.UUID,
+    collaborator_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    await shop_service.get_owned_shop(db, shop_id, user)
+    collaborator = await shop_service.get_shop_collaborator(db, shop_id, collaborator_id)
+    await shop_service.remove_collaborator(db, collaborator)

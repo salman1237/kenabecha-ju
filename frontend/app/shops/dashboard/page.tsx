@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Camera, Megaphone, Pencil, PlusCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -35,11 +35,21 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
-import { createShop, deleteShop, getMyShops, updateShop, uploadShopCover, uploadShopLogo } from "@/lib/api/shops";
+import {
+  createShop,
+  deleteShop,
+  getCollaborators,
+  getMyShops,
+  inviteCollaborator,
+  removeCollaborator,
+  updateShop,
+  uploadShopCover,
+  uploadShopLogo,
+} from "@/lib/api/shops";
 import { ApiError } from "@/lib/api/client";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { type ShopFormValues, shopSchema } from "@/lib/validation/shop";
-import type { Category, Shop } from "@/types/api";
+import type { Category, Shop, ShopCollaborator } from "@/types/api";
 
 function ShopLogoPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Shop) => void }) {
   const { t } = useLanguage();
@@ -152,15 +162,121 @@ function ShopCoverPicker({ shop, onUpdated }: { shop: Shop; onUpdated: (shop: Sh
   );
 }
 
+function ShopTeamSection({ shop }: { shop: Shop }) {
+  const { t } = useLanguage();
+  const [collaborators, setCollaborators] = useState<ShopCollaborator[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    getCollaborators(shop.id)
+      .then(setCollaborators)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, [shop.id]);
+
+  const onInvite = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setInviting(true);
+    try {
+      await inviteCollaborator(shop.id, email.trim());
+      setEmail("");
+      toast.success(t.shops.inviteSent);
+      load();
+    } catch (err) {
+      setError(translateApiError(err, t));
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const onRemove = async (collaboratorId: string) => {
+    await removeCollaborator(shop.id, collaboratorId);
+    toast.success(t.shops.collaboratorRemoved);
+    load();
+  };
+
+  return (
+    <FormSection title={t.shops.teamTitle} description={t.shops.teamHint}>
+      <form onSubmit={onInvite} className="flex items-center gap-2">
+        <Input
+          type="email"
+          placeholder={t.shops.inviteEmailPlaceholder}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <Button type="submit" size="sm" disabled={inviting}>
+          {inviting ? t.common.saving : t.shops.inviteButton}
+        </Button>
+      </form>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+
+      {loading ? (
+        <Skeleton className="h-10 w-full" />
+      ) : collaborators.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{t.shops.noCollaborators}</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {collaborators.map((c) => (
+            <li
+              key={c.id}
+              className="flex items-center justify-between gap-2 rounded-lg border border-border/70 px-3 py-2"
+            >
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate text-sm font-medium">{c.user_full_name}</span>
+                <span className="truncate text-xs text-muted-foreground">{c.user_email}</span>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {c.status === "pending" && (
+                  <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                    {t.shops.pendingStatus}
+                  </span>
+                )}
+                <AlertDialog>
+                  <AlertDialogTrigger
+                    render={<Button variant="ghost" size="sm" className="text-destructive" />}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t.shops.removeCollaboratorConfirmTitle}</AlertDialogTitle>
+                      <AlertDialogDescription>{t.shops.removeCollaboratorConfirmBody}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onRemove(c.id)} variant="destructive">
+                        {t.common.remove}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </FormSection>
+  );
+}
+
 function ShopEditForm({
   shop,
   categories,
+  isOwner,
   onUpdated,
   onSaved,
   onCancel,
 }: {
   shop: Shop;
   categories: Category[];
+  isOwner: boolean;
   onUpdated: (shop: Shop) => void;
   onSaved: () => void;
   onCancel: () => void;
@@ -263,6 +379,8 @@ function ShopEditForm({
           </div>
         </form>
       </FormSection>
+
+      {isOwner && <ShopTeamSection shop={shop} />}
     </div>
   );
 }
@@ -441,12 +559,14 @@ export default function MyShopsPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {shops.map((shop) =>
-            editingShopId === shop.id ? (
+          {shops.map((shop) => {
+            const isOwner = shop.owner_id === user?.id;
+            return editingShopId === shop.id ? (
               <ShopEditForm
                 key={shop.id}
                 shop={shop}
                 categories={categories}
+                isOwner={isOwner}
                 onUpdated={(updated) =>
                   setShops((prev) => prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)))
                 }
@@ -491,31 +611,37 @@ export default function MyShopsPage() {
                       <Button variant="ghost" size="sm" onClick={() => setEditingShopId(shop.id)}>
                         <Pencil /> {t.common.edit}
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger render={<Button variant="ghost" size="sm" className="text-destructive" />}>
-                          <Trash2 /> {t.common.delete}
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t.shops.deleteShop}</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Its listings will remain but lose their shop association.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => onDelete(shop.id)} variant="destructive">
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      {isOwner ? (
+                        <AlertDialog>
+                          <AlertDialogTrigger
+                            render={<Button variant="ghost" size="sm" className="text-destructive" />}
+                          >
+                            <Trash2 /> {t.common.delete}
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t.shops.deleteShop}</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Its listings will remain but lose their shop association.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => onDelete(shop.id)} variant="destructive">
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">{t.shops.collaboratorNote}</span>
+                      )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            )
-          )}
+            );
+          })}
         </div>
       )}
     </div>

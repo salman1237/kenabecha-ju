@@ -17,7 +17,7 @@ router = APIRouter(prefix="/posts", tags=["posts"])
 async def create_post(
     payload: PostCreate, user: User = Depends(get_seller), db: AsyncSession = Depends(get_db)
 ) -> PostOut:
-    shop = await shop_service.get_owned_shop(db, payload.shop_id, user)
+    shop = await shop_service.get_shop_with_access(db, payload.shop_id, user)
     post = await post_service.create_post(db, shop, payload)
     return PostOut.model_validate(post)
 
@@ -45,7 +45,7 @@ async def list_posts_for_shop(
 async def list_mine(
     shop_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ) -> list[PostOut]:
-    await shop_service.get_owned_shop(db, shop_id, user)
+    await shop_service.get_shop_with_access(db, shop_id, user)
     posts = await post_service.list_shop_posts(db, shop_id, published_only=False)
     return [PostOut.model_validate(p) for p in posts]
 

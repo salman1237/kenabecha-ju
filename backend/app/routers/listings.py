@@ -256,7 +256,7 @@ async def reorder_listings(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[ListingOut]:
-    shop = await shop_service.get_owned_shop(db, payload.shop_id, user)
+    shop = await shop_service.get_shop_with_access(db, payload.shop_id, user)
     listings = await listing_service.reorder_listings(db, shop, payload.listing_ids)
     return [ListingOut.model_validate(i) for i in listings]
 

@@ -68,6 +68,30 @@ export interface ShopStats {
   rateable_listing: { id: string; title: string } | null;
 }
 
+export interface ShopCollaborator {
+  id: string;
+  shop_id: string;
+  user_id: string;
+  status: "pending" | "accepted" | "declined";
+  created_at: string;
+  responded_at: string | null;
+  user_full_name: string;
+  user_email: string;
+  user_avatar_url: string | null;
+}
+
+/** A pending invite as seen by the invited user — shop context, not the
+ *  shop's full management data, since this person isn't a member yet. */
+export interface ShopInvite {
+  id: string;
+  shop_id: string;
+  shop_name: string;
+  shop_slug: string;
+  shop_logo_url: string | null;
+  invited_by_name: string;
+  created_at: string;
+}
+
 export interface Tag {
   id: string;
   name: string;

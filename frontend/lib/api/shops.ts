@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
-import type { Rating, Shop, ShopStats } from "@/types/api";
+import type { Rating, Shop, ShopCollaborator, ShopInvite, ShopStats } from "@/types/api";
 
 export interface ShopPayload {
   shop_name: string;
@@ -53,4 +53,30 @@ export function uploadShopCover(shopId: string, file: File) {
   const formData = new FormData();
   formData.append("file", file);
   return apiFetch<Shop>(`/shops/${shopId}/cover`, { method: "POST", body: formData });
+}
+
+export function getCollaborators(shopId: string) {
+  return apiFetch<ShopCollaborator[]>(`/shops/${shopId}/collaborators`);
+}
+
+export function inviteCollaborator(shopId: string, email: string) {
+  return apiFetch<ShopCollaborator>(`/shops/${shopId}/collaborators`, {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function removeCollaborator(shopId: string, collaboratorId: string) {
+  return apiFetch<void>(`/shops/${shopId}/collaborators/${collaboratorId}`, { method: "DELETE" });
+}
+
+export function getMyShopInvites() {
+  return apiFetch<ShopInvite[]>("/shop-invites");
+}
+
+export function respondToShopInvite(inviteId: string, accept: boolean) {
+  return apiFetch<void>(`/shop-invites/${inviteId}/respond`, {
+    method: "POST",
+    body: JSON.stringify({ accept }),
+  });
 }

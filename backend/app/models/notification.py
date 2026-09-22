@@ -26,6 +26,8 @@ class NotificationType(str, enum.Enum):
     restock_available = "restock_available"
     shop_new_post = "shop_new_post"
     post_rejected = "post_rejected"
+    shop_collaborator_invite = "shop_collaborator_invite"
+    shop_collaborator_responded = "shop_collaborator_responded"
 
 
 class Notification(UUIDPKMixin, CreatedAtMixin, Base):
