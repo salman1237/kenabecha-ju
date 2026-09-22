@@ -26,7 +26,10 @@ function NewListingForm() {
       </div>
     );
   }
-  if (!user.profile_complete) {
+  // Personal listings need full JU verification; a shop-scoped listing only
+  // needs shop access (owner or accepted collaborator), enforced server-side
+  // -- mirrors listing_service.create_listing's own branch on shop_id.
+  if (!shopId && !user.profile_complete) {
     return <CompleteProfilePrompt next="/listings/new" action="list an item" />;
   }
 
