@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getCategories } from "@/lib/api/categories";
+import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { translateApiError } from "@/lib/i18n/errors";
 import { createListing, updateListing, uploadListingImage, type ListingPayload } from "@/lib/api/listings";
@@ -47,6 +48,7 @@ export function ListingForm({
   const [serverError, setServerError] = useState<string | null>(null);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const { t, fmt } = useLanguage();
+  const { user } = useAuth();
 
   const {
     register,
@@ -168,7 +170,11 @@ export function ListingForm({
       {mode === "create" ? (
         <FormSection title={t.listingForm.sellAs} description={t.listingForm.sellAsHint}>
           <select id="shop_id" className={selectClass} {...register("shop_id")}>
-            <option value="">{t.listingForm.personalListing}</option>
+            {/* A collaborator who never completed JU verification can only
+                list for a shop they've been invited onto -- they can't open
+                their own shop or list personally, so that option shouldn't
+                even be offered (the server would reject it anyway). */}
+            {user?.profile_complete && <option value="">{t.listingForm.personalListing}</option>}
             {shops.map((shop) => (
               <option key={shop.id} value={shop.id}>
                 {shop.shop_name}
