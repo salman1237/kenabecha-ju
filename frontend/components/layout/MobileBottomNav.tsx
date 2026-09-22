@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { useUnreadMessageCount } from "@/hooks/useUnreadMessageCount";
 import { cn } from "@/lib/utils";
 import type { Translations } from "@/messages/en";
 
@@ -26,6 +27,7 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const { t } = useLanguage();
   const { user } = useAuth();
+  const unreadMessages = useUnreadMessageCount();
 
   // The bar is chrome for browsing, not for the chat thread or admin — both
   // want the full height, and the thread has its own composer pinned to the
@@ -58,7 +60,14 @@ export function MobileBottomNav() {
                   active ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
                 )}
               >
-                <Icon className="size-5" />
+                <span className="relative">
+                  <Icon className="size-5" />
+                  {href === "/inbox" && unreadMessages > 0 && (
+                    <span className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-medium text-white">
+                      {unreadMessages > 9 ? "9+" : unreadMessages}
+                    </span>
+                  )}
+                </span>
                 <span className="max-w-full truncate px-1">{label(t)}</span>
               </Link>
             </li>

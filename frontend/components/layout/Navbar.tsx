@@ -25,6 +25,7 @@ import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger 
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useNavigation } from "@/context/NavigationContext";
+import { useUnreadMessageCount } from "@/hooks/useUnreadMessageCount";
 import { NavIcon } from "@/components/layout/NavIcon";
 import { menusAt, navLabel, visibleLinks } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
@@ -36,10 +37,12 @@ import { cn } from "@/lib/utils";
 function NavLink({
   href,
   active,
+  badge,
   children,
 }: {
   href: string;
   active: boolean;
+  badge?: number;
   children: React.ReactNode;
 }) {
   return (
@@ -53,6 +56,11 @@ function NavLink({
           : "text-muted-foreground hover:text-foreground"
       )}
     >
+      {Boolean(badge) && (
+        <span className="absolute -right-1 -top-1 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-white">
+          {badge! > 9 ? "9+" : badge}
+        </span>
+      )}
       {active && (
         <motion.span
           layoutId="navbar-active-pill"
@@ -70,6 +78,7 @@ export function Navbar() {
   const { locale, setLocale, t } = useLanguage();
   const navigation = useNavigation();
   const pathname = usePathname();
+  const unreadMessages = useUnreadMessageCount();
 
   // The primary destinations are data — added, renamed, reordered, hidden and
   // scoped to signed-in or signed-out visitors from the admin panel. The
@@ -152,7 +161,12 @@ export function Navbar() {
             deliberately don't. */}
         <nav className="hidden items-center gap-0.5 rounded-full border border-emerald-500/15 bg-emerald-500/8 p-1 text-sm font-medium dark:border-emerald-400/15 dark:bg-emerald-400/8 lg:flex">
           {primaryLinks.map((link) => (
-            <NavLink key={link.id} href={link.href} active={isActive(link.href)}>
+            <NavLink
+              key={link.id}
+              href={link.href}
+              active={isActive(link.href)}
+              badge={link.href === "/inbox" ? unreadMessages : undefined}
+            >
               {navLabel(link, locale, t)}
             </NavLink>
           ))}
@@ -226,6 +240,11 @@ export function Navbar() {
                   </DropdownMenuItem>
                   <DropdownMenuItem render={<Link href="/inbox" />}>
                     <MessageSquare className="size-4 text-emerald-600 dark:text-emerald-400" /> {t.nav.inbox}
+                    {unreadMessages > 0 && (
+                      <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-white">
+                        {unreadMessages > 9 ? "9+" : unreadMessages}
+                      </span>
+                    )}
                   </DropdownMenuItem>
                   <DropdownMenuItem render={<Link href="/shops/dashboard" />}>
                     <ShoppingBag className="size-4 text-emerald-600 dark:text-emerald-400" /> {t.nav.myShops}
@@ -262,6 +281,11 @@ export function Navbar() {
                       <SheetClose key={link.id} render={<Link href={link.href} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
                         <NavIcon name={link.icon} className="size-4 text-emerald-600 dark:text-emerald-400" />
                         {navLabel(link, locale, t)}
+                        {link.href === "/inbox" && unreadMessages > 0 && (
+                          <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-white">
+                            {unreadMessages > 9 ? "9+" : unreadMessages}
+                          </span>
+                        )}
                       </SheetClose>
                     ))}
                     <SheetClose render={<Link href="/dashboard" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
