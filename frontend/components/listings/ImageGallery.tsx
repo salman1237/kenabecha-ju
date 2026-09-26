@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Expand, ImageOff, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { SmartImage } from "@/components/ui/SmartImage";
 import { cn, mediaUrl } from "@/lib/utils";
@@ -14,10 +14,46 @@ export function ImageGallery({ images, title }: { images: ListingImage[]; title:
   const [zoomed, setZoomed] = useState(false);
 
   const count = images.length;
+  const trackRef = useRef<HTMLDivElement>(null);
+  // Set while we are smooth-scrolling to a chosen slide, so the scroll events
+  // that fire on the way past intermediate slides don't fight the target.
+  const targetRef = useRef<number | null>(null);
+  const targetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const draggedRef = useRef(false);
+
+  const scrollToIndex = useCallback((i: number) => {
+    setActive(i);
+    const el = trackRef.current;
+    if (!el) return;
+    targetRef.current = i;
+    if (targetTimer.current) clearTimeout(targetTimer.current);
+    targetTimer.current = setTimeout(() => (targetRef.current = null), 600);
+    el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
+  }, []);
+
   const go = useCallback(
-    (delta: number) => setActive((i) => (i + delta + count) % count),
-    [count]
+    (delta: number) => scrollToIndex((active + delta + count) % count),
+    [active, count, scrollToIndex]
   );
+
+  // Swiping (touch, trackpad, or drag) moves the track natively with
+  // scroll-snap; this just keeps `active` (counter, thumbnails, lightbox) in
+  // step with whichever slide it settled on.
+  const onScroll = () => {
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const el = trackRef.current;
+      if (!el || !el.clientWidth) return;
+      const i = Math.round(el.scrollLeft / el.clientWidth);
+      if (targetRef.current !== null) {
+        if (Math.abs(el.scrollLeft - targetRef.current * el.clientWidth) < 2) targetRef.current = null;
+        return;
+      }
+      setActive(i);
+    });
+  };
 
   // Arrow keys / Escape while the lightbox is open. Bound on document
   // because focus may be on the backdrop rather than any one control.
@@ -54,18 +90,17 @@ export function ImageGallery({ images, title }: { images: ListingImage[]; title:
     <>
       <div className="flex flex-col gap-3">
         <div className="group relative aspect-square w-full overflow-hidden rounded-2xl bg-muted shadow-[var(--shadow-soft-sm)]">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={images[active].id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="h-full w-full"
-            >
-              <SmartImage src={images[active].image_url} alt={title} eager />
-            </motion.div>
-          </AnimatePresence>
+          <div
+            ref={trackRef}
+            onScroll={onScroll}
+            className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {images.map((img, i) => (
+              <div key={img.id} className="h-full w-full shrink-0 snap-center snap-always">
+                <SmartImage src={img.image_url} alt={title} eager={i === 0} />
+              </div>
+            ))}
+          </div>
 
           <button
             type="button"
@@ -107,7 +142,7 @@ export function ImageGallery({ images, title }: { images: ListingImage[]; title:
               <button
                 key={img.id}
                 type="button"
-                onClick={() => setActive(i)}
+                onClick={() => scrollToIndex(i)}
                 aria-label={`View image ${i + 1}`}
                 aria-current={i === active}
                 className={cn(
@@ -135,7 +170,11 @@ export function ImageGallery({ images, title }: { images: ListingImage[]; title:
             aria-modal="true"
             aria-label={`${title} — image ${active + 1} of ${count}`}
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/92 p-4"
-            onClick={() => setLightbox(false)}
+            onClick={() => {
+              // Releasing a swipe outside the image lands a click on the
+              // backdrop; that must not dismiss the viewer.
+              if (!draggedRef.current) setLightbox(false);
+            }}
           >
             <button
               type="button"
@@ -180,18 +219,27 @@ export function ImageGallery({ images, title }: { images: ListingImage[]; title:
               initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.2 }}
+              drag={zoomed || count < 2 ? false : "x"}
+              dragSnapToOrigin
+              dragElastic={0.4}
+              onDragStart={() => (draggedRef.current = true)}
+              onDragEnd={(_, info) => {
+                if (Math.abs(info.offset.x) > 60) go(info.offset.x < 0 ? 1 : -1);
+                setTimeout(() => (draggedRef.current = false), 80);
+              }}
               onClick={(e) => {
                 e.stopPropagation();
+                if (draggedRef.current) return;
                 setZoomed((z) => !z);
               }}
               className={cn(
-                "max-h-[88vh] max-w-[92vw] rounded-lg object-contain transition-transform duration-300",
+                "max-h-[88vh] max-w-[92vw] touch-pan-y select-none rounded-lg object-contain transition-transform duration-300",
                 zoomed ? "scale-[1.85] cursor-zoom-out" : "cursor-zoom-in"
               )}
             />
 
             <span className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/60">
-              {zoomed ? "Click image to zoom out" : "Click image to zoom"} · Esc to close
+              {zoomed ? "Tap image to zoom out" : count > 1 ? "Swipe or use arrows · tap to zoom" : "Tap to zoom"} · Esc to close
             </span>
           </motion.div>
         )}
