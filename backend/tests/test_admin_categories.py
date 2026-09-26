@@ -61,10 +61,12 @@ async def test_the_shipped_taxonomy_is_intact_and_visible(client, db):
     """Adding `is_active` must not have retired anything. If this fails, a
     deploy emptied the sidebar of a live site."""
     tree = (await client.get("/categories")).json()
-    assert len(tree) == 8
+    assert len(tree) == 9
     assert all(c["is_active"] for c in tree)
     assert all(child["is_active"] for c in tree for child in c["children"])
     assert [c["slug"] for c in tree][:3] == ["books-study", "electronics", "hostel-living"]
+    # Jewellery slots in ahead of the catch-all, which stays last.
+    assert [c["slug"] for c in tree][-2:] == ["jewellery", "other"]
 
 
 # --- who may reshape the taxonomy --------------------------------------------

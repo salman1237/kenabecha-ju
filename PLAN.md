@@ -593,6 +593,14 @@ Requested post-launch: a shop owner can invite another registered user, by exact
 
 **Verified live**, not just by the 16-test suite (321 total, zero regressions): two throwaway accounts seeded directly in the dev DB, full lifecycle driven first through the real HTTP API (invite → accept → collaborator creates a listing → owner edits that same listing), then re-driven through the actual browser with Playwright — owner's Team section, the invitee's `/shops/invites` page, clicking Accept, and the resulting shared-shop dashboard view with no Delete button, all screenshotted against the running dev stack.
 
+**Follow-ups, same day, all found by the first real non-JU employee actually using it (screenshots from production):** the whole `/shops/dashboard` page and `/listings/new` each had their own page-level `profile_complete` gate that redirected an unverified collaborator to "Complete your JU profile" before anything loaded — the backend `create_listing`/`create_post` had the same assumption via `get_seller`. JU verification now gates only what genuinely needs it: opening a new shop, and *personal* (shop-less) listings; anything scoped to a shop needs only shop access (owner or accepted collaborator), since the shop's legitimacy rests on its verified owner. The Sell-as picker also stops offering "Personal listing" to an unverified user. Separately added an unread-message badge on Inbox everywhere it appears (nav pill, account menu, both hamburger sheets, mobile bottom nav), same style as the notification bell. **A pre-existing outage surfaced while shipping this**: `frontend/package-lock.json` had been failing `npm ci` in the Docker build since 2026-09-18, silently blocking every deploy (four commits stuck). A lockfile regenerated on Windows still passed `npm ci` locally but failed on the Linux image (npm resolves optional platform-specific sub-dependencies differently per host), so it was regenerated inside `node:22-alpine` — **regenerate the lockfile in Linux from now on, never a Windows `npm install`**.
+
+---
+
+## Phase 65 — Jewellery category (implemented)
+
+New top-level "Jewellery" category (💍) with Rings, Necklaces & Pendants, Earrings, Bangles & Bracelets and Other Jewellery, added by migration `b4c9d2e7a1f5` so every environment gets it, not just production via the admin panel. Slotted before the "Other" catch-all, which moves down one place so it stays last. Idempotent by slug (a hand-made `jewellery` category is left alone), and the downgrade removes it (listing FK is `SET NULL`, so nothing is orphaned destructively). `test_the_shipped_taxonomy_is_intact_and_visible` now expects nine top-level categories with Jewellery second-to-last. Full suite: 323 passed.
+
 ---
 
 ## Notable deviations & judgment calls not covered above
