@@ -215,6 +215,9 @@ class ListingVariant(UUIDPKMixin, TimestampMixin, Base):
     )
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    # e.g. "kg" for a per-weight option (800g-900g at Taka X/kg) -- same
+    # meaning as Listing.unit, just scoped to this one option.
+    unit: Mapped[str | None] = mapped_column(String(20))
     is_available: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     sort_order: Mapped[int] = mapped_column(SmallInteger, default=0, nullable=False)
 

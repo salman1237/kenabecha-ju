@@ -3,6 +3,7 @@ import { z } from "zod";
 const variantSchema = z.object({
   name: z.string().min(1, "Required").max(80),
   price: z.string().min(1, "Required"),
+  unit: z.string().max(20).optional(),
   is_available: z.boolean(),
 });
 

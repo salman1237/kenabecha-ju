@@ -259,7 +259,7 @@ export default function ListingDetailPage() {
             <div>
               <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
                 {selectedVariant
-                  ? fmt.price(selectedVariant.price, "fixed", listing.unit)
+                  ? fmt.price(selectedVariant.price, "fixed", selectedVariant.unit)
                   : listing.variants.length > 0
                     ? `${t.listing.fromPricePrefix}${fmt.price(listing.price, listing.price_type, listing.unit)}`
                     : fmt.price(listing.price, listing.price_type, listing.unit)}

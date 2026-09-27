@@ -73,7 +73,12 @@ export function ListingForm({
       pickup_address: listing?.pickup_address ?? "",
       hasVariants: Boolean(listing?.variants && listing.variants.length > 0),
       variants:
-        listing?.variants?.map((v) => ({ name: v.name, price: v.price, is_available: v.is_available })) ?? [],
+        listing?.variants?.map((v) => ({
+          name: v.name,
+          price: v.price,
+          unit: v.unit ?? "",
+          is_available: v.is_available,
+        })) ?? [],
     },
   });
 
@@ -143,7 +148,12 @@ export function ListingForm({
       // edited shop listing with options toggled off is an explicit
       // "remove every option".
       variants: submittingVariants
-        ? values.variants!.map((v) => ({ name: v.name.trim(), price: Number(v.price), is_available: v.is_available }))
+        ? values.variants!.map((v) => ({
+            name: v.name.trim(),
+            price: Number(v.price),
+            unit: v.unit?.trim() || null,
+            is_available: v.is_available,
+          }))
         : mode === "edit" && isShopListing
           ? []
           : undefined,
@@ -351,7 +361,7 @@ export function ListingForm({
                       {...register(`variants.${i}.name` as const)}
                     />
                   </div>
-                  <div className="flex w-28 flex-col gap-1.5">
+                  <div className="flex w-24 flex-col gap-1.5">
                     {i === 0 && <Label htmlFor={`variants.${i}.price`}>{t.listingForm.variantPrice} (৳)</Label>}
                     <Input
                       id={`variants.${i}.price`}
@@ -360,6 +370,18 @@ export function ListingForm({
                       step="0.01"
                       className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       {...register(`variants.${i}.price` as const)}
+                    />
+                  </div>
+                  <div className="flex w-24 flex-col gap-1.5">
+                    {i === 0 && (
+                      <Label htmlFor={`variants.${i}.unit`}>
+                        {t.listingForm.unit} ({t.common.optional})
+                      </Label>
+                    )}
+                    <Input
+                      id={`variants.${i}.unit`}
+                      placeholder={t.listingForm.unitPlaceholder}
+                      {...register(`variants.${i}.unit` as const)}
                     />
                   </div>
                   <label className="flex items-center gap-1.5 pb-2 text-xs text-muted-foreground">
@@ -388,7 +410,7 @@ export function ListingForm({
                 size="sm"
                 className="self-start"
                 disabled={variantFields.length >= MAX_VARIANTS}
-                onClick={() => appendVariant({ name: "", price: "", is_available: true })}
+                onClick={() => appendVariant({ name: "", price: "", unit: "", is_available: true })}
               >
                 <Plus className="size-4" /> {t.listingForm.addVariant}
               </Button>

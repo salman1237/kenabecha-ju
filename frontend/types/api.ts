@@ -138,6 +138,7 @@ export interface ListingVariant {
   id: string;
   name: string;
   price: string;
+  unit: string | null;
   is_available: boolean;
   sort_order: number;
 }

@@ -107,14 +107,21 @@ async def _sync_variants(
                     "listing_id": listing.id,
                     "name": v.name.strip(),
                     "price": v.price,
+                    "unit": v.unit,
                     "is_available": v.is_available,
                     "sort_order": i,
                 }
                 for i, v in enumerate(variants)
             ],
         )
-        listing.price = min(v.price for v in variants)
+        # Listing.price/unit are a representative snapshot -- the cheapest
+        # option's own price and unit, so every surface that only knows
+        # about Listing.price (browse sort/filter, the chat preview) shows
+        # something real rather than a stale or blank value.
+        cheapest = min(variants, key=lambda v: v.price)
+        listing.price = cheapest.price
         listing.price_type = PriceType.fixed
+        listing.unit = cheapest.unit
     await db.flush()
 
 

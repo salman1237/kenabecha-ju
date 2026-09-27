@@ -615,6 +615,8 @@ A shop listing can now offer priced options (size, pack quantity, edition) inste
 
 **Verified live**, not just the 12 new tests (`test_listing_variants.py`) plus the full 335-test suite: created a real 3-variant shop listing (one variant deliberately unavailable) through the actual form, confirmed the owner's detail view, the shop storefront card ("From ৳450 · 3 options"), and — as a second, logged-out browser context — the buyer's detail view: initial price pre-selects the first available option, clicking "Medium" updates the price live, "Large" renders disabled, and the same card treatment shows correctly on the related-listings rail too.
 
+**Follow-up, same day**: a per-variant `unit` (migration `d3f8a2c6e5b1`) — a seller pointed out that different weight-range options of the same fish are each priced per kg (e.g. "800-900 gm" at ৳2750/kg vs "1 kg-1.2 kg" at ৳3200/kg), and the original design only had a listing-wide unit, hidden entirely once variants were enabled. `Listing.unit` is now synced from the cheapest variant's own unit alongside `Listing.price`, the same "representative snapshot" approach already used for price, so every existing surface that reads `listing.unit`/`listing.price` (browse cards, the chat preview) picked this up for free — the one real fix needed was the detail page's variant-selected price line, which was still reading the listing's own `unit` instead of the selected variant's. 13 tests now, 336 total. Verified live with the exact fish example: `৳2,750/kg` initially, swapping to `৳3,200/kg` on selecting the heavier option.
+
 ---
 
 ## Notable deviations & judgment calls not covered above

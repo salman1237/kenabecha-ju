@@ -104,6 +104,33 @@ async def test_min_price_sync_on_create(client, db):
     assert res.json()["price"] == "300.00"
 
 
+async def test_variant_unit_carries_through_and_syncs_to_listing(client, db):
+    """A fish seller's weight-range options are each priced per kg -- the
+    unit is per-option, not just a single listing-wide setting."""
+    owner = await make_user(db)
+    shop = await _shop(db, owner)
+    await login(client, owner)
+
+    res = await client.post(
+        "/listings",
+        json=_listing_payload(
+            shop.id,
+            variants=[
+                {"name": "800-900 gm", "price": "2750", "unit": "kg"},
+                {"name": "1 kg - 1.2 kg", "price": "3200", "unit": "kg"},
+            ],
+        ),
+    )
+
+    assert res.status_code == 201, res.text
+    body = res.json()
+    assert body["variants"][0]["unit"] == "kg"
+    # Listing.price/unit mirror the cheapest option, for surfaces (browse
+    # sort, the chat preview) that only look at the listing's own fields.
+    assert body["price"] == "2750.00"
+    assert body["unit"] == "kg"
+
+
 async def test_update_replaces_all_variants_not_append(client, db):
     owner = await make_user(db)
     shop = await _shop(db, owner)

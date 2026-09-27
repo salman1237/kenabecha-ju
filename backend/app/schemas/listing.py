@@ -43,6 +43,7 @@ class ListingShopOut(BaseModel):
 class ListingVariantIn(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     price: Decimal = Field(ge=0)
+    unit: str | None = Field(default=None, max_length=20)
     is_available: bool = True
 
 
@@ -52,6 +53,7 @@ class ListingVariantOut(BaseModel):
     id: uuid.UUID
     name: str
     price: Decimal
+    unit: str | None
     is_available: bool
     sort_order: int
 

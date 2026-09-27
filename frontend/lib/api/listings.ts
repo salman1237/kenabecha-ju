@@ -12,6 +12,7 @@ import type {
 export interface ListingVariantPayload {
   name: string;
   price: number;
+  unit?: string | null;
   is_available: boolean;
 }
 
