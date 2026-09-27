@@ -603,6 +603,20 @@ New top-level "Jewellery" category (💍) with Rings, Necklaces & Pendants, Earr
 
 ---
 
+## Phase 66 — Product variants for shop listings (implemented)
+
+A shop listing can now offer priced options (size, pack quantity, edition) instead of forcing one price for the whole listing — shop listings only, mirroring how restock requests are already scoped ("a personal listing going out of stock is closer to a seller-initiated pause"). Planned in plan mode first: confirmed with the user that variants are simple named options (name + price + available toggle), not a Size×Color attribute matrix, and confirmed there's no cart/checkout anywhere in this app (built once in Phase 11, fully removed) — so a variant only ever needs to be *visible with its own price*, never "added to cart."
+
+**Data model.** New `ListingVariant` (migration `c1a8f6e9b2d4`), following `ListingImage`'s one-to-many-from-listing shape exactly (`listing_id` FK cascade, `sort_order`, `lazy="selectin"`). No changes to `listings` itself: `price`/`price_type` are reused as a derived "representative price" — always the minimum across the listing's variants, recomputed on every create/update — so `browse_listings`' `min_price`/`max_price`/`price_asc`/`price_desc` (all direct comparisons on `Listing.price`) needed zero changes.
+
+**Service.** `_reject_variants_on_personal_listing` mirrors `create_restock_request`'s own shop-only guard verbatim. `_sync_variants` mirrors `_attach_tags`'s replace-all-via-direct-table-write idiom (same async lazy-load-diff hazard it exists to avoid). `variants: []` on update is a real, distinct value ("remove every option") from `variants: null`/omitted ("no change") — clearing leaves the last-synced price in place rather than demanding a fresh one, since by the time any listing has ever had variants its price is never actually `None`. Real bug caught before shipping: the derived price has to be computed *before* the listing's first `flush()` (needed to get an id for the variant rows), not after — the fixed-price-requires-a-price CHECK constraint fires at that first flush, before `_sync_variants` ever runs. No new routes: `variants` rides the existing `POST /listings`/`PATCH /listings/{id}` body, same as `tags`, since unlike images a variant has no file upload and isn't edited incrementally outside the main form.
+
+**Frontend.** New "Options" section in `ListingForm` (shop listings only), a `useFieldArray` repeatable list, hides the single price/unit fields entirely when enabled. `ListingCard` shows `"From ৳X"` + an "N options" badge whenever `variants.length > 0` — one change that covers browse, the shop storefront grid, the related-listings rail, and the seller's own dashboard, since they all render the same card component. The detail page gets a real variant picker: clicking an available option swaps the displayed price; an unavailable one renders disabled with a strike-through, visible rather than hidden (consistent with how `out_of_stock` listings stay visible elsewhere in this app). Chat-prefill with the chosen variant name was scoped out as a stretch add-on requiring new plumbing the inbox composer doesn't have today — not built this round.
+
+**Verified live**, not just the 12 new tests (`test_listing_variants.py`) plus the full 335-test suite: created a real 3-variant shop listing (one variant deliberately unavailable) through the actual form, confirmed the owner's detail view, the shop storefront card ("From ৳450 · 3 options"), and — as a second, logged-out browser context — the buyer's detail view: initial price pre-selects the first available option, clicking "Medium" updates the price live, "Large" renders disabled, and the same card treatment shows correctly on the related-listings rail too.
+
+---
+
 ## Notable deviations & judgment calls not covered above
 
 A handful of decisions that don't map to a single phase above, or that add context the phase entries didn't have room for:

@@ -79,6 +79,7 @@ export default function ListingDetailPage() {
   const [error, setError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
   const mutate = () => {
@@ -101,12 +102,18 @@ export default function ListingDetailPage() {
     getRatingEligibility(params.id).then(setEligibility).catch(() => {});
   }, [params.id, user]);
 
+  useEffect(() => {
+    if (!listing) return;
+    setSelectedVariantId(listing.variants.find((v) => v.is_available)?.id ?? null);
+  }, [listing]);
+
   if (isLoading) return <DetailSkeleton />;
   if (error || !listing) {
     return <p className="mx-auto max-w-2xl px-6 py-12 text-sm text-destructive">{t.listing.notFound}</p>;
   }
 
   const isOwner = user?.id === listing.seller.id;
+  const selectedVariant = listing.variants.find((v) => v.id === selectedVariantId) ?? null;
   const sellerName = listing.shop ? listing.shop.shop_name : listing.seller.full_name;
   const sellerHref = listing.shop ? `/shops/${listing.shop.slug}` : `/profile/${listing.seller.id}`;
 
@@ -251,12 +258,43 @@ export default function ListingDetailPage() {
 
             <div>
               <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
-                {fmt.price(listing.price, listing.price_type, listing.unit)}
+                {selectedVariant
+                  ? fmt.price(selectedVariant.price, "fixed", listing.unit)
+                  : listing.variants.length > 0
+                    ? `${t.listing.fromPricePrefix}${fmt.price(listing.price, listing.price_type, listing.unit)}`
+                    : fmt.price(listing.price, listing.price_type, listing.unit)}
               </p>
               {listing.price_type === "negotiable" && (
                 <p className="text-xs text-muted-foreground">Price is negotiable</p>
               )}
             </div>
+
+            {listing.variants.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-xs font-medium text-muted-foreground">{t.listing.chooseOption}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {listing.variants.map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      disabled={!v.is_available}
+                      onClick={() => setSelectedVariantId(v.id)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                        !v.is_available
+                          ? "cursor-not-allowed border-border/50 text-muted-foreground/50 line-through"
+                          : v.id === selectedVariantId
+                            ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                            : "border-border text-foreground hover:border-emerald-500/40"
+                      )}
+                    >
+                      {v.name}
+                      {!v.is_available && ` (${t.listing.unavailableOption})`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
               <span className="flex items-center gap-2">

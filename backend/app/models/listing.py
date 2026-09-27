@@ -174,6 +174,12 @@ class Listing(UUIDPKMixin, TimestampMixin, SoftDeleteMixin, Base):
         order_by="ListingImage.sort_order",
         lazy="selectin",
     )
+    variants: Mapped[list["ListingVariant"]] = relationship(
+        back_populates="listing",
+        cascade="all, delete-orphan",
+        order_by="ListingVariant.sort_order",
+        lazy="selectin",
+    )
     tags: Mapped[list["Tag"]] = relationship(
         secondary=listing_tags, back_populates="listings", lazy="selectin"
     )
@@ -190,6 +196,29 @@ class ListingImage(UUIDPKMixin, CreatedAtMixin, Base):
     sort_order: Mapped[int] = mapped_column(SmallInteger, default=0, nullable=False)
 
     listing: Mapped["Listing"] = relationship(back_populates="images")
+
+
+class ListingVariant(UUIDPKMixin, TimestampMixin, Base):
+    """A priced option on a shop listing -- a size, a pack quantity, an
+    edition -- each independently priced and independently available. Shop
+    listings only (see listing_service._reject_variants_on_personal_listing):
+    a personal listing's single price stays the only price it ever has."""
+
+    __tablename__ = "listing_variants"
+    __table_args__ = (
+        CheckConstraint("price >= 0", name="listing_variant_price_non_negative"),
+        Index("ix_listing_variants_listing_id_sort_order", "listing_id", "sort_order"),
+    )
+
+    listing_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("listings.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    is_available: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    sort_order: Mapped[int] = mapped_column(SmallInteger, default=0, nullable=False)
+
+    listing: Mapped["Listing"] = relationship(back_populates="variants")
 
 
 class ListingView(UUIDPKMixin, CreatedAtMixin, Base):

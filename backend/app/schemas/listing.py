@@ -40,6 +40,30 @@ class ListingShopOut(BaseModel):
     logo_url: str | None
 
 
+class ListingVariantIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    price: Decimal = Field(ge=0)
+    is_available: bool = True
+
+
+class ListingVariantOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    price: Decimal
+    is_available: bool
+    sort_order: int
+
+
+def _check_unique_variant_names(variants: list[ListingVariantIn] | None) -> None:
+    if not variants:
+        return
+    names = [v.name.strip().lower() for v in variants]
+    if len(names) != len(set(names)):
+        raise ValueError("Variant names must be unique")
+
+
 class ListingCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     description: str = Field(min_length=1)
@@ -57,10 +81,15 @@ class ListingCreate(BaseModel):
     # enforced below rather than left to whichever one the client happened
     # to send.
     custom_category: str | None = Field(default=None, max_length=100)
+    # Shop listings only (enforced in listing_service, since a plain payload
+    # has no way to know the listing doesn't have a shop yet at create time —
+    # the caller's own shop_id above is what the service checks against).
+    # None here means "no variants"; see ListingUpdate for what [] means.
+    variants: list[ListingVariantIn] | None = Field(default=None, max_length=20)
 
     @model_validator(mode="after")
     def check_price_and_condition(self) -> "ListingCreate":
-        if self.price_type == PriceType.fixed and self.price is None:
+        if self.price_type == PriceType.fixed and self.price is None and not self.variants:
             raise ValueError("Price is required for fixed-price listings")
         if self.shop_id is None and self.condition is None:
             raise ValueError("Condition is required for personal listings")
@@ -72,6 +101,7 @@ class ListingCreate(BaseModel):
             self.pickup_address = None
         if self.custom_category is not None:
             self.category_id = None
+        _check_unique_variant_names(self.variants)
         return self
 
 
@@ -88,6 +118,12 @@ class ListingUpdate(BaseModel):
     category_id: uuid.UUID | None = None
     custom_category: str | None = Field(default=None, max_length=100)
     is_top: bool | None = None
+    # None = leave variants untouched. [] is a real, distinct value meaning
+    # "remove every variant" — listing_service.update_listing then requires
+    # an explicit price in the same payload (or already set) before it will
+    # accept that, so reverting to single-price mode is one deliberate
+    # action, not a state a listing can slide into silently.
+    variants: list[ListingVariantIn] | None = Field(default=None, max_length=20)
     # Note: pickup/delivery consistency for updates is validated in listing_service.update_listing
     # against the merged final state, not here — a partial update might change only one of the two
     # fields while the other keeps its existing value on the model.
@@ -99,6 +135,7 @@ class ListingUpdate(BaseModel):
         # set and having the model's actual category depend on dict order.
         if "custom_category" in self.model_fields_set and self.custom_category is not None:
             self.category_id = None
+        _check_unique_variant_names(self.variants)
         return self
 
 
@@ -126,6 +163,7 @@ class ListingOut(BaseModel):
     category: CategoryRef | None = None
     custom_category: str | None = None
     images: list[ListingImageOut]
+    variants: list[ListingVariantOut] = Field(default_factory=list)
     tags: list[TagOut]
     # Both default to their "not applicable" value and are only ever
     # actually populated by the router handlers that can afford the extra

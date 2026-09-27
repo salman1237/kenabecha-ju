@@ -9,6 +9,12 @@ import type {
   SellerReviews,
 } from "@/types/api";
 
+export interface ListingVariantPayload {
+  name: string;
+  price: number;
+  is_available: boolean;
+}
+
 export interface ListingPayload {
   title: string;
   description: string;
@@ -22,6 +28,9 @@ export interface ListingPayload {
   tags: string[];
   fulfillment_type: FulfillmentType;
   pickup_address?: string | null;
+  // Shop listings only. undefined = no variants (create); null/undefined on
+  // update = leave untouched; [] on update = remove every variant.
+  variants?: ListingVariantPayload[] | null;
 }
 
 export function createListing(payload: ListingPayload) {

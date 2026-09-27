@@ -15,7 +15,9 @@ from app.models.listing import (
     ListingImage,
     ListingRestockRequest,
     ListingStatus,
+    ListingVariant,
     ListingView,
+    PriceType,
     Tag,
     listing_tags,
 )
@@ -25,10 +27,11 @@ from app.core.search import LIKE_ESCAPE, like_contains
 from app.models.notification import NotificationType
 from app.models.shop import Shop
 from app.models.user import User
-from app.schemas.listing import OFFERS_PICKUP, ListingCreate, ListingUpdate
+from app.schemas.listing import OFFERS_PICKUP, ListingCreate, ListingUpdate, ListingVariantIn
 from app.services import category_service, notification_service, shop_service, tag_service
 
 MAX_IMAGES_PER_LISTING = 8
+MAX_VARIANTS_PER_LISTING = 20
 
 # How long a new listing stays up before it needs renewing. Student listings
 # go stale fast — a term's worth of dead "still available?" threads is the
@@ -62,7 +65,61 @@ async def _attach_tags(db: AsyncSession, listing: Listing, tag_names: list[str],
         )
 
 
+def _reject_variants_on_personal_listing(
+    shop_id: uuid.UUID | None, variants: list[ListingVariantIn] | None
+) -> None:
+    """Mirrors create_restock_request's own shop-only guard: a personal
+    listing's single price stays the only price it ever has."""
+    if variants is not None and shop_id is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Variants are only available on shop listings"
+        )
+
+
+async def _sync_variants(
+    db: AsyncSession, listing: Listing, variants: list[ListingVariantIn] | None
+) -> None:
+    """Replaces every ListingVariant row on `listing` with `variants` and
+    recomputes the listing's derived price/price_type from the new set.
+    `variants=None` means "no change" (only ListingUpdate can send that).
+    `variants=[]` means "remove every variant" -- the caller is responsible
+    for then requiring an explicit standalone price (see update_listing).
+
+    Writes directly to the table rather than through the ORM `listing.variants`
+    collection, same reasoning as `_attach_tags`: assigning that collection on
+    an already-flushed listing forces a synchronous lazy-load to diff it,
+    which fails under async SQLAlchemy."""
+    if variants is None:
+        return
+    if len(variants) > MAX_VARIANTS_PER_LISTING:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"A listing can have at most {MAX_VARIANTS_PER_LISTING} options"
+        )
+
+    await db.execute(delete(ListingVariant).where(ListingVariant.listing_id == listing.id))
+    await db.flush()
+
+    if variants:
+        await db.execute(
+            insert(ListingVariant),
+            [
+                {
+                    "listing_id": listing.id,
+                    "name": v.name.strip(),
+                    "price": v.price,
+                    "is_available": v.is_available,
+                    "sort_order": i,
+                }
+                for i, v in enumerate(variants)
+            ],
+        )
+        listing.price = min(v.price for v in variants)
+        listing.price_type = PriceType.fixed
+    await db.flush()
+
+
 async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate) -> Listing:
+    _reject_variants_on_personal_listing(payload.shop_id, payload.variants)
     if payload.shop_id is not None:
         # A collaborator invited onto a shop (see shop_collaborators) can list
         # for it without being JU-verified themselves -- the shop's legitimacy
@@ -82,6 +139,15 @@ async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate)
 
     await category_service.ensure_exists(db, payload.category_id)
 
+    # Precomputed rather than left to _sync_variants: the first flush below
+    # (needed to get an id to attach variant rows to) already has to satisfy
+    # the fixed-price-requires-a-price CHECK constraint, before that helper
+    # ever runs.
+    price, price_type = payload.price, payload.price_type
+    if payload.variants:
+        price = min(v.price for v in payload.variants)
+        price_type = PriceType.fixed
+
     listing = Listing(
         seller_id=seller.id,
         shop_id=payload.shop_id,
@@ -89,8 +155,8 @@ async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate)
         custom_category=payload.custom_category,
         title=payload.title,
         description=payload.description,
-        price=payload.price,
-        price_type=payload.price_type,
+        price=price,
+        price_type=price_type,
         unit=payload.unit,
         condition=condition,
         sort_order=next_sort_order,
@@ -102,6 +168,7 @@ async def create_listing(db: AsyncSession, seller: User, payload: ListingCreate)
     await db.flush()
 
     await _attach_tags(db, listing, payload.tags, replace=False)
+    await _sync_variants(db, listing, payload.variants)
 
     await db.commit()
     await db.refresh(listing)
@@ -350,7 +417,8 @@ async def list_my_listings(db: AsyncSession, seller_id: uuid.UUID, shop_id: uuid
 
 
 async def update_listing(db: AsyncSession, listing: Listing, payload: ListingUpdate) -> Listing:
-    data = payload.model_dump(exclude_unset=True, exclude={"tags"})
+    _reject_variants_on_personal_listing(listing.shop_id, payload.variants)
+    data = payload.model_dump(exclude_unset=True, exclude={"tags", "variants"})
     if "category_id" in data:
         await category_service.ensure_exists(
             db, data["category_id"], current_id=listing.category_id
@@ -372,6 +440,15 @@ async def update_listing(db: AsyncSession, listing: Listing, payload: ListingUpd
 
     if payload.tags is not None:
         await _attach_tags(db, listing, payload.tags, replace=True)
+
+    # Runs after the plain-field setattr loop above, so variants -- when
+    # present -- are the final word on price: a price/price_type also sent
+    # in the same payload gets overwritten by the recomputed minimum.
+    await _sync_variants(db, listing, payload.variants)
+    if payload.variants == [] and listing.price_type == PriceType.fixed and listing.price is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Set a price before removing all options"
+        )
 
     await db.commit()
     await db.refresh(listing)

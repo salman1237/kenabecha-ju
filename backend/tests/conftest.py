@@ -212,6 +212,7 @@ async def make_listing(
         # load outside the async context (MissingGreenlet).
         images=[],
         tags=[],
+        variants=[],
         seller_id=seller.id,
         title=title,
         description="A description long enough to be realistic.",

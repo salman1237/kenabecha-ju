@@ -3,7 +3,7 @@ from app.models.category import Category
 from app.models.conversation import Conversation, Message
 from app.models.device_token import DeviceToken
 from app.models.follow import ShopFollow
-from app.models.listing import Listing, ListingImage, ListingRestockRequest, Tag, listing_tags
+from app.models.listing import Listing, ListingImage, ListingRestockRequest, ListingVariant, Tag, listing_tags
 from app.models.newsletter import NewsletterSubscriber
 from app.models.notification import Notification
 from app.models.navigation import NavLink, NavLocation, NavMenu, NavVisibility, SiteSetting
@@ -26,6 +26,7 @@ __all__ = [
     "Shop",
     "Listing",
     "ListingImage",
+    "ListingVariant",
     "ListingRestockRequest",
     "Tag",
     "listing_tags",

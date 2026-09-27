@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+const variantSchema = z.object({
+  name: z.string().min(1, "Required").max(80),
+  price: z.string().min(1, "Required"),
+  is_available: z.boolean(),
+});
+
+export const MAX_VARIANTS = 20;
+
 export const listingSchema = z
   .object({
     title: z.string().min(3, "At least 3 characters").max(200),
@@ -7,6 +15,9 @@ export const listingSchema = z
     price_type: z.enum(["fixed", "negotiable", "free"]),
     price: z.string().optional(),
     unit: z.string().max(20).optional(),
+    // Shop listings only — see ListingForm's isShopListing guard.
+    hasVariants: z.boolean().optional(),
+    variants: z.array(variantSchema).max(MAX_VARIANTS).optional(),
     // .or(z.literal("")) because the native <select> still carries its old
     // defaultValue="" in form state after the field unmounts (switching from
     // Personal to a shop hides it, but react-hook-form doesn't clear values
@@ -26,9 +37,13 @@ export const listingSchema = z
     fulfillment_type: z.enum(["pickup", "delivery", "both"]),
     pickup_address: z.string().max(500).optional(),
   })
-  .refine((data) => data.price_type !== "fixed" || !!data.price, {
+  .refine((data) => data.hasVariants || data.price_type !== "fixed" || !!data.price, {
     message: "Price is required for fixed-price listings",
     path: ["price"],
+  })
+  .refine((data) => !data.hasVariants || (data.variants && data.variants.length > 0), {
+    message: "Add at least one option, or turn options off",
+    path: ["variants"],
   })
   .refine((data) => !!data.shop_id || !!data.condition, {
     message: "Condition is required for personal listings",

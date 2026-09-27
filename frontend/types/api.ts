@@ -134,6 +134,14 @@ export interface ListingImage {
   sort_order: number;
 }
 
+export interface ListingVariant {
+  id: string;
+  name: string;
+  price: string;
+  is_available: boolean;
+  sort_order: number;
+}
+
 export type PriceType = "fixed" | "negotiable" | "free";
 export type Condition = "new" | "used_like_new" | "used_good" | "used_fair";
 export type ListingStatus = "active" | "sold" | "out_of_stock" | "removed" | "expired" | "paused";
@@ -170,6 +178,7 @@ export interface Listing {
   // name that isn't in the curated list. Never set alongside category.
   custom_category: string | null;
   images: ListingImage[];
+  variants: ListingVariant[];
   tags: Tag[];
   // Both default to their "not applicable" value and are only ever actually
   // populated by the endpoints that can afford the extra query — the single

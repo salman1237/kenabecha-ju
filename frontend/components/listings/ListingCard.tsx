@@ -56,6 +56,27 @@ function StatusBadge({ status }: { status: Listing["status"] }) {
   );
 }
 
+/** listing.price is already synced server-side to the minimum variant
+ *  price whenever a listing has options — this just adds the "From" cue. */
+function displayPrice(
+  listing: Listing,
+  fmt: ReturnType<typeof useLanguage>["fmt"],
+  t: ReturnType<typeof useLanguage>["t"]
+) {
+  const price = fmt.price(listing.price, listing.price_type, listing.unit);
+  return listing.variants.length > 0 ? `${t.listing.fromPricePrefix}${price}` : price;
+}
+
+function OptionsCount({ count }: { count: number }) {
+  const { fmt, t } = useLanguage();
+  if (count < 1) return null;
+  return (
+    <Badge variant="outline" className="text-[10px]">
+      {fmt.number(count)} {t.listing.optionsLabel}
+    </Badge>
+  );
+}
+
 export function ListingCard({
   listing,
   variant = "grid",
@@ -66,7 +87,7 @@ export function ListingCard({
 }) {
   const { t, fmt } = useLanguage();
   const image = listing.images[0];
-  const price = fmt.price(listing.price, listing.price_type, listing.unit);
+  const price = displayPrice(listing, fmt, t);
 
   if (variant === "list") {
     return (
@@ -94,7 +115,10 @@ export function ListingCard({
               </Badge>
             )}
           </div>
-          <p className="font-bold text-emerald-600 dark:text-emerald-400">{price}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-bold text-emerald-600 dark:text-emerald-400">{price}</p>
+            <OptionsCount count={listing.variants.length} />
+          </div>
           <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
             {listing.description}
           </p>
@@ -145,6 +169,9 @@ export function ListingCard({
             <ViewCount count={listing.view_count} />
           </span>
         </div>
+        {listing.variants.length > 0 && (
+          <OptionsCount count={listing.variants.length} />
+        )}
         {listing.shop && (
           <p className="truncate text-[11px] text-muted-foreground">🏪 {listing.shop.shop_name}</p>
         )}

@@ -1,9 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { X } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 
 import { CategorySelectOptions, OTHER_CATEGORY_VALUE } from "@/components/categories/CategorySelectOptions";
 import { ListingPhotoManager } from "@/components/listings/ListingPhotoManager";
@@ -21,7 +21,7 @@ import { translateApiError } from "@/lib/i18n/errors";
 import { createListing, updateListing, uploadListingImage, type ListingPayload } from "@/lib/api/listings";
 import { getMyShops } from "@/lib/api/shops";
 import { CONDITION_LABELS } from "@/lib/utils";
-import { type ListingFormValues, listingSchema } from "@/lib/validation/listing";
+import { MAX_VARIANTS, type ListingFormValues, listingSchema } from "@/lib/validation/listing";
 import type { Category, Condition, Listing, Shop } from "@/types/api";
 
 const MAX_PHOTOS = 8;
@@ -55,6 +55,7 @@ export function ListingForm({
     handleSubmit,
     watch,
     setValue,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<ListingFormValues>({
     resolver: zodResolver(listingSchema),
@@ -70,7 +71,15 @@ export function ListingForm({
       custom_category: listing?.custom_category ?? "",
       fulfillment_type: listing?.fulfillment_type ?? "pickup",
       pickup_address: listing?.pickup_address ?? "",
+      hasVariants: Boolean(listing?.variants && listing.variants.length > 0),
+      variants:
+        listing?.variants?.map((v) => ({ name: v.name, price: v.price, is_available: v.is_available })) ?? [],
     },
+  });
+
+  const { fields: variantFields, append: appendVariant, remove: removeVariant } = useFieldArray({
+    control,
+    name: "variants",
   });
 
   useEffect(() => {
@@ -109,10 +118,13 @@ export function ListingForm({
   const shopId = watch("shop_id");
   const fulfillmentType = watch("fulfillment_type");
   const categoryId = watch("category_id");
+  const hasVariants = watch("hasVariants");
   const isShopListing = mode === "edit" ? Boolean(listing?.shop) : Boolean(shopId);
+  const showVariants = isShopListing && hasVariants;
 
   const onSubmit = async (values: ListingFormValues) => {
     setServerError(null);
+    const submittingVariants = isShopListing && values.hasVariants;
     const payload: ListingPayload = {
       title: values.title,
       description: values.description,
@@ -126,6 +138,15 @@ export function ListingForm({
       tags,
       fulfillment_type: values.fulfillment_type,
       pickup_address: values.fulfillment_type === "delivery" ? null : values.pickup_address,
+      // undefined = no variants payload at all (create, or a personal
+      // listing, which must never send this field even as []). [] on an
+      // edited shop listing with options toggled off is an explicit
+      // "remove every option".
+      variants: submittingVariants
+        ? values.variants!.map((v) => ({ name: v.name.trim(), price: Number(v.price), is_available: v.is_available }))
+        : mode === "edit" && isShopListing
+          ? []
+          : undefined,
     };
 
     try {
@@ -310,48 +331,116 @@ export function ListingForm({
         </div>
       </FormSection>
 
+      {/* --- Options (variants) ------------------------------------------ */}
+      {isShopListing && (
+        <FormSection title={t.listingForm.sectionVariants} description={t.listingForm.sectionVariantsHint}>
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" className="size-4" {...register("hasVariants")} />
+            {t.listingForm.hasVariants}
+          </label>
+
+          {hasVariants && (
+            <div className="flex flex-col gap-3">
+              {variantFields.map((field, i) => (
+                <div key={field.id} className="flex items-end gap-2">
+                  <div className="flex flex-1 flex-col gap-1.5">
+                    {i === 0 && <Label htmlFor={`variants.${i}.name`}>{t.listingForm.variantName}</Label>}
+                    <Input
+                      id={`variants.${i}.name`}
+                      placeholder={t.listingForm.variantNamePlaceholder}
+                      {...register(`variants.${i}.name` as const)}
+                    />
+                  </div>
+                  <div className="flex w-28 flex-col gap-1.5">
+                    {i === 0 && <Label htmlFor={`variants.${i}.price`}>{t.listingForm.variantPrice} (৳)</Label>}
+                    <Input
+                      id={`variants.${i}.price`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      {...register(`variants.${i}.price` as const)}
+                    />
+                  </div>
+                  <label className="flex items-center gap-1.5 pb-2 text-xs text-muted-foreground">
+                    <input type="checkbox" className="size-4" {...register(`variants.${i}.is_available` as const)} />
+                    {t.listingForm.variantAvailable}
+                  </label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t.listingForm.removeVariant}
+                    onClick={() => removeVariant(i)}
+                  >
+                    <Trash2 className="size-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+              {(errors.variants?.root?.message ?? errors.variants?.message) && (
+                <p className="text-xs text-destructive">
+                  {errors.variants.root?.message ?? errors.variants.message}
+                </p>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="self-start"
+                disabled={variantFields.length >= MAX_VARIANTS}
+                onClick={() => appendVariant({ name: "", price: "", is_available: true })}
+              >
+                <Plus className="size-4" /> {t.listingForm.addVariant}
+              </Button>
+            </div>
+          )}
+        </FormSection>
+      )}
+
       {/* --- Pricing --------------------------------------------------- */}
-      <FormSection
-        title={t.listingForm.sectionPricing}
-        description={t.listingForm.sectionPricingHint}
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="price_type">{t.listingForm.priceType}</Label>
-            <select id="price_type" className={selectClass} {...register("price_type")}>
-              <option value="fixed">{t.common.fixed}</option>
-              <option value="negotiable">{t.common.negotiable}</option>
-              <option value="free">{t.common.free}</option>
-            </select>
+      {!showVariants && (
+        <FormSection
+          title={t.listingForm.sectionPricing}
+          description={t.listingForm.sectionPricingHint}
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="price_type">{t.listingForm.priceType}</Label>
+              <select id="price_type" className={selectClass} {...register("price_type")}>
+                <option value="fixed">{t.common.fixed}</option>
+                <option value="negotiable">{t.common.negotiable}</option>
+                <option value="free">{t.common.free}</option>
+              </select>
+            </div>
+
+            {priceType !== "free" && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="price">{t.listingForm.price} (৳)</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  {...register("price")}
+                />
+                {errors.price && <p className="text-xs text-destructive">{errors.price.message}</p>}
+              </div>
+            )}
           </div>
 
           {priceType !== "free" && (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="price">{t.listingForm.price} (৳)</Label>
-              <Input
-                id="price"
-                type="number"
-                min="0"
-                step="0.01"
-                className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                {...register("price")}
-              />
-              {errors.price && <p className="text-xs text-destructive">{errors.price.message}</p>}
+              <Label htmlFor="unit">
+                {t.listingForm.unit} ({t.common.optional})
+              </Label>
+              <Input id="unit" placeholder={t.listingForm.unitPlaceholder} {...register("unit")} />
+              <p className="text-xs text-muted-foreground">{t.listingForm.unitHint}</p>
+              {errors.unit && <p className="text-xs text-destructive">{errors.unit.message}</p>}
             </div>
           )}
-        </div>
-
-        {priceType !== "free" && (
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="unit">
-              {t.listingForm.unit} ({t.common.optional})
-            </Label>
-            <Input id="unit" placeholder={t.listingForm.unitPlaceholder} {...register("unit")} />
-            <p className="text-xs text-muted-foreground">{t.listingForm.unitHint}</p>
-            {errors.unit && <p className="text-xs text-destructive">{errors.unit.message}</p>}
-          </div>
-        )}
-      </FormSection>
+        </FormSection>
+      )}
 
       {/* --- Fulfillment ------------------------------------------------ */}
       <FormSection
