@@ -230,6 +230,38 @@ async def has_shop_access(db: AsyncSession, shop_id: uuid.UUID, user_id: uuid.UU
     return result.scalar_one_or_none() is not None
 
 
+def managed_shop_ids_select(user_id: uuid.UUID):
+    """Shops this user can operate on: owns, or is an accepted collaborator
+    of. A composable Select (mirrors the collaborator-half of
+    list_my_shops's own query) -- callers either fold it straight into
+    another query's `.in_(...)` or execute it directly to materialize the
+    ids, e.g. for widening chat's conversation list beyond the single
+    `seller_id` a conversation happens to be stamped with."""
+    collaborator_shop_ids = select(ShopCollaborator.shop_id).where(
+        ShopCollaborator.user_id == user_id, ShopCollaborator.status == ShopCollaboratorStatus.accepted
+    )
+    return select(Shop.id).where((Shop.owner_id == user_id) | (Shop.id.in_(collaborator_shop_ids)))
+
+
+async def team_member_ids(db: AsyncSession, shop_id: uuid.UUID) -> list[uuid.UUID]:
+    """Everyone who should hear about something happening to this shop: the
+    owner plus every accepted collaborator. Used to fan out chat
+    notifications so a buyer's message reaches the whole team, not just
+    whichever one person a conversation happens to be stamped with as
+    `seller_id`."""
+    result = await db.execute(select(Shop.owner_id).where(Shop.id == shop_id))
+    owner_id = result.scalar_one_or_none()
+    if owner_id is None:
+        return []
+    result = await db.execute(
+        select(ShopCollaborator.user_id).where(
+            ShopCollaborator.shop_id == shop_id,
+            ShopCollaborator.status == ShopCollaboratorStatus.accepted,
+        )
+    )
+    return [owner_id, *result.scalars().all()]
+
+
 async def get_shop_with_access(db: AsyncSession, shop_id: uuid.UUID, user: User) -> Shop:
     """Owner or accepted collaborator -- day-to-day shop operation (editing
     the shop, its listings, its posts). Everything a collaborator does

@@ -11,7 +11,7 @@ from app.models.conversation import Conversation, Message
 from app.models.notification import NotificationType
 from app.models.user import User
 from app.schemas.chat import ConversationListingOut, ConversationOut, MessageOut, SendMessageRequest
-from app.services import chat_service, listing_service, media_service, notification_service
+from app.services import chat_service, listing_service, media_service, notification_service, shop_service
 from app.websocket.manager import manager
 
 settings = get_settings()
@@ -19,10 +19,16 @@ settings = get_settings()
 router = APIRouter(tags=["chat"])
 
 
-def _to_conversation_out(
-    conversation: Conversation, user: User, last_message: Message | None, unread_count: int
+async def _to_conversation_out(
+    db: AsyncSession, conversation: Conversation, user: User, last_message: Message | None, unread_count: int
 ) -> ConversationOut:
-    is_seller = user.id == conversation.seller_id
+    # A collaborator reading their shop's conversation is on the seller
+    # side too, even though they aren't the one literal user stamped as
+    # Conversation.seller_id -- otherwise they'd see themselves mislabeled
+    # as the buyer, looking at their own shop's reply as a stranger's.
+    is_seller = user.id == conversation.seller_id or (
+        conversation.shop_id is not None and await shop_service.has_shop_access(db, conversation.shop_id, user.id)
+    )
     counterparty = conversation.buyer if is_seller else conversation.seller
     listing = conversation.listing
     return ConversationOut(
@@ -54,7 +60,7 @@ async def contact_seller(
 ) -> ConversationOut:
     listing = await listing_service.get_listing(db, listing_id)
     conversation = await chat_service.get_or_create_conversation(db, listing, user)
-    return _to_conversation_out(conversation, user, last_message=None, unread_count=0)
+    return await _to_conversation_out(db, conversation, user, last_message=None, unread_count=0)
 
 
 @router.get("/conversations", response_model=list[ConversationOut])
@@ -66,7 +72,7 @@ async def list_conversations(
 ) -> list[ConversationOut]:
     rows = await chat_service.list_conversations(db, user, shop_id, personal_only)
     return [
-        _to_conversation_out(row["conversation"], user, row["last_message"], row["unread_count"])
+        await _to_conversation_out(db, row["conversation"], user, row["last_message"], row["unread_count"])
         for row in rows
     ]
 
@@ -78,7 +84,7 @@ async def get_conversation(
     conversation = await chat_service.get_conversation_for_user(db, conversation_id, user)
     last_message = await chat_service.get_last_message(db, conversation)
     unread = await chat_service.count_unread(db, conversation, user)
-    return _to_conversation_out(conversation, user, last_message, unread)
+    return await _to_conversation_out(db, conversation, user, last_message, unread)
 
 
 @router.get("/conversations/{conversation_id}/messages", response_model=list[MessageOut])
@@ -101,6 +107,49 @@ def _sender_display_name(conversation: Conversation, sender_id: uuid.UUID) -> st
     return conversation.seller.full_name
 
 
+async def _deliver_message(
+    db: AsyncSession,
+    background_tasks: BackgroundTasks,
+    conversation: Conversation,
+    message: Message,
+    *,
+    title: str,
+    body: str,
+    email_subject: str,
+    email_body: str,
+) -> None:
+    """Push + notify whoever a message is addressed to. A buyer's message to
+    a shop listing is addressed to the whole team (owner + every accepted
+    collaborator), not just whichever one person happens to be stamped as
+    Conversation.seller_id -- otherwise only that one person would ever
+    hear about it, which was the bug being fixed here."""
+    if conversation.shop_id is not None and message.receiver_id == conversation.seller_id:
+        recipients = await shop_service.team_member_ids(db, conversation.shop_id)
+    else:
+        recipients = [message.receiver_id]
+
+    payload = {
+        "type": "message",
+        "conversation_id": str(conversation.id),
+        "message": MessageOut.model_validate(message).model_dump(mode="json"),
+    }
+    for recipient_id in recipients:
+        await manager.send_to_user(recipient_id, payload)
+        await notification_service.notify(
+            db,
+            background_tasks,
+            recipient_id,
+            NotificationType.new_message,
+            title=title,
+            body=body,
+            link_url=f"/inbox/{conversation.id}",
+            email_subject=email_subject,
+            email_body=email_body,
+            email_if_offline_only=True,
+            related_conversation_id=conversation.id,
+        )
+
+
 @router.post(
     "/conversations/{conversation_id}/messages",
     response_model=MessageOut,
@@ -115,28 +164,21 @@ async def post_message(
 ) -> Message:
     conversation = await chat_service.get_conversation_for_user(db, conversation_id, user)
     message = await chat_service.send_message(db, conversation, user, payload.content)
-    await manager.send_to_user(
-        message.receiver_id,
-        {"type": "message", "conversation_id": str(conversation.id), "message": MessageOut.model_validate(message).model_dump(mode="json")},
-    )
 
     sender_name = _sender_display_name(conversation, user.id)
-    await notification_service.notify(
+    await _deliver_message(
         db,
         background_tasks,
-        message.receiver_id,
-        NotificationType.new_message,
+        conversation,
+        message,
         title=f"New message from {sender_name}",
         body=message.content[:200],
-        link_url=f"/inbox/{conversation.id}",
         email_subject=f"New message from {sender_name} on KenaBecha JU",
         email_body=(
             f"{sender_name} sent you a message about \"{conversation.listing.title}\":\n\n"
             f"{message.content}\n\n"
             f"Reply at: {settings.FRONTEND_URL}/inbox/{conversation.id}"
         ),
-        email_if_offline_only=True,
-        related_conversation_id=conversation.id,
     )
 
     return message
@@ -188,31 +230,19 @@ async def send_attachment(
         db, conversation, user, caption.strip() or "📷 Photo", image_url
     )
 
-    await manager.send_to_user(
-        message.receiver_id,
-        {
-            "type": "message",
-            "conversation_id": str(conversation.id),
-            "message": MessageOut.model_validate(message).model_dump(mode="json"),
-        },
-    )
-
     sender_name = _sender_display_name(conversation, user.id)
-    await notification_service.notify(
+    await _deliver_message(
         db,
         background_tasks,
-        message.receiver_id,
-        NotificationType.new_message,
+        conversation,
+        message,
         title=f"New photo from {sender_name}",
         body=message.content[:200],
-        link_url=f"/inbox/{conversation.id}",
         email_subject=f"New message from {sender_name} on KenaBecha JU",
         email_body=(
             f'{sender_name} sent you a photo about "{conversation.listing.title}".\n\n'
             f"View it at: {settings.FRONTEND_URL}/inbox/{conversation.id}"
         ),
-        email_if_offline_only=True,
-        related_conversation_id=conversation.id,
     )
 
     return message
