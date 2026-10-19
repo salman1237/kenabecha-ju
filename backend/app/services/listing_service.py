@@ -412,14 +412,28 @@ async def list_related_listings(db: AsyncSession, listing: Listing, limit: int =
 
 
 async def list_my_listings(db: AsyncSession, seller_id: uuid.UUID, shop_id: uuid.UUID | None = None) -> list[Listing]:
-    query = select(Listing).where(Listing.seller_id == seller_id, Listing.deleted_at.is_(None))
     if shop_id is not None:
-        # One shop's own inventory has a real manual order (Phase 53); a
-        # cross-shop or personal view has no single order to sort by, so it
-        # keeps the newest-first default.
-        query = query.where(Listing.shop_id == shop_id).order_by(Listing.sort_order.asc())
+        # A shop's own inventory means every listing under it, not just the
+        # ones this particular team member happens to have created --
+        # otherwise a collaborator or owner filtering to "their" shop would
+        # see teammates' listings vanish, the same gap already fixed for
+        # single-listing management in get_owned_listing/has_shop_access.
+        if not await shop_service.has_shop_access(db, shop_id, seller_id):
+            return []
+        query = (
+            select(Listing)
+            .where(Listing.shop_id == shop_id, Listing.deleted_at.is_(None))
+            # One shop's own inventory has a real manual order (Phase 53);
+            # a cross-shop or personal view has no single order to sort
+            # by, so it keeps the newest-first default.
+            .order_by(Listing.sort_order.asc())
+        )
     else:
-        query = query.where(Listing.shop_id.is_(None)).order_by(Listing.created_at.desc())
+        query = (
+            select(Listing)
+            .where(Listing.seller_id == seller_id, Listing.shop_id.is_(None), Listing.deleted_at.is_(None))
+            .order_by(Listing.created_at.desc())
+        )
     return list((await db.execute(query)).scalars().unique().all())
 
 

@@ -243,6 +243,37 @@ async def test_owner_can_manage_a_listing_a_collaborator_created(client, db):
     assert edit_res.json()["title"] == "Edited by owner"
 
 
+async def test_shop_filtered_my_listings_shows_every_teammates_listing(client, db):
+    """GET /listings/mine?shop_id=... used to still require seller_id ==
+    the viewer even with a shop filter applied, so a shop owner filtering
+    to their own shop would see a teammate's listings silently vanish --
+    the same access gap already fixed for single-listing management,
+    exposed here on the list endpoint instead."""
+    owner = await make_user(db)
+    collaborator = await make_user(db)
+    shop = await _shop(db, owner)
+    await _accept_collaborator(db, shop, collaborator)
+
+    await login(client, collaborator)
+    create_res = await client.post(
+        "/listings",
+        json={
+            "title": "Added by collaborator",
+            "description": "A description long enough to be realistic.",
+            "price": "500",
+            "shop_id": str(shop.id),
+            "fulfillment_type": "pickup",
+            "pickup_address": "Shop counter",
+        },
+    )
+    listing_id = create_res.json()["id"]
+
+    await login(client, owner)
+    res = await client.get(f"/listings/mine?shop_id={shop.id}")
+    assert res.status_code == 200, res.text
+    assert listing_id in [listing["id"] for listing in res.json()]
+
+
 async def test_any_collaborator_can_manage_any_teammates_listing(client, db):
     """Shop management is shared by the whole team, not just owner<->creator:
     a second collaborator who didn't create the listing -- and isn't the
