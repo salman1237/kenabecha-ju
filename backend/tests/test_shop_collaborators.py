@@ -243,6 +243,44 @@ async def test_owner_can_manage_a_listing_a_collaborator_created(client, db):
     assert edit_res.json()["title"] == "Edited by owner"
 
 
+async def test_any_collaborator_can_manage_any_teammates_listing(client, db):
+    """Shop management is shared by the whole team, not just owner<->creator:
+    a second collaborator who didn't create the listing -- and isn't the
+    owner either -- can still edit and delete it, and the detail endpoint's
+    can_manage flag agrees."""
+    owner = await make_user(db)
+    creator = await make_user(db)
+    other_collaborator = await make_user(db)
+    shop = await _shop(db, owner)
+    await _accept_collaborator(db, shop, creator)
+    await _accept_collaborator(db, shop, other_collaborator)
+
+    await login(client, creator)
+    create_res = await client.post(
+        "/listings",
+        json={
+            "title": "Added by one collaborator",
+            "description": "A description long enough to be realistic.",
+            "price": "500",
+            "shop_id": str(shop.id),
+            "fulfillment_type": "pickup",
+            "pickup_address": "Shop counter",
+        },
+    )
+    listing_id = create_res.json()["id"]
+
+    await login(client, other_collaborator)
+    detail_res = await client.get(f"/listings/{listing_id}")
+    assert detail_res.json()["can_manage"] is True
+
+    edit_res = await client.patch(f"/listings/{listing_id}", json={"title": "Edited by the other collaborator"})
+    assert edit_res.status_code == 200, edit_res.text
+    assert edit_res.json()["title"] == "Edited by the other collaborator"
+
+    delete_res = await client.delete(f"/listings/{listing_id}")
+    assert delete_res.status_code == 204, delete_res.text
+
+
 async def test_an_unverified_employee_can_be_invited_and_list_for_the_shop(client, db):
     """A shop owner should be able to bring on a non-JU employee to run the
     shop day to day -- the shop's legitimacy rests on the verified owner,
