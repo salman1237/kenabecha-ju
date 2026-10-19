@@ -623,6 +623,14 @@ Found live by the user: opening a shop listing their employee had created showed
 
 Fix: `GET /listings/{id}` now populates a server-computed `can_manage: bool` on `ListingOut`, mirroring the existing `has_pending_restock_request` pattern (`.model_copy(update={...})` after `model_validate`, since it needs an async DB call). Both frontend gates now read `listing.can_manage` instead of the literal seller comparison. Full 336-test backend suite passes unchanged; frontend typecheck clean.
 
+## Phase 68 — Navbar and My Shops dashboard polish (implemented)
+
+User feedback: the navbar "isn't modern" and the My Shops dashboard is "missing something, not user-friendly." Both were already fairly polished (Phase 61's pill nav, scroll elevation, gradient logo), so the fix was two targeted, concrete gaps rather than a redesign:
+
+**Navbar** (`components/layout/Navbar.tsx`): "Sell Item" was just one of six identical-looking pills in the signed-in nav group, with no visual hierarchy. It's now pulled out into its own filled emerald/teal gradient button (desktop pill row and the mobile sheet both), the one clear call to action in the row — the admin-managed link list still drives it, matched by `href === "/listings/new"`.
+
+**My Shops dashboard** (`app/shops/dashboard/page.tsx`): two real gaps. (1) A shop's cover photo — uploaded in Edit → Branding — was never shown anywhere on this page, the one place an owner actually checks in on their shop; the dashboard card now renders it as a header strip. (2) There was no way to see a shop's own listings from its card — only Add/Edit/Delete. Added a "View listings" link to `/dashboard/listings?shop=<id>`; that page now reads an optional `?shop=` param to initialize its existing shop filter, so the link lands pre-filtered instead of dumping the owner into "all shops."
+
 ---
 
 ## Notable deviations & judgment calls not covered above
