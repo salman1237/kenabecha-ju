@@ -175,6 +175,13 @@ class ListingOut(BaseModel):
     # which would be an N+1 on every listing in a results page.
     has_pending_restock_request: bool | None = None
     restock_request_count: int = 0
+    # Whether the viewer can edit/delete/mark-sold this listing — true for
+    # the literal seller, or for anyone with management access to its shop
+    # (owner or accepted collaborator). Only get_listing populates this
+    # (same reasoning as has_pending_restock_request above); it defaults to
+    # False everywhere else rather than being computed per row in bulk
+    # browse results.
+    can_manage: bool = False
 
     @computed_field
     @property

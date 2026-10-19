@@ -129,11 +129,15 @@ async def get_listing(
     # instead of rendering a misleading "not requested" state — same
     # reasoning as ShopStatsOut.is_following.
     if viewer is not None:
+        can_manage = viewer.id == listing.seller_id or (
+            listing.shop_id is not None and await shop_service.has_shop_access(db, listing.shop_id, viewer.id)
+        )
         out = out.model_copy(
             update={
                 "has_pending_restock_request": await listing_service.has_pending_restock_request(
                     db, listing.id, viewer.id
-                )
+                ),
+                "can_manage": can_manage,
             }
         )
     return out

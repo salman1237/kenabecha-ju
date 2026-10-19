@@ -85,7 +85,7 @@ export default function EditListingPage() {
   if (error) {
     return <p className="mx-auto max-w-3xl px-6 py-12 text-sm text-destructive">{error}</p>;
   }
-  if (!user || (listing && listing.seller.id !== user.id)) {
+  if (!user || (listing && !(listing.can_manage ?? listing.seller.id === user.id))) {
     return (
       <p className="mx-auto max-w-3xl px-6 py-12 text-center text-sm text-muted-foreground">
         {t.errors.forbidden}

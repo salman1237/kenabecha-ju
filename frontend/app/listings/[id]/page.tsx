@@ -112,7 +112,10 @@ export default function ListingDetailPage() {
     return <p className="mx-auto max-w-2xl px-6 py-12 text-sm text-destructive">{t.listing.notFound}</p>;
   }
 
-  const isOwner = user?.id === listing.seller.id;
+  // listing.can_manage covers shop collaborators too, not just the literal
+  // seller — a shop owner must be able to manage listings their employees
+  // created under the same shop.
+  const isOwner = listing.can_manage ?? user?.id === listing.seller.id;
   const selectedVariant = listing.variants.find((v) => v.id === selectedVariantId) ?? null;
   const sellerName = listing.shop ? listing.shop.shop_name : listing.seller.full_name;
   const sellerHref = listing.shop ? `/shops/${listing.shop.slug}` : `/profile/${listing.seller.id}`;

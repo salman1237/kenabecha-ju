@@ -188,6 +188,10 @@ export interface Listing {
   // login rather than render a misleading "not requested" state.
   has_pending_restock_request?: boolean | null;
   restock_request_count?: number;
+  // Only the single listing detail page populates this — true for the
+  // literal seller, or anyone with management access to the listing's shop
+  // (owner or accepted collaborator). Defaults to false elsewhere.
+  can_manage?: boolean;
 }
 
 export interface Page<T> {
