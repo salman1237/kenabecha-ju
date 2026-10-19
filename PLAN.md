@@ -617,6 +617,12 @@ A shop listing can now offer priced options (size, pack quantity, edition) inste
 
 **Follow-up, same day**: a per-variant `unit` (migration `d3f8a2c6e5b1`) — a seller pointed out that different weight-range options of the same fish are each priced per kg (e.g. "800-900 gm" at ৳2750/kg vs "1 kg-1.2 kg" at ৳3200/kg), and the original design only had a listing-wide unit, hidden entirely once variants were enabled. `Listing.unit` is now synced from the cheapest variant's own unit alongside `Listing.price`, the same "representative snapshot" approach already used for price, so every existing surface that reads `listing.unit`/`listing.price` (browse cards, the chat preview) picked this up for free — the one real fix needed was the detail page's variant-selected price line, which was still reading the listing's own `unit` instead of the selected variant's. 13 tests now, 336 total. Verified live with the exact fish example: `৳2,750/kg` initially, swapping to `৳3,200/kg` on selecting the heavier option.
 
+## Phase 67 — Shop owners couldn't manage listings their collaborators created (fixed)
+
+Found live by the user: opening a shop listing their employee had created showed the buyer-facing panel (price, "Chat with seller") instead of owner controls — no Edit, no Mark as sold, and the owner couldn't even message themselves about their own shop's product. Root-caused to the frontend only: `app/listings/[id]/page.tsx` and `.../edit/page.tsx` each independently gated their owner UI on a naive `user.id === listing.seller.id` check, which only ever matches the listing's literal creator. The backend side was already correct — every mutation route (`update_listing`, `delete_listing`, `mark_sold`, image management, etc.) already calls `listing_service.get_owned_listing`, which falls back to `shop_service.has_shop_access` (owner or accepted collaborator) — so this was purely a case of the UI never showing the controls for a permission the server already granted.
+
+Fix: `GET /listings/{id}` now populates a server-computed `can_manage: bool` on `ListingOut`, mirroring the existing `has_pending_restock_request` pattern (`.model_copy(update={...})` after `model_validate`, since it needs an async DB call). Both frontend gates now read `listing.can_manage` instead of the literal seller comparison. Full 336-test backend suite passes unchanged; frontend typecheck clean.
+
 ---
 
 ## Notable deviations & judgment calls not covered above
