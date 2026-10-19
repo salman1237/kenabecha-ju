@@ -303,6 +303,7 @@ export const bn: Translations = {
     shopTypeHint: "যেমন: খাবার, গয়না, ইলেকট্রনিক্স",
     description: "বিবরণ",
     addListing: "পণ্য যোগ করুন",
+    viewListings: "পণ্যসমূহ দেখুন",
     viewShop: "দোকান দেখুন",
     uncategorized: "শ্রেণিবিহীন",
     activeListings2: "সক্রিয়",

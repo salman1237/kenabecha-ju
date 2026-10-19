@@ -85,7 +85,13 @@ export function Navbar() {
   // search box, bell, avatar menu and the two toggles are not links but
   // controls, so they stay in code; an admin can only switch them off.
   const [navbarMenu] = menusAt(navigation, "navbar");
-  const primaryLinks = navbarMenu ? visibleLinks(navbarMenu, Boolean(user)) : [];
+  const allLinks = navbarMenu ? visibleLinks(navbarMenu, Boolean(user)) : [];
+  // "Sell Item" is the one action in this row, not a destination like the
+  // rest — pulling it out of the uniform pill group into its own filled
+  // button gives the row a visual hierarchy (one clear call to action)
+  // instead of six identical-looking links competing for attention.
+  const sellLink = allLinks.find((link) => link.href === "/listings/new");
+  const primaryLinks = allLinks.filter((link) => link.href !== "/listings/new");
   const controls = navigation.navbar_controls;
 
   // Prefix match, except /shops must not light up on /shops/dashboard —
@@ -171,6 +177,16 @@ export function Navbar() {
             </NavLink>
           ))}
         </nav>
+
+        {sellLink && (
+          <Link
+            href={sellLink.href}
+            className="hidden shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-1.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition-all hover:scale-[1.03] hover:from-emerald-500 hover:to-teal-500 hover:shadow-lg hover:shadow-emerald-600/30 lg:inline-flex"
+          >
+            <PlusCircle className="size-4" />
+            {navLabel(sellLink, locale, t)}
+          </Link>
+        )}
       </div>
 
       {/* Search Bar */}
@@ -288,6 +304,19 @@ export function Navbar() {
                         )}
                       </SheetClose>
                     ))}
+                    {sellLink && (
+                      <SheetClose
+                        render={
+                          <Link
+                            href={sellLink.href}
+                            className="mt-1 flex items-center gap-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-3 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-600/20"
+                          />
+                        }
+                      >
+                        <PlusCircle className="size-4" />
+                        {navLabel(sellLink, locale, t)}
+                      </SheetClose>
+                    )}
                     <SheetClose render={<Link href="/dashboard" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-emerald-500/10" />}>
                       <LayoutDashboard className="size-4 text-emerald-600 dark:text-emerald-400" />
                       {t.nav.dashboard}

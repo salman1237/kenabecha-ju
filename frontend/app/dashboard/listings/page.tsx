@@ -3,6 +3,7 @@
 import { ArrowDown, ArrowUp, Bell, Package, PlusCircle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { motion } from "motion/react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -209,6 +210,7 @@ function ReorderableShopListings({
 export default function MyListingsPage() {
   const { user } = useAuth();
   const { t, fmt } = useLanguage();
+  const searchParams = useSearchParams();
   const [personal, setPersonal] = useState<Listing[]>([]);
   const [shopListings, setShopListings] = useState<Listing[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
@@ -216,8 +218,10 @@ export default function MyListingsPage() {
   const [status, setStatus] = useState<string>("all");
   // "all" merges everything (the original view); "personal" and a shop id
   // narrow to one source, which is also what unlocks manual reordering —
-  // an "all shops" order has no single owner to resolve conflicts.
-  const [shopFilter, setShopFilter] = useState<string>("all");
+  // an "all shops" order has no single owner to resolve conflicts. Can be
+  // deep-linked via ?shop=<id> — the My Shops dashboard has no listings
+  // view of its own, so its "View listings" link lands here pre-filtered.
+  const [shopFilter, setShopFilter] = useState<string>(() => searchParams.get("shop") ?? "all");
 
   useEffect(() => {
     if (!user) return;

@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Camera, Megaphone, Pencil, PlusCircle, Trash2 } from "lucide-react";
+import { Camera, Megaphone, Package, Pencil, PlusCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useLanguage } from "@/context/LanguageContext";
@@ -572,9 +572,17 @@ export default function MyShopsPage() {
                 onCancel={() => setEditingShopId(null)}
               />
             ) : (
-              <Card key={shop.id} className="overflow-hidden">
-                <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-semibold text-muted-foreground">
+              <Card key={shop.id} className="overflow-hidden py-0">
+                {/* The cover photo a seller already uploaded (in Edit → Branding)
+                    was invisible everywhere on this page until now — this is the
+                    one place a shop owner actually checks in on their shop. */}
+                {shop.cover_url && (
+                  <div className="h-20 w-full">
+                    <SmartImage src={shop.cover_url} alt="" sizes="100vw" />
+                  </div>
+                )}
+                <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-sm font-semibold text-muted-foreground ring-2 ring-background">
                     <SmartImage
                       src={shop.logo_url}
                       alt=""
@@ -595,6 +603,12 @@ export default function MyShopsPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
+                        href={`/dashboard/listings?shop=${shop.id}`}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      >
+                        <Package /> {t.shops.viewListings}
+                      </Link>
+                      <Link
                         href={`/listings/new?shop_id=${shop.id}`}
                         className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
                       >
@@ -604,7 +618,7 @@ export default function MyShopsPage() {
                         href={`/shops/dashboard/posts?shop_id=${shop.id}`}
                         className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
                       >
-                        <Megaphone /> Posts
+                        <Megaphone /> {t.nav.posts}
                       </Link>
                       <Button variant="ghost" size="sm" onClick={() => setEditingShopId(shop.id)}>
                         <Pencil /> {t.common.edit}

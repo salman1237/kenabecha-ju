@@ -301,6 +301,7 @@ export const en = {
     shopTypeHint: "e.g. Food, Jewellery, Electronics",
     description: "Description",
     addListing: "Add listing",
+    viewListings: "View listings",
     viewShop: "View shop",
     uncategorized: "Uncategorised",
     activeListings2: "active",
